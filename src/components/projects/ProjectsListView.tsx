@@ -168,7 +168,9 @@ function formatDate(dateStr: string) {
 export function ProjectsListView() {
   const { showToast } = useToast();
   const layoutId = useId();
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<number>(1);
   
   // View & Filter State
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
@@ -196,26 +198,59 @@ export function ProjectsListView() {
   const [availableUsers, setAvailableUsers] = useState<{ name: string; initial: string }[]>(AVAILABLE_USERS);
   const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
 
+  const fetchProjects = async (wid: number, email: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/project?wid=${wid}&email=${encodeURIComponent(email)}`);
+      const json = await res.json();
+      if (json.success) {
+        const mapped = json.projects.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || "",
+          progress: p.progress,
+          startDate: p.startDate ? new Date(p.startDate).toISOString().split("T")[0] : "",
+          due: p.due ? new Date(p.due).toISOString().split("T")[0] : "",
+          priority: p.priority,
+          status: p.status,
+          health: p.health,
+          members: p.members,
+          owner: p.owner,
+          estimatedHours: p.estimatedHours,
+          category: p.category,
+        }));
+        setProjects(mapped);
+      }
+    } catch (err) {
+      console.error("Error fetching projects:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const loadTeam = async () => {
+    const init = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid");
-          const wid = onboardingWid ? parseInt(onboardingWid, 10) : 1;
-          const res = await fetch(`/api/team?email=${encodeURIComponent(user.email || "")}&wid=${wid}`);
-          const json = await res.json();
-          if (json.success && json.members) {
-            const mapped = json.members.map((u: any) => {
-              const name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email.split("@")[0];
-              const initial = (u.firstName ? u.firstName[0] : (u.lastName ? u.lastName[0] : u.email[0])).toUpperCase();
-              return { name, initial };
-            });
-            if (mapped.length > 0) {
-              setAvailableUsers(mapped);
-              if (!mapped.some((u: { name: string; initial: string }) => u.name === owner)) {
-                setOwner(mapped[0].name);
-              }
+        const email = user?.email || "";
+        const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid");
+        const wid = onboardingWid ? parseInt(onboardingWid, 10) : 1;
+        
+        setActiveWorkspaceId(wid);
+        await fetchProjects(wid, email);
+        
+        const res = await fetch(`/api/team?email=${encodeURIComponent(email)}&wid=${wid}`);
+        const json = await res.json();
+        if (json.success && json.members) {
+          const mapped = json.members.map((u: any) => {
+            const name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email.split("@")[0];
+            const initial = (u.firstName ? u.firstName[0] : (u.lastName ? u.lastName[0] : u.email[0])).toUpperCase();
+            return { name, initial };
+          });
+          if (mapped.length > 0) {
+            setAvailableUsers(mapped);
+            if (!mapped.some((u: { name: string; initial: string }) => u.name === owner)) {
+              setOwner(mapped[0].name);
             }
           }
         }
@@ -224,7 +259,7 @@ export function ProjectsListView() {
       }
     };
 
-    loadTeam();
+    init();
   }, []);
 
   // Esc key to close drawer
@@ -247,7 +282,7 @@ export function ProjectsListView() {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  const handleUpdateProject = (id: string, updates: Partial<Project>) => {
+  const handleUpdateProject = async (id: string, updates: Partial<Project>) => {
     setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
     if (selectedProject?.id === id) {
       setSelectedProject((prev) => (prev ? { ...prev, ...updates } : null));
@@ -259,45 +294,94 @@ export function ProjectsListView() {
       const val = updates[key as keyof Partial<Project>];
       showToast(`Project updated: ${key} set to ${val}`, "info");
     }
+
+    try {
+      const res = await fetch("/api/project", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...updates }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        showToast(json.error || "Failed to save update to database", "error");
+      }
+    } catch (err) {
+      console.error("Error updating project:", err);
+      showToast("Error updating project in database.", "error");
+    }
   };
 
-  const handleAddProject = (e: React.FormEvent) => {
+  const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    const newProject: Project = {
-      id: `p-${Date.now()}`,
-      name: name.trim(),
-      description: description.trim() || "No description provided.",
-      category,
-      owner,
-      startDate: startDate || new Date().toISOString().split("T")[0],
-      due: due || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-      priority,
-      status,
-      health,
-      estimatedHours: parseInt(estimatedHours) || 40,
-      progress: 0,
-      members: selectedMembers,
-    };
+    try {
+      const res = await fetch("/api/project", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          description: description.trim() || "No description provided.",
+          category,
+          owner,
+          startDate: startDate || new Date().toISOString().split("T")[0],
+          due: due || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+          priority,
+          status,
+          health,
+          estimatedHours: parseInt(estimatedHours) || 80,
+          members: selectedMembers,
+          workspaceId: activeWorkspaceId,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast(`Project "${name.trim()}" created successfully!`, "success");
+        const { data: { user } } = await supabase.auth.getUser();
+        await fetchProjects(activeWorkspaceId, user?.email || "");
+        
+        // Reset Form
+        setName("");
+        setDescription("");
+        setCategory("Engineering");
+        setOwner(availableUsers[0]?.name || "Aisha Khan");
+        setStartDate("");
+        setDue("");
+        setPriority("Normal");
+        setStatus("Discovery");
+        setHealth("good");
+        setEstimatedHours("80");
+        setSelectedMembers([availableUsers[0]?.initial || "A"]);
+        setIsTeamDropdownOpen(false);
+        setIsAddModalOpen(false);
+      } else {
+        showToast(json.error || "Failed to create project", "error");
+      }
+    } catch (err) {
+      console.error("Error creating project:", err);
+      showToast("An error occurred while creating project.", "error");
+    }
+  };
 
-    setProjects((prev) => [...prev, newProject]);
-    showToast(`Project "${newProject.name}" created successfully!`, "success");
-    
-    // Reset Form
-    setName("");
-    setDescription("");
-    setCategory("Engineering");
-    setOwner(availableUsers[0]?.name || "Aisha Khan");
-    setStartDate("");
-    setDue("");
-    setPriority("Normal");
-    setStatus("Discovery");
-    setHealth("good");
-    setEstimatedHours("80");
-    setSelectedMembers([availableUsers[0]?.initial || "A"]);
-    setIsTeamDropdownOpen(false);
-    setIsAddModalOpen(false);
+  const handleDeleteProject = async (id: string) => {
+    if (confirm("Are you sure you want to delete this project? This will dissociate any linked tasks.")) {
+      try {
+        const res = await fetch(`/api/project?id=${id}`, {
+          method: "DELETE",
+        });
+        const json = await res.json();
+        if (json.success) {
+          showToast("Project deleted successfully.", "success");
+          setProjects((prev) => prev.filter((p) => p.id !== id));
+          setSelectedProject(null);
+        } else {
+          showToast(json.error || "Failed to delete project", "error");
+        }
+      } catch (err) {
+        console.error("Error deleting project:", err);
+        showToast("An error occurred while deleting the project.", "error");
+      }
+    }
   };
 
   const toggleMemberSelection = (initial: string) => {
@@ -305,6 +389,17 @@ export function ProjectsListView() {
       prev.includes(initial) ? prev.filter((m) => m !== initial) : [...prev, initial]
     );
   };
+
+  if (loading && projects.length === 0) {
+    return (
+      <div className="flex h-[calc(100vh-3.75rem)] w-full items-center justify-center bg-transparent dark:bg-zinc-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent" />
+          <span className="text-sm font-semibold text-zinc-500">Loading projects portfolio...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-3.75rem)] w-full flex-col overflow-hidden bg-transparent dark:bg-zinc-950">
@@ -800,6 +895,17 @@ export function ProjectsListView() {
                         );
                       })}
                     </div>
+                  </div>
+
+                  {/* Delete Project Action */}
+                  <div className="pt-6 border-t border-zinc-150 dark:border-white/5">
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteProject(selectedProject.id)}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-50 px-4 py-3 text-xs font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:hover:bg-rose-950/30 transition-colors shadow-sm"
+                    >
+                      Delete Project
+                    </button>
                   </div>
 
                 </div>
