@@ -210,6 +210,7 @@ export function TaskDashboard({
   const [filterAssignees, setFilterAssignees] = useState<string[]>([]);
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
   const [filterLabels, setFilterLabels] = useState<string[]>([]);
+  const [openFilterDropdown, setOpenFilterDropdown] = useState<"assignee" | "category" | "label" | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // Modal & inline states
@@ -1477,117 +1478,159 @@ export function TaskDashboard({
                 {/* 2. Assignees */}
                 <div>
                   <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Assignees</h4>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setFilterAssignees([])}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
-                        filterAssignees.length === 0
-                          ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                          : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                      }`}
+                      onClick={() => setOpenFilterDropdown(prev => prev === "assignee" ? null : "assignee")}
+                      className="flex w-full h-10 items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-semibold text-zinc-700 shadow-sm outline-none cursor-pointer hover:bg-zinc-100/50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
                     >
-                      All
+                      <span className="truncate">
+                        {filterAssignees.length === 0 ? "All Assignees" : filterAssignees.join(", ")}
+                      </span>
+                      <ChevronDownIcon className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${openFilterDropdown === "assignee" ? "rotate-180" : ""}`} />
                     </button>
-                    {assigneesList.map((a) => {
-                      const isSelected = filterAssignees.includes(a);
-                      return (
-                        <button
-                          key={a}
-                          type="button"
-                          onClick={() => {
-                            setFilterAssignees((prev) =>
-                              prev.includes(a) ? prev.filter((item) => item !== a) : [...prev, a]
+                    {openFilterDropdown === "assignee" && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setOpenFilterDropdown(null)} />
+                        <div className="absolute left-0 mt-1.5 w-full z-20 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#121418]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterAssignees([]);
+                            }}
+                            className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                          >
+                            <span>All Assignees</span>
+                            {filterAssignees.length === 0 && <CheckIcon className="h-4 w-4 text-[var(--app-primary)]" />}
+                          </button>
+                          <div className="h-px bg-zinc-100 dark:bg-white/5 my-1" />
+                          {assigneesList.map((a) => {
+                            const isSelected = filterAssignees.includes(a);
+                            return (
+                              <button
+                                key={a}
+                                type="button"
+                                onClick={() => {
+                                  setFilterAssignees((prev) =>
+                                    prev.includes(a) ? prev.filter((item) => item !== a) : [...prev, a]
+                                  );
+                                }}
+                                className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                              >
+                                <span className="truncate">{a}</span>
+                                {isSelected && <CheckIcon className="h-4 w-4 text-[var(--app-primary)]" />}
+                              </button>
                             );
-                          }}
-                          className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
-                            isSelected
-                              ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                              : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                          }`}
-                        >
-                          {a}
-                        </button>
-                      );
-                    })}
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* 3. Categories */}
                 <div>
                   <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Categories</h4>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setFilterCategories([])}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
-                        filterCategories.length === 0
-                          ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                          : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                      }`}
+                      onClick={() => setOpenFilterDropdown(prev => prev === "category" ? null : "category")}
+                      className="flex w-full h-10 items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-semibold text-zinc-700 shadow-sm outline-none cursor-pointer hover:bg-zinc-100/50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
                     >
-                      All
+                      <span className="truncate">
+                        {filterCategories.length === 0 ? "All Categories" : filterCategories.join(", ")}
+                      </span>
+                      <ChevronDownIcon className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${openFilterDropdown === "category" ? "rotate-180" : ""}`} />
                     </button>
-                    {(customCategories || []).map((cat) => {
-                      const isSelected = filterCategories.includes(cat);
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => {
-                            setFilterCategories((prev) =>
-                              prev.includes(cat) ? prev.filter((item) => item !== cat) : [...prev, cat]
+                    {openFilterDropdown === "category" && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setOpenFilterDropdown(null)} />
+                        <div className="absolute left-0 mt-1.5 w-full z-20 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#121418]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterCategories([]);
+                            }}
+                            className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                          >
+                            <span>All Categories</span>
+                            {filterCategories.length === 0 && <CheckIcon className="h-4 w-4 text-[var(--app-primary)]" />}
+                          </button>
+                          <div className="h-px bg-zinc-100 dark:bg-white/5 my-1" />
+                          {(customCategories || []).map((cat) => {
+                            const isSelected = filterCategories.includes(cat);
+                            return (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => {
+                                  setFilterCategories((prev) =>
+                                    prev.includes(cat) ? prev.filter((item) => item !== cat) : [...prev, cat]
+                                  );
+                                }}
+                                className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                              >
+                                <span className="truncate">{cat}</span>
+                                {isSelected && <CheckIcon className="h-4 w-4 text-[var(--app-primary)]" />}
+                              </button>
                             );
-                          }}
-                          className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
-                            isSelected
-                              ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                              : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      );
-                    })}
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* 4. Labels */}
                 <div>
                   <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Labels</h4>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="relative">
                     <button
                       type="button"
-                      onClick={() => setFilterLabels([])}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
-                        filterLabels.length === 0
-                          ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                          : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                      }`}
+                      onClick={() => setOpenFilterDropdown(prev => prev === "label" ? null : "label")}
+                      className="flex w-full h-10 items-center justify-between rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-semibold text-zinc-700 shadow-sm outline-none cursor-pointer hover:bg-zinc-100/50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
                     >
-                      All
+                      <span className="truncate">
+                        {filterLabels.length === 0 ? "All Labels" : filterLabels.join(", ")}
+                      </span>
+                      <ChevronDownIcon className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${openFilterDropdown === "label" ? "rotate-180" : ""}`} />
                     </button>
-                    {(customLabels || []).map((lab) => {
-                      const isSelected = filterLabels.includes(lab);
-                      return (
-                        <button
-                          key={lab}
-                          type="button"
-                          onClick={() => {
-                            setFilterLabels((prev) =>
-                              prev.includes(lab) ? prev.filter((item) => item !== lab) : [...prev, lab]
+                    {openFilterDropdown === "label" && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setOpenFilterDropdown(null)} />
+                        <div className="absolute left-0 mt-1.5 w-full z-20 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#121418]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFilterLabels([]);
+                            }}
+                            className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                          >
+                            <span>All Labels</span>
+                            {filterLabels.length === 0 && <CheckIcon className="h-4 w-4 text-[var(--app-primary)]" />}
+                          </button>
+                          <div className="h-px bg-zinc-100 dark:bg-white/5 my-1" />
+                          {(customLabels || []).map((lab) => {
+                            const isSelected = filterLabels.includes(lab);
+                            return (
+                              <button
+                                key={lab}
+                                type="button"
+                                onClick={() => {
+                                  setFilterLabels((prev) =>
+                                    prev.includes(lab) ? prev.filter((item) => item !== lab) : [...prev, lab]
+                                  );
+                                }}
+                                className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                              >
+                                <span className="truncate">{lab}</span>
+                                {isSelected && <CheckIcon className="h-4 w-4 text-[var(--app-primary)]" />}
+                              </button>
                             );
-                          }}
-                          className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
-                            isSelected
-                              ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
-                              : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                          }`}
-                        >
-                          {lab}
-                        </button>
-                      );
-                    })}
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
