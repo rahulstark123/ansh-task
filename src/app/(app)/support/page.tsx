@@ -1,92 +1,118 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LifebuoyIcon,
   PlusIcon,
   CheckCircleIcon,
-  ArrowPathIcon,
-  MagnifyingGlassIcon,
-  ChatBubbleLeftEllipsisIcon,
-  ExclamationCircleIcon,
   ClockIcon,
   CheckIcon,
   PaperClipIcon,
-  XMarkIcon
+  XMarkIcon,
+  ExclamationCircleIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 
 interface Ticket {
   id: string;
+  ticketId: string;
   subject: string;
   category: "Technical" | "Billing" | "General" | "Feedback";
   priority: "Low" | "Medium" | "High" | "Urgent";
   status: "Open" | "In Progress" | "Resolved";
-  date: string;
+  createdAt: string;
   description: string;
+  attachmentUrls?: string[];
 }
 
-const INITIAL_TICKETS: Ticket[] = [
-  {
-    id: "TCK-1002",
-    subject: "Workspace dashboard not loading board view",
-    category: "Technical",
-    priority: "High",
-    status: "Open",
-    date: "2026-05-19",
-    description: "When opening the board view of the main task dashboard, it displays a blank white screen. Console shows a TypeError: Cannot read properties of undefined."
-  },
-  {
-    id: "TCK-1001",
-    subject: "Change invoice billing address",
-    category: "Billing",
-    priority: "Low",
-    status: "Resolved",
-    date: "2026-05-15",
-    description: "Please update the invoice billing address to 123 Main Street, Suite 400."
-  },
-  {
-    id: "TCK-1000",
-    subject: "Feature request: CSV export for tasks list",
-    category: "Feedback",
-    priority: "Medium",
-    status: "In Progress",
-    date: "2026-05-10",
-    description: "It would be great if we could download our task board as a CSV file to share with stakeholders outside the organization."
-  }
-];
-
 export default function SupportPage() {
-  const [tickets, setTickets] = useState<Ticket[]>(INITIAL_TICKETS);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [workspaceId, setWorkspaceId] = useState(1);
+
   const [subject, setSubject] = useState("");
   const [category, setCategory] = useState<Ticket["category"]>("Technical");
   const [priority, setPriority] = useState<Ticket["priority"]>("Medium");
   const [description, setDescription] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+
   const [activeTab, setActiveTab] = useState<"All" | "Open" | "In Progress" | "Resolved">("All");
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Fetch tickets on mount
+  useEffect(() => {
+    const wid = typeof window !== "undefined"
+      ? parseInt(sessionStorage.getItem("ansh_onboarding_wid") ?? "1", 10)
+      : 1;
+    setWorkspaceId(wid);
+
+    async function fetchTickets() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/support?wid=${wid}`);
+        const json = await res.json();
+        if (json.success && json.tickets) {
+          setTickets(json.tickets);
+        }
+      } catch (err) {
+        console.error("Failed to load tickets:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchTickets();
+  }, []);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const selectedFiles = Array.from(e.target.files);
+      setFiles((prev) => [...prev, ...selectedFiles]);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject.trim() || !description.trim()) return;
 
-    const newTicket: Ticket = {
-      id: `TCK-${1000 + tickets.length + 1}`,
-      subject,
-      category,
-      priority,
-      status: "Open",
-      date: new Date().toISOString().split("T")[0],
-      description
-    };
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append("workspaceId", workspaceId.toString());
+      formData.append("subject", subject.trim());
+      formData.append("category", category);
+      formData.append("priority", priority);
+      formData.append("description", description.trim());
+      
+      if (files.length > 0) {
+        files.forEach((file) => {
+          formData.append("files", file);
+        });
+      }
 
-    setTickets([newTicket, ...tickets]);
-    setSubject("");
-    setCategory("Technical");
-    setPriority("Medium");
-    setDescription("");
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 5000);
+      const res = await fetch("/api/support", {
+        method: "POST",
+        body: formData,
+      });
+
+      const json = await res.json();
+      if (json.success && json.ticket) {
+        setTickets([json.ticket, ...tickets]);
+        setSubject("");
+        setCategory("Technical");
+        setPriority("Medium");
+        setDescription("");
+        setFiles([]);
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 5000);
+      }
+    } catch (err) {
+      console.error("Failed to submit support ticket:", err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const filteredTickets = tickets.filter(
@@ -117,6 +143,19 @@ export default function SupportPage() {
     }
   };
 
+  const formatDate = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl px-6 py-10 lg:px-10">
       
@@ -134,9 +173,6 @@ export default function SupportPage() {
             Submit a support request to our engineering team or track the status of your existing requests.
           </p>
         </div>
-        
-        {/* Background decorative vector */}
-        <div className="absolute right-0 top-0 bottom-0 w-64 bg-radial-gradient opacity-10 pointer-events-none" />
       </div>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-12">
@@ -184,32 +220,42 @@ export default function SupportPage() {
                   <label className="block text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">
                     Category
                   </label>
-                  <select
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value as Ticket["category"])}
-                    className="w-full h-10 rounded-xl border border-zinc-200 bg-stone-50/50 px-3 text-xs font-semibold text-zinc-700 outline-none transition-[border-color,box-shadow] focus:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-900/30 dark:text-zinc-200"
-                  >
-                    <option value="Technical">Technical</option>
-                    <option value="Billing">Billing</option>
-                    <option value="General">General</option>
-                    <option value="Feedback">Feedback</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value as Ticket["category"])}
+                      className="w-full h-10 appearance-none rounded-xl border border-zinc-200 bg-stone-50/50 px-3 pr-10 text-xs font-semibold text-zinc-800 outline-none transition-[border-color,box-shadow] focus:border-zinc-300 focus:shadow-[0_0_0_3px_var(--app-ring)] dark:border-white/[0.08] dark:bg-zinc-900/30 dark:text-zinc-100"
+                    >
+                      <option value="Technical" className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">Technical</option>
+                      <option value="Billing" className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">Billing</option>
+                      <option value="General" className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">General</option>
+                      <option value="Feedback" className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">Feedback</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 dark:text-zinc-500">
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </div>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">
                     Priority
                   </label>
-                  <select
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value as Ticket["priority"])}
-                    className="w-full h-10 rounded-xl border border-zinc-200 bg-stone-50/50 px-3 text-xs font-semibold text-zinc-700 outline-none transition-[border-color,box-shadow] focus:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-900/30 dark:text-zinc-200"
-                  >
-                    <option value="Low">Low</option>
-                    <option value="Medium">Medium</option>
-                    <option value="High">High</option>
-                    <option value="Urgent">Urgent</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value as Ticket["priority"])}
+                      className="w-full h-10 appearance-none rounded-xl border border-zinc-200 bg-stone-50/50 px-3 pr-10 text-xs font-semibold text-zinc-800 outline-none transition-[border-color,box-shadow] focus:border-zinc-300 focus:shadow-[0_0_0_3px_var(--app-ring)] dark:border-white/[0.08] dark:bg-zinc-900/30 dark:text-zinc-100"
+                    >
+                      <option value="Low" className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">Low</option>
+                      <option value="Medium" className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">Medium</option>
+                      <option value="High" className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">High</option>
+                      <option value="Urgent" className="bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">Urgent</option>
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-zinc-400 dark:text-zinc-500">
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -227,21 +273,61 @@ export default function SupportPage() {
                 />
               </div>
 
-              <div className="rounded-xl border border-dashed border-zinc-200 bg-stone-50/30 p-4 text-center dark:border-white/10 dark:bg-zinc-900/20">
-                <PaperClipIcon className="mx-auto h-5 w-5 text-zinc-400" />
-                <span className="mt-1 block text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
-                  Attach screenshots or log files
-                </span>
-                <span className="block text-[9px] text-zinc-400">
-                  PDF, PNG, JPG, or TXT up to 5MB
-                </span>
+              {/* Dynamic File Uploader Box */}
+              <div className="space-y-2">
+                <label className="block text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">
+                  Attachments
+                </label>
+                
+                {files.length > 0 && (
+                  <div className="space-y-2 mb-2">
+                    {files.map((fileItem, idx) => (
+                      <div key={idx} className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2.5 dark:border-white/5 dark:bg-zinc-900/40">
+                        <div className="flex items-center gap-2 truncate">
+                          <PaperClipIcon className="h-4 w-4 text-indigo-500 shrink-0" />
+                          <span className="text-[11px] font-semibold truncate dark:text-zinc-300">{fileItem.name}</span>
+                          <span className="text-[9px] text-zinc-400">({(fileItem.size / 1024).toFixed(1)} KB)</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFiles((prev) => prev.filter((_, i) => i !== idx))}
+                          className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-800"
+                        >
+                          <XMarkIcon className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <label className="block cursor-pointer rounded-xl border border-dashed border-zinc-200 bg-stone-50/30 p-4 text-center hover:border-zinc-300 dark:border-white/10 dark:bg-zinc-900/20 hover:bg-stone-50/50 dark:hover:bg-zinc-900/40 transition-colors">
+                  <input
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept=".pdf,.png,.jpg,.jpeg,.txt"
+                    multiple
+                  />
+                  <PaperClipIcon className="mx-auto h-5 w-5 text-zinc-400" />
+                  <span className="mt-1 block text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
+                    Attach screenshots or log files
+                  </span>
+                  <span className="block text-[9px] text-zinc-400">
+                    PDF, PNG, JPG, or TXT up to 5MB (Multiple allowed)
+                  </span>
+                </label>
               </div>
 
               <button
                 type="submit"
-                className="inline-flex w-full h-10 items-center justify-center gap-1.5 rounded-xl bg-[var(--app-primary)] text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[var(--app-primary-hover)]"
+                disabled={submitting || !subject.trim() || !description.trim()}
+                className="inline-flex w-full h-10 items-center justify-center gap-1.5 rounded-xl bg-[var(--app-primary)] text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[var(--app-primary-hover)] disabled:opacity-50"
               >
-                <PlusIcon className="h-4 w-4" />
+                {submitting ? (
+                  <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                ) : (
+                  <PlusIcon className="h-4 w-4" />
+                )}
                 Submit request
               </button>
             </form>
@@ -269,7 +355,7 @@ export default function SupportPage() {
                     onClick={() => setActiveTab(tab as any)}
                     className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-all ${
                       activeTab === tab
-                        ? "bg-white text-zinc-800 shadow-sm dark:bg-zinc-855 dark:text-zinc-200"
+                        ? "bg-white text-zinc-800 shadow-sm dark:bg-zinc-800 dark:text-zinc-200"
                         : "text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
                     }`}
                   >
@@ -280,52 +366,61 @@ export default function SupportPage() {
             </div>
 
             {/* List */}
-            <div className="mt-4 divide-y divide-zinc-100 dark:divide-white/5">
-              {filteredTickets.length === 0 ? (
-                <div className="py-12 text-center">
-                  <ChatBubbleLeftEllipsisIcon className="mx-auto h-8 w-8 text-zinc-300 dark:text-zinc-650" />
-                  <p className="mt-2 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                    No tickets found matching this filter
-                  </p>
+            {loading ? (
+              <div className="flex h-48 items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                  <span className="text-xs text-zinc-450">Loading ticket history…</span>
                 </div>
-              ) : (
-                filteredTickets.map((ticket) => (
-                  <div
-                    key={ticket.id}
-                    onClick={() => setSelectedTicket(ticket)}
-                    className="flex cursor-pointer items-start justify-between py-4 hover:bg-stone-50/50 dark:hover:bg-zinc-900/20 px-2 rounded-xl transition-all"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">
-                          {ticket.id}
+              </div>
+            ) : (
+              <div className="mt-4 divide-y divide-zinc-100 dark:divide-white/5 max-h-[500px] overflow-y-auto pr-1 scrollbar-thin">
+                {filteredTickets.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <LifebuoyIcon className="mx-auto h-8 w-8 text-zinc-300 dark:text-zinc-700" />
+                    <p className="mt-2 text-xs font-semibold text-zinc-550 dark:text-zinc-400">
+                      No tickets found matching this filter
+                    </p>
+                  </div>
+                ) : (
+                  filteredTickets.map((ticket) => (
+                    <div
+                      key={ticket.id}
+                      onClick={() => setSelectedTicket(ticket)}
+                      className="flex cursor-pointer items-start justify-between py-4 hover:bg-stone-50/50 dark:hover:bg-zinc-900/20 px-2 rounded-xl transition-all"
+                    >
+                      <div className="space-y-1 min-w-0 flex-1 pr-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black uppercase text-zinc-400 tracking-wider">
+                            {ticket.ticketId}
+                          </span>
+                          <span className="h-1 w-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
+                          <span className="text-[10px] font-bold text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded dark:bg-zinc-800 dark:text-zinc-350">
+                            {ticket.category}
+                          </span>
+                        </div>
+                        <h3 className="text-xs font-bold text-zinc-850 dark:text-zinc-150 hover:text-[var(--app-primary)] transition-colors truncate">
+                          {ticket.subject}
+                        </h3>
+                        <p className="text-[10px] text-zinc-400">{formatDate(ticket.createdAt)}</p>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${getPriorityColor(ticket.priority)}`}>
+                          {ticket.priority}
                         </span>
-                        <span className="h-1 w-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
-                        <span className="text-[10px] font-bold text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded dark:bg-zinc-800 dark:text-zinc-300">
-                          {ticket.category}
+                        <span className="flex items-center gap-1">
+                          {getStatusIcon(ticket.status)}
+                          <span className="text-[11px] font-semibold text-zinc-650 dark:text-zinc-300">
+                            {ticket.status}
+                          </span>
                         </span>
                       </div>
-                      <h3 className="text-xs font-bold text-zinc-800 dark:text-zinc-200 hover:text-[var(--app-primary)] transition-colors">
-                        {ticket.subject}
-                      </h3>
-                      <p className="text-[10px] text-zinc-400">{ticket.date}</p>
                     </div>
-
-                    <div className="flex items-center gap-3">
-                      <span className={`rounded-lg px-2 py-0.5 text-[10px] font-bold ${getPriorityColor(ticket.priority)}`}>
-                        {ticket.priority}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        {getStatusIcon(ticket.status)}
-                        <span className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-300">
-                          {ticket.status}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -353,15 +448,15 @@ export default function SupportPage() {
               {/* Header */}
               <div className="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-white/5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-zinc-400">{selectedTicket.id}</span>
+                  <span className="text-xs font-black text-zinc-400">{selectedTicket.ticketId}</span>
                   <span className="h-1 w-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
-                  <span className="text-[10px] font-bold text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded dark:bg-zinc-800 dark:text-zinc-300">
+                  <span className="text-[10px] font-bold text-zinc-550 bg-zinc-100 px-1.5 py-0.5 rounded dark:bg-zinc-800 dark:text-zinc-300">
                     {selectedTicket.category}
                   </span>
                 </div>
                 <button
                   onClick={() => setSelectedTicket(null)}
-                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-650 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
                 >
                   <XMarkIcon className="h-5 w-5" />
                 </button>
@@ -375,7 +470,7 @@ export default function SupportPage() {
               <div className="mt-3 flex flex-wrap gap-4 text-xs">
                 <div>
                   <span className="text-zinc-400">Created:</span>{" "}
-                  <span className="font-semibold text-zinc-750 dark:text-zinc-300">{selectedTicket.date}</span>
+                  <span className="font-semibold text-zinc-750 dark:text-zinc-300">{formatDate(selectedTicket.createdAt)}</span>
                 </div>
                 <div>
                   <span className="text-zinc-400">Priority:</span>{" "}
@@ -401,11 +496,34 @@ export default function SupportPage() {
                   </div>
                 </div>
 
+                {/* S3 Attachment Download View */}
+                {selectedTicket.attachmentUrls && selectedTicket.attachmentUrls.length > 0 && (
+                  <div>
+                    <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Attachments</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedTicket.attachmentUrls.map((url, idx) => (
+                        <a
+                          key={idx}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2.5 rounded-xl border border-zinc-200 bg-zinc-50/50 px-4 py-2.5 text-xs font-bold text-zinc-705 hover:bg-zinc-100 hover:text-indigo-600 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-indigo-400 transition-colors truncate max-w-full"
+                        >
+                          <PaperClipIcon className="h-4 w-4 text-indigo-500 shrink-0" />
+                          <span className="truncate">
+                            {url.split("/").pop()?.replace(/TCK-\d+-/, "") || `Attachment ${idx + 1}`}
+                          </span>
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Simulated Conversation Feed */}
                 <div>
                   <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Replies</h4>
                   <div className="space-y-3">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2.5">
                       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--app-primary)] text-[9px] font-black text-white">
                         AN
                       </div>
@@ -423,7 +541,7 @@ export default function SupportPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedTicket(null)}
-                  className="rounded-xl bg-zinc-100 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  className="rounded-xl bg-zinc-100 px-4 py-2 text-xs font-bold text-zinc-750 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                 >
                   Close
                 </button>

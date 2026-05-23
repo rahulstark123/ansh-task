@@ -11,6 +11,7 @@ import {
   QuestionMarkCircleIcon,
   RectangleStackIcon,
   UsersIcon,
+  AdjustmentsHorizontalIcon,
 } from "@heroicons/react/24/outline";
 
 export type NavIcon = ComponentType<{ className?: string }>;
@@ -92,6 +93,12 @@ export const NAV_SECTIONS: NavSection[] = [
         match: "prefix",
       },
       {
+        href: "/settings/defaults",
+        label: "Task defaults",
+        icon: AdjustmentsHorizontalIcon,
+        match: "exact",
+      },
+      {
         href: "/support",
         label: "Support",
         icon: QuestionMarkCircleIcon,
@@ -115,8 +122,8 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/settings/profile": "Profile",
   "/settings/company": "Company",
   "/settings/permissions": "Permissions",
+  "/settings/defaults": "Task Defaults",
   "/settings/billing": "Billing",
-  "/settings/themes": "Themes",
   "/support": "Support Center",
 };
 
@@ -136,5 +143,6 @@ export function isNavActive(
 ) {
   if (match === "exact") return pathname === href;
   if (pathname === href) return true;
+  if (href === "/settings" && pathname === "/settings/defaults") return false;
   return pathname.startsWith(`${href}/`);
 }

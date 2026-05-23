@@ -28,6 +28,8 @@ import {
 } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
+import { AddTaskModal } from "@/components/tasks/AddTaskModal";
+import type { NewTaskPayload } from "@/types/task";
 
 
 type Project = {
@@ -353,7 +355,7 @@ export function ProjectsListView() {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [projectTasks, setProjectTasks] = useState<any[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isAddingTask, setIsAddingTask] = useState(false);
 
   const fetchProjectTasks = async (projectId: string) => {
@@ -419,35 +421,39 @@ export function ProjectsListView() {
     showToast("Project changes saved successfully!", "success");
   };
 
-  const handleAddTaskInline = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newTaskTitle.trim() || !selectedProject) return;
-
+  const handleAddTask = async (payload: NewTaskPayload) => {
     setIsAddingTask(true);
     try {
+      const effectiveProjectId = payload.projectId ?? (selectedProject?.id ?? null);
       const res = await fetch("/api/project/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: newTaskTitle.trim(),
-          projectId: selectedProject.id,
+          title: payload.title,
+          description: payload.description,
+          projectId: effectiveProjectId,
           workspaceId: activeWorkspaceId,
-          priority: "medium",
-          status: "todo",
-          assignee: "Unassigned",
-          due: "No date",
+          priority: payload.priority,
+          status: payload.status,
+          assignee: payload.assignee,
+          due: payload.dueLabel,
+          labels: payload.labels,
+          estimate: payload.estimate,
+          category: payload.category,
         }),
       });
       const json = await res.json();
       if (json.success) {
-        showToast(`Task "${newTaskTitle.trim()}" created successfully!`, "success");
-        setNewTaskTitle("");
-        await fetchProjectTasks(selectedProject.id);
+        showToast(`Task "${payload.title}" created successfully!`, "success");
+        // Refresh tasks panel if this task belongs to the open project
+        if (selectedProject && effectiveProjectId === selectedProject.id) {
+          await fetchProjectTasks(selectedProject.id);
+        }
       } else {
         showToast(json.error || "Failed to add task", "error");
       }
     } catch (err) {
-      console.error("Error adding inline task:", err);
+      console.error("Error adding task:", err);
       showToast("Error adding task.", "error");
     } finally {
       setIsAddingTask(false);
@@ -1395,94 +1401,150 @@ export function ProjectsListView() {
 
               {/* Drawer Content - Tasks Tab */}
               {activeTab === "tasks" && (
-                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin flex flex-col space-y-4">
-                  {/* Inline Task Creator Form */}
-                  <form onSubmit={handleAddTaskInline} className="flex gap-2">
-                    <input
-                      type="text"
-                      required
-                      maxLength={80}
-                      value={newTaskTitle}
-                      onChange={(e) => setNewTaskTitle(e.target.value)}
-                      placeholder="Add task to this project..."
-                      className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-850 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-250 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                      disabled={isAddingTask}
-                    />
+                <div className="flex-1 overflow-y-auto scrollbar-thin flex flex-col">
+
+                  {/* Tasks Tab Header with Add Button */}
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-white/5 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                        {projectTasks.length} task{projectTasks.length !== 1 ? "s" : ""}
+                      </span>
+                      {selectedProject && (
+                        <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[9px] font-bold text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400 uppercase tracking-wider">
+                          {selectedProject.name}
+                        </span>
+                      )}
+                    </div>
                     <button
-                      type="submit"
-                      disabled={isAddingTask || !newTaskTitle.trim()}
-                      className="rounded-xl bg-indigo-500 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-650 active:scale-98 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                      type="button"
+                      onClick={() => setIsAddTaskModalOpen(true)}
+                      className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-indigo-600 active:scale-95 transition-all"
                     >
-                      {isAddingTask ? "Adding..." : "Add"}
+                      <PlusIcon className="h-3.5 w-3.5" />
+                      Add Task
                     </button>
-                  </form>
+                  </div>
 
                   {/* Tasks List */}
-                  {tasksLoading ? (
-                    <div className="flex flex-1 flex-col items-center justify-center py-12">
-                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-                      <span className="mt-2 text-[11px] font-semibold text-zinc-400">Loading project tasks...</span>
-                    </div>
-                  ) : projectTasks.length === 0 ? (
-                    <div className="flex flex-1 flex-col items-center justify-center text-center py-12">
-                      <CheckIcon className="h-8 w-8 text-zinc-350 dark:text-zinc-650" />
-                      <h4 className="mt-3 text-xs font-bold text-zinc-700 dark:text-zinc-300">No tasks yet</h4>
-                      <p className="mt-1 text-[11px] text-zinc-450 dark:text-zinc-550 max-w-[200px]">Create tasks above to build the project backlog.</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2.5 overflow-y-auto pr-0.5">
-                      {projectTasks.map((task) => (
-                        <div
-                          key={task.id}
-                          className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-white/5 dark:bg-zinc-900/40 hover:border-zinc-300 dark:hover:border-white/10 transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 leading-snug">
-                              {task.title}
-                            </span>
-                            <span
-                              className={`shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${
-                                task.priority === "high"
-                                  ? "bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
-                                  : task.priority === "medium"
-                                  ? "bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30"
-                                  : "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
-                              }`}
-                            >
-                               {task.priority}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between border-t border-zinc-100 pt-2 dark:border-white/[0.04] text-[10px] font-bold text-zinc-450 dark:text-zinc-500">
-                            <span
-                              className={`rounded-md px-1.5 py-0.5 border text-[9px] uppercase tracking-wider font-extrabold ${
-                                task.status === "done"
-                                  ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
-                                  : task.status === "in_progress"
-                                  ? "bg-teal-50 text-teal-700 border border-teal-100 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30"
-                                  : task.status === "blocked"
-                                  ? "bg-rose-50 text-rose-750 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
-                                  : "bg-zinc-50 text-zinc-650 border border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800"
-                              }`}
-                            >
-                              {task.status === "in_progress"
-                                ? "In Progress"
-                                : task.status === "blocked"
-                                ? "Blocked"
-                                : task.status === "done"
-                                ? "Done"
-                                : "To Do"}
-                            </span>
-
-                            <div className="flex items-center gap-1.5 font-semibold">
-                              <CalendarDaysIcon className="h-3.5 w-3.5" />
-                              <span>{task.due}</span>
-                            </div>
-                          </div>
+                  <div className="flex-1 overflow-y-auto p-4 scrollbar-thin space-y-2">
+                    {tasksLoading ? (
+                      <div className="flex flex-col items-center justify-center py-16">
+                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                        <span className="mt-3 text-[11px] font-semibold text-zinc-400">Loading project tasks...</span>
+                      </div>
+                    ) : projectTasks.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center text-center py-16">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900 mb-3">
+                          <CheckIcon className="h-6 w-6 text-zinc-350 dark:text-zinc-600" />
                         </div>
-                      ))}
-                    </div>
-                  )}
+                        <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">No tasks yet</h4>
+                        <p className="mt-1 text-[11px] text-zinc-450 dark:text-zinc-550 max-w-[200px]">Click "Add Task" to build the project backlog.</p>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddTaskModalOpen(true)}
+                          className="mt-4 flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-950/40 transition-colors"
+                        >
+                          <PlusIcon className="h-3.5 w-3.5" />
+                          Add first task
+                        </button>
+                      </div>
+                    ) : (
+                      projectTasks.map((task) => {
+                        const priorityStyle =
+                          task.priority === "high"
+                            ? { badge: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30", dot: "bg-rose-500" }
+                            : task.priority === "medium"
+                            ? { badge: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30", dot: "bg-amber-400" }
+                            : { badge: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30", dot: "bg-emerald-500" };
+
+                        const statusStyle =
+                          task.status === "done"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
+                            : task.status === "in_progress"
+                            ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30"
+                            : task.status === "blocked"
+                            ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
+                            : "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800/60 dark:text-zinc-400 dark:border-zinc-700";
+
+                        const statusLabel =
+                          task.status === "in_progress" ? "In Progress" :
+                          task.status === "blocked" ? "Blocked" :
+                          task.status === "done" ? "Done" : "To Do";
+
+                        const assigneeInitials = task.assignee && task.assignee !== "Unassigned"
+                          ? task.assignee.trim().split(/\s+/).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+                          : null;
+
+                        return (
+                          <div
+                            key={task.id}
+                            className="group rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-white/10 transition-all"
+                          >
+                            {/* Top row: status dot + title + priority badge */}
+                            <div className="flex items-start gap-2.5">
+                              <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${priorityStyle.dot}`} />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[12px] font-semibold text-zinc-850 dark:text-zinc-150 leading-snug truncate">
+                                  {task.title}
+                                </p>
+                                {task.description && (
+                                  <p className="mt-0.5 text-[10px] leading-relaxed text-zinc-450 dark:text-zinc-550 line-clamp-1">
+                                    {task.description}
+                                  </p>
+                                )}
+                              </div>
+                              <span className={`shrink-0 rounded-md border px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${priorityStyle.badge}`}>
+                                {task.priority}
+                              </span>
+                            </div>
+
+                            {/* Bottom row: status + assignee + due */}
+                            <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                              <span className={`inline-flex rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${statusStyle}`}>
+                                {statusLabel}
+                              </span>
+
+                              {task.projectId && (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-500 dark:bg-indigo-950/20 dark:border-indigo-900/30 dark:text-indigo-400">
+                                  <FolderIcon className="h-2.5 w-2.5" />
+                                  {selectedProject?.name || task.projectId}
+                                </span>
+                              )}
+
+                              <div className="flex items-center gap-2 ml-auto">
+                                {assigneeInitials ? (
+                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[8px] font-black text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300" title={task.assignee}>
+                                    {assigneeInitials}
+                                  </div>
+                                ) : (
+                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800" title="Unassigned">
+                                    <UserIcon className="h-2.5 w-2.5 text-zinc-400" />
+                                  </div>
+                                )}
+                                {task.due && task.due !== "No date" && (
+                                  <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-450 dark:text-zinc-500">
+                                    <CalendarDaysIcon className="h-3 w-3" />
+                                    <span>{task.due}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Labels row */}
+                            {task.labels && Array.isArray(task.labels) && task.labels.length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {task.labels.map((label: string) => (
+                                  <span key={label} className="rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                                    {label}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1868,6 +1930,15 @@ export function ProjectsListView() {
           </>
         )}
       </AnimatePresence>
+
+      {/* ADD TASK MODAL (project-scoped or standalone) */}
+      <AddTaskModal
+        open={isAddTaskModalOpen}
+        onClose={() => setIsAddTaskModalOpen(false)}
+        onCreate={handleAddTask}
+        assignees={["Unassigned", ...availableUsers.map((u) => u.name)]}
+        defaultProjectId={selectedProject?.id ?? null}
+      />
 
     </div>
   );

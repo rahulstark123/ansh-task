@@ -26,4 +26,5 @@ export type NewTaskPayload = {
   labels: string[];
   assignee: string;
   estimate?: string;
+  projectId?: string | null;
 };

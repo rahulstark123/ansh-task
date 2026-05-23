@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, projectId, workspaceId, priority, status, assignee, due } = body;
+    const { title, projectId, workspaceId, priority, status, assignee, due, description, category, labels, estimate } = body;
 
     if (!title || !workspaceId) {
       return NextResponse.json(
@@ -55,6 +55,10 @@ export async function POST(request: Request) {
         assignee: assignee || "Unassigned",
         due: due || "No date",
         done: status === "done",
+        description: description || null,
+        category: category || "General",
+        labels: labels || [],
+        estimate: estimate || null,
       },
     });
 

@@ -43,6 +43,14 @@ model Workspace {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  // Defaults
+  defaultPriority String   @default("medium")
+  defaultStatus   String   @default("todo")
+  defaultCategory String   @default("General")
+  defaultLabels   String[] @default([])
+  customCategories String[] @default(["General", "Product", "Engineering", "Design", "Operations", "Marketing"])
+  customLabels     String[] @default(["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"])
+
   // Relationships
   users       User[]
   projects    Project[]
@@ -50,6 +58,7 @@ model Workspace {
   roles       WorkspaceRole[]
   departments WorkspaceDepartment[]
   brainboardNotes BrainboardNote[]
+  tickets     Ticket[]
 }
 
 model WorkspaceRole {
@@ -135,4 +144,21 @@ model BrainboardNote {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Ticket {
+  id            String   @id @default(uuid())
+  ticketId      String   @unique
+  subject       String
+  category      String   @default("Technical")
+  priority      String   @default("Medium")
+  status        String   @default("Open")
+  description   String
+  attachmentUrls String[] @default([])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relationships
+  workspaceId   Int
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 }

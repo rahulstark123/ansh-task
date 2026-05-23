@@ -28,115 +28,33 @@ import { AddTaskModal } from "@/components/tasks/AddTaskModal";
 import type { NewTaskPayload, Task, TaskPriority, TaskStatus } from "@/types/task";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
+import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
 
 
 
-// Expanded gorgeous seed data for realistic Jira/Trello experience
-const INITIAL_TASKS: Task[] = [
-  {
-    id: "1",
-    title: "Review product brief with design team",
-    description: "Align on the core UI specifications, dark mode guidelines, and feedback loop before kickoff. Ensure our new brand colors are respected.",
-    due: "Today · 4:00 PM",
-    priority: "high",
-    category: "Product",
-    labels: ["Meeting", "Design"],
-    assignee: "Me",
-    status: "in_progress",
-    estimate: "3",
-    done: false,
-  },
-  {
-    id: "2",
-    title: "Draft weekly update for stakeholders",
-    description: "Prepare bullet points summarizing our layout revamp, Tailwind CSS v4 migration, and core features shipped this week.",
-    due: "Tomorrow",
-    priority: "medium",
-    category: "Operations",
-    labels: ["Docs"],
-    assignee: "Alex Rivera",
-    status: "todo",
-    estimate: "1",
-    done: false,
-  },
-  {
-    id: "3",
-    title: "Organize ANSH Task backlog labels",
-    description: "Clean up the database schema and consolidate tags like 'bugfix', 'improvement', and 'enhancement' into standard visual chips.",
-    due: "May 25",
-    priority: "low",
-    category: "Engineering",
-    labels: ["Improvement"],
-    assignee: "Sam Chen",
-    status: "done",
-    estimate: "2",
-    done: true,
-  },
-  {
-    id: "4",
-    title: "Bug: Session timeout on page refresh",
-    description: "Users are reporting that clicking browser refresh logs them out. Investigate localStorage syncing in our authentication context wrapper.",
-    due: "Today · Urgent",
-    priority: "high",
-    category: "Engineering",
-    labels: ["Bug"],
-    assignee: "Sam Chen",
-    status: "todo",
-    estimate: "5",
-    done: false,
-  },
-  {
-    id: "5",
-    title: "Create interactive landing page mockup",
-    description: "Flesh out a dynamic, premium landing page experience featuring our neon gradient accents, glassmorphic headers, and hover showcases.",
-    due: "Jun 2",
-    priority: "high",
-    category: "Design",
-    labels: ["Design", "Feature"],
-    assignee: "Jordan Lee",
-    estimate: "8",
-    done: false,
-  },
-  {
-    id: "6",
-    title: "Migrate database seeding scripts",
-    description: "Convert our legacy raw SQL schema seeds into high-fidelity Prisma transactions to safely insert mock teams, tasks, and billing profiles.",
-    due: "May 30",
-    priority: "medium",
-    category: "Engineering",
-    labels: ["Feature"],
-    assignee: "Sam Chen",
-    status: "in_progress",
-    estimate: "5",
-    done: false,
-  },
-  {
-    id: "7",
-    title: "Document onboarding flow API constraints",
-    description: "Write Swagger/OpenAPI documentation details outlining constraints for our client tenant onboarding, custom subdomains, and webhook events.",
-    due: "No date",
-    priority: "medium",
-    category: "Operations",
-    labels: ["Docs"],
-    assignee: "Alex Rivera",
-    status: "blocked",
-    estimate: "2",
-    done: false,
-  },
-  {
-    id: "8",
-    title: "Refactor sidebar active indicator glitch",
-    description: "Framer Motion layoutId active pill jumps layout awkwardly when switching tabs fast. Switch logic to spring physics optimization.",
-    due: "Yesterday",
-    priority: "low",
-    category: "Engineering",
-    labels: ["Bug", "Improvement"],
-    assignee: "Me",
-    status: "done",
-    estimate: "1",
-    done: true,
-  },
-];
+/* ─── helpers ─────────────────────────────────────────────── */
+
+function getWid(): number {
+  if (typeof window === "undefined") return 1;
+  return parseInt(sessionStorage.getItem("ansh_onboarding_wid") ?? "1", 10);
+}
+
+/** Map a raw Prisma task row to the frontend Task shape */
+function mapApiTask(t: any): Task {
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description ?? undefined,
+    due: t.due ?? "No date",
+    priority: (t.priority as Task["priority"]) ?? "medium",
+    category: t.category ?? undefined,
+    labels: t.labels ?? [],
+    assignee: t.assignee ?? undefined,
+    status: (t.status as Task["status"]) ?? "todo",
+    estimate: t.estimate ?? undefined,
+    done: t.done ?? false,
+  };
+}
 
 const COLUMNS: { id: TaskStatus; label: string; bg: string; dot: string; border: string; darkBorder: string }[] = [
   { id: "todo", label: "To Do", bg: "bg-zinc-100/70 dark:bg-zinc-900/30", dot: "bg-zinc-400", border: "border-zinc-200/80", darkBorder: "dark:border-white/[0.06]" },
@@ -220,19 +138,55 @@ export function TaskDashboard({
   taskModule = "list",
 }: TaskDashboardProps) {
   const { showToast } = useToast();
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   const [assigneesList, setAssigneesList] = useState<string[]>(ASSIGNEES);
 
+  const {
+    priority: defaultPriority,
+    category: defaultCategory,
+    labels: defaultLabels,
+    customCategories,
+    customLabels,
+    fetchDefaults,
+  } = useWorkspaceDefaultsStore();
+
+  // ── Fetch Defaults on mount ────────────────────────────────
+  useEffect(() => {
+    const wid = getWid();
+    fetchDefaults(wid);
+  }, [fetchDefaults]);
+
+  // ── Load tasks from API ────────────────────────────────────
+  useEffect(() => {
+    async function loadTasks() {
+      setTasksLoading(true);
+      try {
+        const wid = getWid();
+        const res = await fetch(`/api/task?wid=${wid}`);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.tasks)) {
+          setTasks(json.tasks.map(mapApiTask));
+        }
+      } catch (err) {
+        console.error("Error loading tasks:", err);
+      } finally {
+        setTasksLoading(false);
+      }
+    }
+    loadTasks();
+  }, []);
+
+  // ── Load team members ──────────────────────────────────────
   useEffect(() => {
     async function loadTeam() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid");
-          const wid = onboardingWid ? parseInt(onboardingWid, 10) : 1;
+          const wid = getWid();
           const res = await fetch(`/api/team?email=${encodeURIComponent(user.email || "")}&wid=${wid}`);
           const json = await res.json();
           if (json.success && json.members) {
@@ -323,26 +277,38 @@ export function TaskDashboard({
     return counts;
   }, [filteredTasks]);
 
-  // Core task state mutation functions
+  // ── Core task mutation helpers ──────────────────────────────
+
+  async function patchTask(id: string, fields: Record<string, unknown>) {
+    try {
+      const res = await fetch("/api/task", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...fields }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+    } catch (err) {
+      console.error("Task PATCH error:", err);
+      showToast("Failed to update task", "error" as any);
+    }
+  }
+
   function handleToggleDone(id: string) {
-    let statusText = "";
+    let newDone = false;
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id === id) {
-          const newDone = !t.done;
-          statusText = newDone ? "Task completed 🎉" : "Task marked as incomplete";
-          return {
-            ...t,
-            done: newDone,
-            status: newDone ? "done" : "todo",
-          };
+          newDone = !t.done;
+          return { ...t, done: newDone, status: newDone ? "done" : "todo" };
         }
         return t;
       })
     );
-    if (statusText) {
-      showToast(statusText, "success");
-    }
+    const task = tasks.find((t) => t.id === id);
+    const willBeDone = task ? !task.done : false;
+    patchTask(id, { done: willBeDone, status: willBeDone ? "done" : "todo" });
+    showToast(willBeDone ? "Task completed 🎉" : "Task marked as incomplete", "success");
   }
 
   const statusLabelMap: Record<TaskStatus, string> = {
@@ -354,80 +320,79 @@ export function TaskDashboard({
 
   function handleStatusChange(id: string, newStatus: TaskStatus) {
     setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id ? { ...t, status: newStatus, done: newStatus === "done" } : t
-      )
+      prev.map((t) => t.id === id ? { ...t, status: newStatus, done: newStatus === "done" } : t)
     );
-    // Sync current drawer if open
-    if (selectedTask && selectedTask.id === id) {
+    if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, status: newStatus, done: newStatus === "done" } : null);
-    }
+    patchTask(id, { status: newStatus, done: newStatus === "done" });
     showToast(`Task status updated to "${statusLabelMap[newStatus]}"`, "info");
   }
 
   function handlePriorityChange(id: string, newPriority: TaskPriority) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, priority: newPriority } : t))
-    );
-    if (selectedTask && selectedTask.id === id) {
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, priority: newPriority } : t));
+    if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, priority: newPriority } : null);
-    }
+    patchTask(id, { priority: newPriority });
     showToast(`Task priority set to "${newPriority.charAt(0).toUpperCase() + newPriority.slice(1)}"`, "info");
   }
 
   function handleAssigneeChange(id: string, newAssignee: string) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, assignee: newAssignee } : t))
-    );
-    if (selectedTask && selectedTask.id === id) {
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, assignee: newAssignee } : t));
+    if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, assignee: newAssignee } : null);
-    }
+    patchTask(id, { assignee: newAssignee });
     showToast(`Task assigned to ${newAssignee}`, "info");
   }
 
   function handleCategoryChange(id: string, newCategory: string) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, category: newCategory } : t))
-    );
-    if (selectedTask && selectedTask.id === id) {
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, category: newCategory } : t));
+    if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, category: newCategory } : null);
-    }
+    patchTask(id, { category: newCategory });
     showToast(`Task category set to "${newCategory}"`, "info");
   }
 
   function handleEstimateChange(id: string, newEstimate: string) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, estimate: newEstimate === "—" ? undefined : newEstimate } : t))
-    );
-    if (selectedTask && selectedTask.id === id) {
-      setSelectedTask((prev) => prev ? { ...prev, estimate: newEstimate === "—" ? undefined : newEstimate } : null);
-    }
+    const est = newEstimate === "—" ? null : newEstimate;
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, estimate: est ?? undefined } : t));
+    if (selectedTask && selectedTask.id === id)
+      setSelectedTask((prev) => prev ? { ...prev, estimate: est ?? undefined } : null);
+    patchTask(id, { estimate: est });
     showToast(`Task story points set to ${newEstimate}`, "info");
   }
 
   function handleTitleChange(id: string, newTitle: string) {
     if (!newTitle.trim()) return;
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, title: newTitle } : t))
-    );
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, title: newTitle } : t));
+    patchTask(id, { title: newTitle });
   }
 
   function handleDescriptionChange(id: string, newDesc: string) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, description: newDesc } : t))
-    );
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, description: newDesc } : t));
+    // Debounced in drawer – patchTask called on blur (see drawer textarea)
   }
 
-  function handleTaskDelete(id: string) {
+  async function handleTaskDelete(id: string) {
     setTasks((prev) => prev.filter((t) => t.id !== id));
     setSelectedTask(null);
-    showToast("Task deleted successfully.", "info");
+    try {
+      const res = await fetch(`/api/task?id=${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      showToast("Task deleted successfully.", "info");
+    } catch (err) {
+      console.error("Task DELETE error:", err);
+      showToast("Failed to delete task", "error" as any);
+    }
   }
 
-  // Create tasks from modern filters or quick creators
-  function handleAddTaskFromModal(payload: NewTaskPayload) {
-    const newT: Task = {
-      id: crypto.randomUUID(),
+  // ── Create task (modal) ────────────────────────────────────
+  async function handleAddTaskFromModal(payload: NewTaskPayload) {
+    const wid = getWid();
+    // Optimistic insert with a temp id
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimisticTask: Task = {
+      id: tempId,
       title: payload.title,
       description: payload.description || undefined,
       due: payload.dueLabel,
@@ -439,27 +404,94 @@ export function TaskDashboard({
       estimate: payload.estimate,
       done: payload.status === "done",
     };
-    setTasks((prev) => [newT, ...prev]);
-    showToast(`Task "${payload.title}" created successfully!`, "success");
+    setTasks((prev) => [optimisticTask, ...prev]);
+
+    try {
+      const res = await fetch("/api/task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: payload.title,
+          description: payload.description,
+          category: payload.category,
+          priority: payload.priority,
+          status: payload.status,
+          due: payload.dueLabel,
+          labels: payload.labels,
+          assignee: payload.assignee,
+          estimate: payload.estimate,
+          projectId: payload.projectId,
+          workspaceId: wid,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.task) {
+        // Replace optimistic entry with real DB record
+        setTasks((prev) =>
+          prev.map((t) => (t.id === tempId ? mapApiTask(json.task) : t))
+        );
+        showToast(`Task "${payload.title}" created successfully!`, "success");
+      } else {
+        throw new Error(json.error);
+      }
+    } catch (err) {
+      console.error("Task POST error:", err);
+      // Roll back optimistic insert
+      setTasks((prev) => prev.filter((t) => t.id !== tempId));
+      showToast("Failed to create task", "error" as any);
+    }
   }
 
-  function handleQuickAddCard(status: TaskStatus) {
+  async function handleQuickAddCard(status: TaskStatus) {
     const text = columnQuickAdd[status]?.trim();
     if (!text) return;
-    const newT: Task = {
-      id: crypto.randomUUID(),
+    const wid = getWid();
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimisticTask: Task = {
+      id: tempId,
       title: text,
       due: "No date",
-      priority: "medium",
+      priority: (defaultPriority as TaskPriority) || "medium",
       status,
-      category: "General",
+      category: defaultCategory || "General",
       assignee: "Unassigned",
+      labels: defaultLabels || [],
       done: status === "done",
     };
-    setTasks((prev) => [...prev, newT]);
+    setTasks((prev) => [...prev, optimisticTask]);
     setColumnQuickAdd((prev) => ({ ...prev, [status]: "" }));
     setActiveQuickAddColumn(null);
-    showToast(`Task "${text}" added successfully!`, "success");
+
+    try {
+      const res = await fetch("/api/task", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: text,
+          due: "No date",
+          priority: defaultPriority || "medium",
+          status,
+          category: defaultCategory || "General",
+          assignee: "Unassigned",
+          labels: defaultLabels || [],
+          done: status === "done",
+          workspaceId: wid,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.task) {
+        setTasks((prev) =>
+          prev.map((t) => (t.id === tempId ? mapApiTask(json.task) : t))
+        );
+        showToast(`Task "${text}" added successfully!`, "success");
+      } else {
+        throw new Error(json.error);
+      }
+    } catch (err) {
+      console.error("Quick add error:", err);
+      setTasks((prev) => prev.filter((t) => t.id !== tempId));
+      showToast("Failed to add task", "error" as any);
+    }
   }
 
   // Drag and drop HTML5 handlers
@@ -499,6 +531,15 @@ export function TaskDashboard({
 
   return (
     <div className="flex h-[calc(100vh-3.75rem)] w-full flex-col overflow-hidden bg-transparent dark:bg-zinc-950">
+      {/* Loading overlay */}
+      {tasksLoading && (
+        <div className="absolute inset-0 z-[200] flex items-center justify-center bg-white/60 backdrop-blur-sm dark:bg-zinc-950/60">
+          <div className="flex flex-col items-center gap-3">
+            <div className="h-7 w-7 animate-spin rounded-full border-[3px] border-[var(--app-primary)] border-t-transparent" />
+            <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Loading tasks…</span>
+          </div>
+        </div>
+      )}
       
       {/* 1. Fluid Modern JIRA-like Header & Multi-Filter row */}
       <div className="flex shrink-0 flex-col border-b border-zinc-200/70 bg-white/80 px-6 py-4 shadow-[0_1px_2px_rgba(0,0,0,0.02)] backdrop-blur-md dark:border-white/[0.06] dark:bg-zinc-900/60 space-y-4">
@@ -1097,7 +1138,7 @@ export function TaskDashboard({
                           </button>
                           {activeDropdown?.taskId === task.id && activeDropdown?.field === "category" && (
                             <div className="absolute left-3 top-10 z-30 w-36 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
-                              {CATEGORIES.map((cat) => (
+                              {(customCategories || []).map((cat) => (
                                 <button
                                   key={cat}
                                   type="button"
@@ -1207,6 +1248,7 @@ export function TaskDashboard({
                       );
                       setSelectedTask((prev) => prev ? { ...prev, title: val } : null);
                     }}
+                    onBlur={(e) => { if (e.target.value.trim()) patchTask(selectedTask.id, { title: e.target.value }); }}
                     className="w-full text-base font-bold bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-[var(--app-primary)] py-1.5 outline-none tracking-tight text-zinc-900 dark:text-zinc-100 dark:hover:border-zinc-700 dark:focus:border-teal-500 transition-colors"
                   />
                 </div>
@@ -1224,6 +1266,7 @@ export function TaskDashboard({
                       handleDescriptionChange(selectedTask.id, val);
                       setSelectedTask((prev) => prev ? { ...prev, description: val } : null);
                     }}
+                    onBlur={(e) => patchTask(selectedTask.id, { description: e.target.value })}
                     placeholder="Describe this task in detail so others can pick it up..."
                     className="w-full text-xs font-normal text-zinc-800 leading-relaxed bg-white border border-zinc-200 rounded-xl p-3 outline-none focus:border-zinc-400 focus:shadow-[0_0_0_3px_var(--app-ring)] dark:bg-zinc-950/40 dark:border-white/[0.08] dark:text-zinc-200 dark:focus:border-zinc-700 transition-[border-color,box-shadow]"
                   />
@@ -1294,7 +1337,7 @@ export function TaskDashboard({
                         onChange={(e) => handleCategoryChange(selectedTask.id, e.target.value)}
                         className="w-full text-xs font-medium text-zinc-700 bg-stone-50 hover:bg-stone-100 border border-zinc-200 p-2 rounded-lg outline-none cursor-pointer dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-200"
                       >
-                        {CATEGORIES.map((cat) => (
+                        {(customCategories || []).map((cat) => (
                           <option key={cat} value={cat}>{cat}</option>
                         ))}
                       </select>
@@ -1398,7 +1441,9 @@ export function TaskDashboard({
                 >
                   <XMarkIcon className="h-5 w-5" />
                 </button>
-                    {/* Body */}
+              </div>
+
+              {/* Body */}
               <div className="mt-5 space-y-5">
                 {/* 1. Priority */}
                 <div>
@@ -1450,7 +1495,7 @@ export function TaskDashboard({
                     className="w-full h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-semibold text-zinc-700 shadow-sm outline-none transition-[border-color,box-shadow] focus:border-zinc-300 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
                   >
                     <option value="All" className="dark:bg-zinc-950">All Categories</option>
-                    {CATEGORIES.map((cat) => (
+                    {(customCategories || []).map((cat) => (
                       <option key={cat} value={cat} className="dark:bg-zinc-950">
                         {cat}
                       </option>
@@ -1467,14 +1512,14 @@ export function TaskDashboard({
                     className="w-full h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-semibold text-zinc-700 shadow-sm outline-none transition-[border-color,box-shadow] focus:border-zinc-300 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
                   >
                     <option value="All" className="dark:bg-zinc-950">All Labels</option>
-                    {ALL_LABELS.map((lab) => (
+                    {(customLabels || []).map((lab) => (
                       <option key={lab} value={lab} className="dark:bg-zinc-950">
                         {lab}
                       </option>
                     ))}
                   </select>
                 </div>
-              </div>          </div>
+              </div>
 
               {/* Footer */}
               <div className="mt-8 flex justify-between gap-3 border-t border-zinc-100 pt-4 dark:border-white/5">
@@ -1499,14 +1544,7 @@ export function TaskDashboard({
         )}
       </AnimatePresence>
 
-      {/* Modern AddTaskModal component integrated */}
-      <AddTaskModal
-        key={addModalSession}
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onCreate={handleAddTaskFromModal}
-        assignees={assigneesList}
-      />
+
       
     </div>
   );

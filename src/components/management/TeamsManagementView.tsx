@@ -29,8 +29,17 @@ import "react-phone-input-2/lib/style.css";
 import PhoneInput from "react-phone-input-2";
 
 type TaskMock = {
+  id?: string;
   title: string;
+  description?: string | null;
   project: string;
+  projectId?: string | null;
+  category?: string | null;
+  priority?: string;
+  labels?: string[];
+  estimate?: string | null;
+  due?: string;
+  assignee?: string | null;
   status: "In Progress" | "Completed" | "Todo" | "Blocked";
   progress: number;
 };
@@ -321,6 +330,37 @@ const mapDbUserToMember = (user: any): Member => {
   };
 };
 
+function getAvatarInitials(name: string) {
+  if (!name || name === "Unassigned") return "??";
+  return name.trim().split(/\s+/).map(n => n[0]).join("").toUpperCase().slice(0, 2);
+}
+
+function getAvatarBgColor(name: string) {
+  if (!name || name === "Unassigned") return "bg-zinc-500";
+  const colors = [
+    "bg-indigo-600",
+    "bg-teal-600",
+    "bg-purple-600",
+    "bg-amber-600",
+    "bg-rose-600",
+    "bg-sky-600",
+    "bg-emerald-600",
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash % colors.length);
+  return colors[index];
+}
+
+function priorityBadgeColor(p: string) {
+  const priority = (p || "").toLowerCase();
+  if (priority === "high" || priority === "urgent") return "text-rose-500 bg-rose-500/10 border border-rose-500/20";
+  if (priority === "medium") return "text-amber-500 bg-amber-500/10 border border-amber-500/20";
+  return "text-emerald-500 bg-emerald-500/10 border border-emerald-500/20";
+}
+
 export function TeamsManagementView() {
   const { showToast } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
@@ -353,8 +393,15 @@ export function TeamsManagementView() {
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
   const [newTaskProjectId, setNewTaskProjectId] = useState("");
+  const [newTaskPriority, setNewTaskPriority] = useState("medium");
+  const [newTaskCategory, setNewTaskCategory] = useState("General");
+  const [newTaskLabels, setNewTaskLabels] = useState("");
+  const [newTaskEstimate, setNewTaskEstimate] = useState("");
+  const [newTaskDue, setNewTaskDue] = useState("");
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
 
@@ -999,107 +1046,22 @@ export function TeamsManagementView() {
                 {/* TASKS TAB */}
                 {activeTab === "tasks" && (
                   <div className="space-y-4 flex flex-col flex-1 min-h-0">
-                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-                      Assigned Workspace Tasks
-                    </h4>
-
-                    {/* Inline Task Creator Form */}
-                    <form
-                      onSubmit={async (e) => {
-                        e.preventDefault();
-                        if (!newTaskTitle.trim() || !selectedMember) return;
-                        setIsAddingTask(true);
-                        try {
-                          const { data: { user } } = await supabase.auth.getUser();
-                          const email = user?.email || "";
-                          const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid") || "";
-
-                          const res = await fetch("/api/project/tasks", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              title: newTaskTitle.trim(),
-                              projectId: newTaskProjectId || null,
-                              workspaceId: activeWorkspaceId,
-                              priority: "medium",
-                              status: "todo",
-                              assignee: selectedMember.name,
-                              due: "No date",
-                            }),
-                          });
-                          const json = await res.json();
-                          if (json.success) {
-                            showToast(`Task created and assigned to ${selectedMember.name}!`, "success");
-                            setNewTaskTitle("");
-                            setNewTaskProjectId("");
-                            
-                            // Re-fetch team to get the updated tasks list
-                            const latestRes = await fetch(`/api/team?email=${encodeURIComponent(email)}` + (onboardingWid ? `&wid=${onboardingWid}` : ""));
-                            const latestJson = await latestRes.json();
-                            if (latestJson.success) {
-                              const updatedMembers = latestJson.members.map(mapDbUserToMember);
-                              setMembers(updatedMembers);
-                              const updatedSelected = updatedMembers.find((m: any) => m.id === selectedMember.id);
-                              if (updatedSelected) {
-                                setSelectedMember(updatedSelected);
-                              }
-                            }
-                          } else {
-                            showToast(json.error || "Failed to add task", "error");
-                          }
-                        } catch (err) {
-                          console.error("Error adding member task:", err);
-                          showToast("Error adding task.", "error");
-                        } finally {
-                          setIsAddingTask(false);
-                        }
-                      }}
-                      className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-zinc-50/50 p-3.5 dark:border-white/5 dark:bg-zinc-900/40"
-                    >
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                        Create & Assign Task
-                      </span>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          required
-                          maxLength={80}
-                          value={newTaskTitle}
-                          onChange={(e) => setNewTaskTitle(e.target.value)}
-                          placeholder="Task title..."
-                          className="flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-850 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-250 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                          disabled={isAddingTask}
-                        />
-                        
-                        <div className="relative w-36">
-                          <select
-                            value={newTaskProjectId}
-                            onChange={(e) => setNewTaskProjectId(e.target.value)}
-                            className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-3 pr-8 py-2 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                            disabled={isAddingTask}
-                          >
-                            <option value="">No Project</option>
-                            {projects.map((proj) => (
-                              <option key={proj.id} value={proj.id}>
-                                {proj.name}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDownIcon className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={isAddingTask || !newTaskTitle.trim()}
-                          className="rounded-xl bg-teal-500 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-teal-650 active:scale-98 transition-all disabled:opacity-50 disabled:pointer-events-none"
-                        >
-                          {isAddingTask ? "Adding..." : "Add"}
-                        </button>
-                      </div>
-                    </form>
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+                        Assigned Workspace Tasks
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setIsTaskModalOpen(true)}
+                        className="flex h-8 items-center gap-1.5 rounded-xl bg-teal-500 px-3 text-xs font-bold text-white shadow-sm hover:bg-teal-650 active:scale-95 transition-all"
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                        Add Task
+                      </button>
+                    </div>
 
                     {/* Task list container */}
-                    <div className="flex-1 overflow-y-auto pr-0.5 space-y-3 scrollbar-thin">
+                    <div className="flex-1 overflow-y-auto pr-0.5 space-y-3.5 scrollbar-thin">
                       {selectedMember.tasks.length === 0 ? (
                         <p className="text-center text-xs text-zinc-400 dark:text-zinc-500 py-8 italic">
                           No tasks assigned to this user.
@@ -1108,41 +1070,77 @@ export function TeamsManagementView() {
                         selectedMember.tasks.map((task, i) => (
                           <div 
                             key={i} 
-                            className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-900/60"
+                            className="group relative flex flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-200/40 hover:border-zinc-300 dark:border-white/[0.05] dark:bg-[#1c1d22]/90 dark:shadow-none dark:hover:border-zinc-700 transition-[border-color,box-shadow]"
                           >
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
-                                  {task.project}
-                                </span>
-                                <h5 className="text-xs font-bold text-zinc-900 dark:text-zinc-100 mt-0.5">
-                                  {task.title}
-                                </h5>
-                              </div>
-                              <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
-                                task.status === "Completed" 
-                                  ? "bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-500/10"
-                                  : task.status === "In Progress"
-                                  ? "bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-emerald-500/10"
-                                  : task.status === "Blocked"
-                                  ? "bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-955/20 dark:text-rose-400 dark:border-rose-500/10"
-                                  : "bg-zinc-100 text-zinc-500 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-white/5"
-                              }`}>
-                                {task.status}
+                            {/* Card Top Row: Category & Priority */}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-450 dark:text-zinc-500">
+                                {task.category || "General"}
+                              </span>
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border ${priorityBadgeColor(
+                                  task.priority ?? "medium"
+                                )}`}
+                              >
+                                {task.priority || "medium"}
                               </span>
                             </div>
 
-                            {/* Progress bar */}
-                            <div className="mt-4">
-                              <div className="flex items-center justify-between text-[10px] font-bold">
-                                <span className="text-zinc-400">Completion</span>
-                                <span className="text-zinc-600 dark:text-zinc-300">{task.progress}%</span>
+                            {/* Task Title */}
+                            <h5 className="mt-2 text-xs font-bold leading-snug tracking-tight text-zinc-900 group-hover:text-teal-500 dark:text-zinc-100 dark:group-hover:text-teal-400 transition-colors">
+                              {task.title}
+                            </h5>
+
+                            {/* Task Description snippet */}
+                            {task.description && (
+                              <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                                {task.description}
+                              </p>
+                            )}
+
+                            {/* Labels list */}
+                            {task.labels && task.labels.length > 0 && (
+                              <div className="mt-2.5 flex flex-wrap gap-1">
+                                {task.labels.map((label: string) => (
+                                  <span
+                                    key={label}
+                                    className="rounded bg-stone-100 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200/40 dark:border-zinc-700/50"
+                                  >
+                                    {label}
+                                  </span>
+                                ))}
                               </div>
-                              <div className="mt-1.5 h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                                <div 
-                                  className="h-full rounded-full bg-teal-500 transition-all duration-500"
-                                  style={{ width: `${task.progress}%` }}
-                                />
+                            )}
+
+                            {/* Card Footer: Due Date, Estimates & Assignee */}
+                            <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-2.5 dark:border-white/[0.03]">
+                              
+                              {/* Estimate and Due Dates */}
+                              <div className="flex items-center gap-2">
+                                {task.estimate && (
+                                  <div className="flex items-center gap-0.5 rounded-full bg-teal-50/70 border border-teal-100/50 px-1.5 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/30">
+                                    <ClockIcon className="h-3 w-3 shrink-0 opacity-80" />
+                                    <span>{task.estimate}</span>
+                                  </div>
+                                )}
+                                {task.due && task.due !== "No date" && (
+                                  <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${
+                                    task.due.includes("Today") || task.due.includes("Urgent") || task.due.includes("Yesterday")
+                                      ? "text-rose-500 font-semibold"
+                                      : "text-zinc-400"
+                                  }`}>
+                                    <CalendarDaysIcon className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                                    <span>{task.due}</span>
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Assignee Avatar */}
+                              <div 
+                                className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold tracking-wider ring-1 ring-black/5 dark:ring-white/10 ${getAvatarBgColor(task.assignee || selectedMember.name)} text-white`}
+                                title={task.assignee || selectedMember.name}
+                              >
+                                {getAvatarInitials(task.assignee || selectedMember.name)}
                               </div>
                             </div>
                           </div>
@@ -1844,6 +1842,306 @@ export function TeamsManagementView() {
                   Yes, Remove
                 </button>
               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ADD TASK TO MEMBER MODAL */}
+      <AnimatePresence>
+        {isTaskModalOpen && selectedMember && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setIsTaskModalOpen(false);
+                // Reset form values
+                setNewTaskTitle("");
+                setNewTaskDesc("");
+                setNewTaskProjectId("");
+                setNewTaskPriority("medium");
+                setNewTaskCategory("General");
+                setNewTaskLabels("");
+                setNewTaskEstimate("");
+                setNewTaskDue("");
+              }}
+              className="fixed inset-0 z-50 bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
+            />
+
+            {/* Modal Dialog */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="fixed inset-0 z-50 m-auto flex h-fit w-full max-w-[480px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418]"
+            >
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-white/5 shrink-0">
+                <div className="flex items-center gap-2">
+                  <ClipboardDocumentCheckIcon className="h-5 w-5 text-teal-500" />
+                  <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                    Add Task for {selectedMember.name}
+                  </h3>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsTaskModalOpen(false);
+                    // Reset form values
+                    setNewTaskTitle("");
+                    setNewTaskDesc("");
+                    setNewTaskProjectId("");
+                    setNewTaskPriority("medium");
+                    setNewTaskCategory("General");
+                    setNewTaskLabels("");
+                    setNewTaskEstimate("");
+                    setNewTaskDue("");
+                  }}
+                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!newTaskTitle.trim() || !selectedMember) return;
+                  setIsAddingTask(true);
+                  try {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    const email = user?.email || "";
+                    const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid") || "";
+
+                    const res = await fetch("/api/project/tasks", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        title: newTaskTitle.trim(),
+                        projectId: newTaskProjectId || null,
+                        workspaceId: activeWorkspaceId,
+                        priority: newTaskPriority,
+                        status: "todo",
+                        assignee: selectedMember.name,
+                        due: newTaskDue || "No date",
+                        description: newTaskDesc.trim() || null,
+                        category: newTaskCategory.trim() || "General",
+                        labels: newTaskLabels.trim() ? newTaskLabels.split(",").map(s => s.trim()).filter(Boolean) : [],
+                        estimate: newTaskEstimate.trim() || null,
+                      }),
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                      showToast(`Task created and assigned successfully!`, "success");
+                      // Reset values
+                      setNewTaskTitle("");
+                      setNewTaskDesc("");
+                      setNewTaskProjectId("");
+                      setNewTaskPriority("medium");
+                      setNewTaskCategory("General");
+                      setNewTaskLabels("");
+                      setNewTaskEstimate("");
+                      setNewTaskDue("");
+                      setIsTaskModalOpen(false);
+                      
+                      // Re-fetch team to get the updated tasks list
+                      const latestRes = await fetch(`/api/team?email=${encodeURIComponent(email)}` + (onboardingWid ? `&wid=${onboardingWid}` : ""));
+                      const latestJson = await latestRes.json();
+                      if (latestJson.success) {
+                        const updatedMembers = latestJson.members.map(mapDbUserToMember);
+                        setMembers(updatedMembers);
+                        const updatedSelected = updatedMembers.find((m: any) => m.id === selectedMember.id);
+                        if (updatedSelected) {
+                          setSelectedMember(updatedSelected);
+                        }
+                      }
+                    } else {
+                      showToast(json.error || "Failed to add task", "error");
+                    }
+                  } catch (err) {
+                    console.error("Error adding member task:", err);
+                    showToast("Error adding task.", "error");
+                  } finally {
+                    setIsAddingTask(false);
+                  }
+                }}
+                className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-1 scrollbar-thin"
+              >
+                {/* Title */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                    Task Title *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={80}
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    placeholder="e.g. Review product specifications"
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                    disabled={isAddingTask}
+                  />
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    rows={3}
+                    maxLength={300}
+                    value={newTaskDesc}
+                    onChange={(e) => setNewTaskDesc(e.target.value)}
+                    placeholder="Provide details about this task..."
+                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 resize-none leading-relaxed"
+                    disabled={isAddingTask}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Project Selector */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                      Linked Project
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={newTaskProjectId}
+                        onChange={(e) => setNewTaskProjectId(e.target.value)}
+                        className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-zinc-50 pl-3.5 pr-10 py-2.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-850"
+                        disabled={isAddingTask}
+                      >
+                        <option value="">No Project</option>
+                        {projects.map((proj) => (
+                          <option key={proj.id} value={proj.id}>
+                            {proj.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    </div>
+                  </div>
+
+                  {/* Priority */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                      Task Priority
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={newTaskPriority}
+                        onChange={(e) => setNewTaskPriority(e.target.value)}
+                        className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-zinc-50 pl-3.5 pr-10 py-2.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-850"
+                        disabled={isAddingTask}
+                      >
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                      </select>
+                      <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Category */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                      Category
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={30}
+                      value={newTaskCategory}
+                      onChange={(e) => setNewTaskCategory(e.target.value)}
+                      placeholder="e.g. Engineering"
+                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                      disabled={isAddingTask}
+                    />
+                  </div>
+
+                  {/* Estimate */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                      Story Points / Estimate
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={10}
+                      value={newTaskEstimate}
+                      onChange={(e) => setNewTaskEstimate(e.target.value)}
+                      placeholder="e.g. 5"
+                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                      disabled={isAddingTask}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Due Date */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                      Due Date Label
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={30}
+                      value={newTaskDue}
+                      onChange={(e) => setNewTaskDue(e.target.value)}
+                      placeholder="e.g. Tomorrow"
+                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                      disabled={isAddingTask}
+                    />
+                  </div>
+
+                  {/* Labels */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                      Labels (comma-separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={newTaskLabels}
+                      onChange={(e) => setNewTaskLabels(e.target.value)}
+                      placeholder="e.g. Bug, Design"
+                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                      disabled={isAddingTask}
+                    />
+                  </div>
+                </div>
+
+                {/* Form Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-zinc-100 dark:border-white/5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsTaskModalOpen(false);
+                      // Reset form values
+                      setNewTaskTitle("");
+                      setNewTaskDesc("");
+                      setNewTaskProjectId("");
+                      setNewTaskPriority("medium");
+                      setNewTaskCategory("General");
+                      setNewTaskLabels("");
+                      setNewTaskEstimate("");
+                      setNewTaskDue("");
+                    }}
+                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-650 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-850"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isAddingTask || !newTaskTitle.trim()}
+                    className="flex-1 rounded-xl bg-teal-500 py-3 text-xs font-bold text-white shadow-md hover:bg-teal-650 active:scale-98 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    {isAddingTask ? "Creating..." : "Create Task"}
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </>
         )}

@@ -9,8 +9,8 @@ const LINKS = [
   { href: "/settings/profile", label: "Profile" },
   { href: "/settings/company", label: "Company" },
   { href: "/settings/permissions", label: "Permissions" },
+  { href: "/settings/defaults", label: "Defaults" },
   { href: "/settings/billing", label: "Billing" },
-  { href: "/settings/themes", label: "Themes" },
 ] as const;
 
 export function SettingsSideNav() {
