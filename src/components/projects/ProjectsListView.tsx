@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId, useEffect } from "react";
+import { useState, useId, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MagnifyingGlassIcon,
@@ -167,6 +167,150 @@ function formatDate(dateStr: string) {
   const date = new Date(dateStr);
   if (isNaN(date.getTime())) return dateStr;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function statusStyle(status: string) {
+  switch (status) {
+    case "Discovery":
+      return "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/30 dark:text-purple-300 dark:border-purple-900/40";
+    case "Planning":
+      return "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-900/40";
+    case "Active":
+      return "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40";
+    case "Review":
+      return "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40";
+    case "Completed":
+      return "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-350 dark:border-teal-900/40";
+    case "On Hold":
+      return "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40";
+    default:
+      return "bg-zinc-50 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700";
+  }
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
+  icon?: React.ReactNode;
+  colorDot?: string;
+}
+
+interface CustomSelectProps {
+  value: string;
+  onChange: (val: any) => void;
+  options: readonly SelectOption[] | SelectOption[];
+  placeholder?: string;
+  className?: string;
+}
+
+function CustomSelect({ value, onChange, options, placeholder = "Select...", className = "" }: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selectedOption = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-750 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800/80 transition-all focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+      >
+        <div className="flex items-center gap-2 truncate">
+          {selectedOption?.colorDot && (
+            <span className={`h-2 w-2 rounded-full ${selectedOption.colorDot}`} />
+          )}
+          {selectedOption?.icon && (
+            <span className="text-zinc-400 dark:text-zinc-500 shrink-0">{selectedOption.icon}</span>
+          )}
+          <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
+        </div>
+        <ChevronDownIcon className={`h-3.5 w-3.5 text-zinc-450 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.12 }}
+            className="absolute left-0 right-0 z-40 mt-1 max-h-60 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#121418] scrollbar-thin min-w-[160px]"
+          >
+            {options.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-left transition-colors ${
+                    isSelected
+                      ? "bg-indigo-50 text-indigo-650 dark:bg-indigo-950/40 dark:text-indigo-300"
+                      : "text-zinc-650 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    {opt.colorDot && (
+                      <span className={`h-2 w-2 rounded-full ${opt.colorDot}`} />
+                    )}
+                    {opt.icon && (
+                      <span className="text-zinc-400 dark:text-zinc-500 shrink-0">{opt.icon}</span>
+                    )}
+                    <span className="truncate">{opt.label}</span>
+                  </div>
+                  {isSelected && <CheckIcon className="h-3.5 w-3.5 stroke-[2.5]" />}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function statusColorDot(status: string) {
+  switch (status) {
+    case "Discovery": return "bg-purple-500";
+    case "Planning": return "bg-sky-550";
+    case "Active": return "bg-emerald-500";
+    case "Review": return "bg-amber-400";
+    case "Completed": return "bg-teal-500";
+    case "On Hold": return "bg-rose-500";
+    default: return "bg-zinc-400";
+  }
+}
+
+function priorityColorDot(priority: string) {
+  switch (priority) {
+    case "Urgent": return "bg-rose-500";
+    case "High": return "bg-amber-400";
+    case "Normal": return "bg-blue-500";
+    case "Low": return "bg-emerald-500";
+    default: return "bg-zinc-400";
+  }
+}
+
+function healthColorDot(health: string) {
+  switch (health) {
+    case "good": return "bg-emerald-500";
+    case "warn": return "bg-amber-400";
+    case "danger": return "bg-rose-500";
+    default: return "bg-zinc-350";
+  }
 }
 
 export function ProjectsListView() {
@@ -354,6 +498,42 @@ export function ProjectsListView() {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
+  const statusFilterOptions = STATUSES.map((s) => ({
+    value: s,
+    label: s === "All" ? "All Statuses" : s,
+    colorDot: s === "All" ? undefined : statusColorDot(s)
+  }));
+
+  const categoryOptions = CATEGORIES.map((cat) => ({ value: cat, label: cat }));
+  
+  const leadOptions = availableUsers.map((user) => ({
+    value: user.name,
+    label: user.name,
+    icon: (
+      <span className="flex h-4 w-4 items-center justify-center rounded-full bg-indigo-150 text-[8px] font-black text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300">
+        {user.initial}
+      </span>
+    )
+  }));
+
+  const statusOptions = STATUSES.filter(s => s !== "All").map((s) => ({
+    value: s,
+    label: s,
+    colorDot: statusColorDot(s)
+  }));
+
+  const priorityOptions = PRIORITIES.filter(p => p !== "All").map((p) => ({
+    value: p,
+    label: p,
+    colorDot: priorityColorDot(p)
+  }));
+
+  const healthOptions = HEALTHS.map((h) => ({
+    value: h,
+    label: healthText(h),
+    colorDot: healthColorDot(h)
+  }));
+
   const handleUpdateProject = async (id: string, updates: Partial<Project>) => {
     setProjects((prev) => prev.map((p) => (p.id === id ? { ...p, ...updates } : p)));
     if (selectedProject?.id === id) {
@@ -508,18 +688,12 @@ export function ProjectsListView() {
             </div>
             
             {/* Status Filter */}
-            <div className="relative flex items-center">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-9 cursor-pointer appearance-none rounded-lg border border-zinc-200 bg-white pl-3 pr-8 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>{s === "All" ? "All Statuses" : s}</option>
-                ))}
-              </select>
-              <ChevronDownIcon className="absolute right-2.5 h-4 w-4 pointer-events-none text-zinc-400 dark:text-zinc-500" />
-            </div>
+            <CustomSelect
+              value={statusFilter}
+              onChange={setStatusFilter}
+              options={statusFilterOptions}
+              className="w-36"
+            />
 
             {/* View Toggle */}
             <div className="flex items-center rounded-lg border border-zinc-200 bg-zinc-100/50 p-0.5 dark:border-white/10 dark:bg-zinc-900/50">
@@ -659,7 +833,7 @@ export function ProjectsListView() {
                   <span className={`rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${priorityColor(p.priority)}`}>
                     {p.priority}
                   </span>
-                  <span className="rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-500 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400">
+                  <span className={`rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${statusStyle(p.status)}`}>
                     {p.status}
                   </span>
                   <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-[9px] font-bold text-zinc-500 dark:bg-zinc-800/80 dark:text-zinc-400 ml-auto">
@@ -733,7 +907,7 @@ export function ProjectsListView() {
                         {p.owner}
                       </td>
                       <td className="px-5 py-3">
-                        <span className="inline-flex rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-650 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusStyle(p.status)}`}>
                           {p.status}
                         </span>
                       </td>
@@ -843,31 +1017,38 @@ export function ProjectsListView() {
               <div className="flex-1 overflow-y-auto p-6 scrollbar-thin space-y-6">
                 
                 {/* Title & Desc */}
-                <div>
-                  <input
-                    value={isEditing ? tempName : selectedProject.name}
-                    disabled={!isEditing}
-                    onChange={(e) => setTempName(e.target.value)}
-                    placeholder="Project Name"
-                    className={`w-full bg-transparent font-heading text-xl font-extrabold text-zinc-900 outline-none pb-1 transition-all ${
-                      isEditing 
-                        ? "border-b border-zinc-200 dark:border-zinc-800 focus:border-indigo-500" 
-                        : "border-b border-transparent cursor-default"
-                    } dark:text-white`}
-                  />
-                  <textarea
-                    value={isEditing ? tempDescription : selectedProject.description}
-                    disabled={!isEditing}
-                    onChange={(e) => setTempDescription(e.target.value)}
-                    rows={3}
-                    placeholder="Project Description"
-                    className={`mt-2.5 w-full resize-none bg-transparent text-xs leading-relaxed text-zinc-400 outline-none pb-1 transition-all ${
-                      isEditing 
-                        ? "border-b border-zinc-200 dark:border-zinc-800 focus:border-indigo-500" 
-                        : "border-b border-transparent cursor-default"
-                    } dark:text-zinc-500`}
-                  />
-                </div>
+                {isEditing ? (
+                  <div>
+                    <input
+                      value={tempName}
+                      onChange={(e) => setTempName(e.target.value)}
+                      placeholder="Project Name"
+                      className="w-full bg-transparent font-heading text-xl font-extrabold text-zinc-900 outline-none pb-1 transition-all border-b border-zinc-200 dark:border-zinc-800 focus:border-indigo-500 dark:text-white"
+                    />
+                    <textarea
+                      value={tempDescription}
+                      onChange={(e) => setTempDescription(e.target.value)}
+                      rows={3}
+                      placeholder="Project Description"
+                      className="mt-2.5 w-full resize-none bg-transparent text-xs leading-relaxed text-zinc-400 outline-none pb-1 transition-all border-b border-zinc-200 dark:border-zinc-800 focus:border-indigo-500 dark:text-zinc-500"
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <h2 className="font-heading text-xl font-extrabold text-zinc-900 dark:text-white leading-tight">
+                      {selectedProject.name}
+                    </h2>
+                    {selectedProject.description ? (
+                      <p className="mt-2.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-450 font-medium">
+                        {selectedProject.description}
+                      </p>
+                    ) : (
+                      <p className="mt-2.5 text-xs leading-relaxed italic text-zinc-400 dark:text-zinc-650">
+                        No description provided.
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-4 pt-4 border-t border-zinc-150 dark:border-white/5">
                   {/* Category */}
@@ -876,23 +1057,18 @@ export function ProjectsListView() {
                       <TagIcon className="h-4 w-4 text-zinc-400" />
                       Category
                     </div>
-                    <div className="relative">
-                      <select
-                        value={isEditing ? tempCategory : selectedProject.category}
-                        disabled={!isEditing}
-                        onChange={(e) => setTempCategory(e.target.value)}
-                        className={`cursor-pointer appearance-none rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-zinc-700 outline-none transition-all dark:text-zinc-350 ${
-                          isEditing 
-                            ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
-                            : "border-transparent bg-transparent cursor-default pointer-events-none"
-                        }`}
-                      >
-                        {CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                      {isEditing && <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />}
-                    </div>
+                    {isEditing ? (
+                      <CustomSelect
+                        value={tempCategory}
+                        onChange={setTempCategory}
+                        options={categoryOptions}
+                        className="w-48"
+                      />
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50/80 px-2.5 py-1 text-xs font-bold text-indigo-650 border border-indigo-100/50 dark:bg-indigo-950/30 dark:text-indigo-350 dark:border-indigo-900/30">
+                        {selectedProject.category}
+                      </span>
+                    )}
                   </div>
 
                   {/* Owner */}
@@ -901,23 +1077,21 @@ export function ProjectsListView() {
                       <UserIcon className="h-4 w-4 text-zinc-400" />
                       Project Lead
                     </div>
-                    <div className="relative">
-                      <select
-                        value={isEditing ? tempOwner : selectedProject.owner}
-                        disabled={!isEditing}
-                        onChange={(e) => setTempOwner(e.target.value)}
-                        className={`cursor-pointer appearance-none rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-zinc-700 outline-none transition-all dark:text-zinc-355 ${
-                          isEditing 
-                            ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
-                            : "border-transparent bg-transparent cursor-default pointer-events-none"
-                        }`}
-                      >
-                        {availableUsers.map((user) => (
-                          <option key={user.name} value={user.name}>{user.name}</option>
-                        ))}
-                      </select>
-                      {isEditing && <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />}
-                    </div>
+                    {isEditing ? (
+                      <CustomSelect
+                        value={tempOwner}
+                        onChange={setTempOwner}
+                        options={leadOptions}
+                        className="w-48"
+                      />
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-black text-indigo-750 dark:bg-indigo-950/60 dark:text-indigo-300">
+                          {selectedProject.owner ? selectedProject.owner.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : "A"}
+                        </div>
+                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{selectedProject.owner}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Status */}
@@ -926,23 +1100,18 @@ export function ProjectsListView() {
                       <ChartBarIcon className="h-4 w-4 text-zinc-400" />
                       Status
                     </div>
-                    <div className="relative">
-                      <select
-                        value={isEditing ? tempStatus : selectedProject.status}
-                        disabled={!isEditing}
-                        onChange={(e) => setTempStatus(e.target.value as any)}
-                        className={`cursor-pointer appearance-none rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-zinc-700 outline-none transition-all dark:text-zinc-355 ${
-                          isEditing 
-                            ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
-                            : "border-transparent bg-transparent cursor-default pointer-events-none"
-                        }`}
-                      >
-                        {STATUSES.filter(s => s !== "All").map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                      {isEditing && <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />}
-                    </div>
+                    {isEditing ? (
+                      <CustomSelect
+                        value={tempStatus}
+                        onChange={setTempStatus}
+                        options={statusOptions}
+                        className="w-48"
+                      />
+                    ) : (
+                      <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${statusStyle(selectedProject.status)}`}>
+                        {selectedProject.status}
+                      </span>
+                    )}
                   </div>
 
                   {/* Priority */}
@@ -951,23 +1120,18 @@ export function ProjectsListView() {
                       <Squares2X2Icon className="h-4 w-4 text-zinc-400" />
                       Priority
                     </div>
-                    <div className="relative">
-                      <select
-                        value={isEditing ? tempPriority : selectedProject.priority}
-                        disabled={!isEditing}
-                        onChange={(e) => setTempPriority(e.target.value as any)}
-                        className={`cursor-pointer appearance-none rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-zinc-700 outline-none transition-all dark:text-zinc-355 ${
-                          isEditing 
-                            ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
-                            : "border-transparent bg-transparent cursor-default pointer-events-none"
-                        }`}
-                      >
-                        {PRIORITIES.filter(p => p !== "All").map((p) => (
-                          <option key={p} value={p}>{p}</option>
-                        ))}
-                      </select>
-                      {isEditing && <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />}
-                    </div>
+                    {isEditing ? (
+                      <CustomSelect
+                        value={tempPriority}
+                        onChange={setTempPriority}
+                        options={priorityOptions}
+                        className="w-48"
+                      />
+                    ) : (
+                      <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${priorityColor(selectedProject.priority)}`}>
+                        {selectedProject.priority}
+                      </span>
+                    )}
                   </div>
 
                   {/* Health */}
@@ -976,23 +1140,19 @@ export function ProjectsListView() {
                       <HeartIcon className="h-4 w-4 text-zinc-400" />
                       Health Index
                     </div>
-                    <div className="relative">
-                      <select
-                        value={isEditing ? tempHealth : selectedProject.health}
-                        disabled={!isEditing}
-                        onChange={(e) => setTempHealth(e.target.value as any)}
-                        className={`cursor-pointer appearance-none rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-zinc-700 outline-none transition-all dark:text-zinc-355 ${
-                          isEditing 
-                            ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
-                            : "border-transparent bg-transparent cursor-default pointer-events-none"
-                        }`}
-                      >
-                        {HEALTHS.map((h) => (
-                          <option key={h} value={h}>{healthText(h)}</option>
-                        ))}
-                      </select>
-                      {isEditing && <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />}
-                    </div>
+                    {isEditing ? (
+                      <CustomSelect
+                        value={tempHealth}
+                        onChange={setTempHealth}
+                        options={healthOptions}
+                        className="w-48"
+                      />
+                    ) : (
+                      <span className="inline-flex items-center gap-2 rounded-lg bg-zinc-50 px-2.5 py-1 text-xs font-bold text-zinc-700 border border-zinc-200/50 dark:bg-zinc-900 dark:text-zinc-300 dark:border-white/5">
+                        <span className={`h-2.5 w-2.5 rounded-full ${healthDot(selectedProject.health)}`} />
+                        {healthText(selectedProject.health)}
+                      </span>
+                    )}
                   </div>
 
                   {/* Estimated Hours */}
@@ -1001,80 +1161,104 @@ export function ProjectsListView() {
                       <CurrencyDollarIcon className="h-4 w-4 text-zinc-400" />
                       Allocated Workload
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        value={isEditing ? tempEstimatedHours : selectedProject.estimatedHours}
-                        disabled={!isEditing}
-                        onChange={(e) => setTempEstimatedHours(parseInt(e.target.value) || 0)}
-                        className={`w-16 rounded-lg border px-2 py-1 text-center text-xs font-bold text-zinc-700 outline-none transition-all dark:text-zinc-300 ${
-                          isEditing 
-                            ? "border-zinc-200 bg-zinc-50 focus:border-indigo-500 dark:border-white/10 dark:bg-zinc-900" 
-                            : "border-transparent bg-transparent cursor-default"
-                        }`}
-                      />
-                      <span className="text-[10px] text-zinc-400 font-bold uppercase">hrs</span>
-                    </div>
+                    {isEditing ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          value={tempEstimatedHours}
+                          onChange={(e) => setTempEstimatedHours(parseInt(e.target.value) || 0)}
+                          className="w-20 rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-center text-xs font-bold text-zinc-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
+                        />
+                        <span className="text-[10px] text-zinc-400 font-bold uppercase">hrs</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-extrabold text-zinc-800 dark:text-zinc-100 bg-zinc-50 border border-zinc-200/50 dark:bg-zinc-900 dark:border-white/5 px-2.5 py-1 rounded-lg">
+                        {selectedProject.estimatedHours} <span className="text-[10px] text-zinc-450 font-bold uppercase ml-0.5">hrs</span>
+                      </span>
+                    )}
                   </div>
 
-                  {/* Start Date */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                      <CalendarDaysIcon className="h-4 w-4 text-zinc-400" />
-                      Start Date
-                    </div>
-                    <input
-                      type="date"
-                      value={isEditing ? tempStartDate : selectedProject.startDate}
-                      disabled={!isEditing}
-                      onChange={(e) => setTempStartDate(e.target.value)}
-                      className={`rounded-lg border px-2.5 py-1 text-xs font-bold text-zinc-700 outline-none transition-all dark:text-zinc-305 ${
-                        isEditing 
-                          ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
-                          : "border-transparent bg-transparent cursor-default pointer-events-none"
-                      }`}
-                    />
-                  </div>
+                  {/* Start Date & Target Due Date */}
+                  {isEditing ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
+                          <CalendarDaysIcon className="h-4 w-4 text-zinc-400" />
+                          Start Date
+                        </div>
+                        <input
+                          type="date"
+                          value={tempStartDate}
+                          onChange={(e) => setTempStartDate(e.target.value)}
+                          className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-750 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 focus:border-indigo-500"
+                        />
+                      </div>
 
-                  {/* Due Date */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                      <ClockIcon className="h-4 w-4 text-zinc-400" />
-                      Target Due Date
-                    </div>
-                    <input
-                      type="date"
-                      value={isEditing ? tempDue : selectedProject.due}
-                      disabled={!isEditing}
-                      onChange={(e) => setTempDue(e.target.value)}
-                      className={`rounded-lg border px-2.5 py-1 text-xs font-bold text-zinc-700 outline-none transition-all dark:text-zinc-305 ${
-                        isEditing 
-                          ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
-                          : "border-transparent bg-transparent cursor-default pointer-events-none"
-                      }`}
-                    />
-                  </div>
-
-                  {/* Progress slider */}
-                  <div className="pt-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
+                          <ClockIcon className="h-4 w-4 text-zinc-400" />
+                          Target Due Date
+                        </div>
+                        <input
+                          type="date"
+                          value={tempDue}
+                          onChange={(e) => setTempDue(e.target.value)}
+                          className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-750 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 focus:border-indigo-500"
+                        />
+                      </div>
+                    </>
+                  ) : (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                        Completion Status
+                        <CalendarDaysIcon className="h-4 w-4 text-zinc-400" />
+                        Timeline
                       </div>
-                      <span className="text-xs font-extrabold text-indigo-500">
-                        {isEditing ? tempProgress : selectedProject.progress}%
-                      </span>
+                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                        <span>{formatDate(selectedProject.startDate)}</span>
+                        <span className="text-zinc-400 dark:text-zinc-650">—</span>
+                        <span>{formatDate(selectedProject.due)}</span>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={isEditing ? tempProgress : selectedProject.progress}
-                      disabled={!isEditing}
-                      onChange={(e) => setTempProgress(parseInt(e.target.value))}
-                      className="mt-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-indigo-500 dark:bg-zinc-800 disabled:opacity-75 disabled:cursor-default"
-                    />
-                  </div>
+                  )}
+
+                  {/* Progress slider */}
+                  {isEditing ? (
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
+                          Completion Status
+                        </div>
+                        <span className="text-xs font-extrabold text-indigo-500">
+                          {tempProgress}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={tempProgress}
+                        onChange={(e) => setTempProgress(parseInt(e.target.value))}
+                        className="mt-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-indigo-500 dark:bg-zinc-800 disabled:opacity-75"
+                      />
+                    </div>
+                  ) : (
+                    <div className="pt-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
+                          Completion Status
+                        </div>
+                        <span className="text-xs font-extrabold text-indigo-500">
+                          {selectedProject.progress}%
+                        </span>
+                      </div>
+                      <div className="mt-3.5 h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-850 overflow-hidden shadow-inner">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500"
+                          style={{ width: `${selectedProject.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Members list update */}
                   <div className="pt-4 border-t border-zinc-100 dark:border-white/5">
@@ -1235,36 +1419,24 @@ export function ProjectsListView() {
                     <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
                       Category
                     </label>
-                    <div className="relative mt-2">
-                      <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        className="block w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-4 pr-10 py-3 text-xs text-zinc-700 outline-none dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
-                      >
-                        {CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                      <ChevronDownIcon className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-zinc-400 dark:text-zinc-500" />
-                    </div>
+                    <CustomSelect
+                      value={category}
+                      onChange={setCategory}
+                      options={categoryOptions}
+                      className="mt-2"
+                    />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-555">
                       Project Lead
                     </label>
-                    <div className="relative mt-2">
-                      <select
-                        value={owner}
-                        onChange={(e) => setOwner(e.target.value)}
-                        className="block w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-4 pr-10 py-3 text-xs text-zinc-700 outline-none dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
-                      >
-                        {availableUsers.map((user) => (
-                          <option key={user.name} value={user.name}>{user.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDownIcon className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-zinc-400 dark:text-zinc-500" />
-                    </div>
+                    <CustomSelect
+                      value={owner}
+                      onChange={setOwner}
+                      options={leadOptions}
+                      className="mt-2"
+                    />
                   </div>
                 </div>
 
@@ -1301,54 +1473,36 @@ export function ProjectsListView() {
                     <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
                       Status
                     </label>
-                    <div className="relative mt-2">
-                      <select
-                        value={status}
-                        onChange={(e) => setStatus(e.target.value as any)}
-                        className="block w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-3 pr-8 py-3 text-xs text-zinc-700 outline-none dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
-                      >
-                        {STATUSES.filter(s => s !== "All").map((s) => (
-                          <option key={s} value={s}>{s}</option>
-                        ))}
-                      </select>
-                      <ChevronDownIcon className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-zinc-400 dark:text-zinc-500" />
-                    </div>
+                    <CustomSelect
+                      value={status}
+                      onChange={setStatus}
+                      options={statusOptions}
+                      className="mt-2"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
                       Priority
                     </label>
-                    <div className="relative mt-2">
-                      <select
-                        value={priority}
-                        onChange={(e) => setPriority(e.target.value as any)}
-                        className="block w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-3 pr-8 py-3 text-xs text-zinc-700 outline-none dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
-                      >
-                        {PRIORITIES.filter(p => p !== "All").map((p) => (
-                          <option key={p} value={p}>{p}</option>
-                        ))}
-                      </select>
-                      <ChevronDownIcon className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-zinc-400 dark:text-zinc-500" />
-                    </div>
+                    <CustomSelect
+                      value={priority}
+                      onChange={setPriority}
+                      options={priorityOptions}
+                      className="mt-2"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
                       Health Index
                     </label>
-                    <div className="relative mt-2">
-                      <select
-                        value={health}
-                        onChange={(e) => setHealth(e.target.value as any)}
-                        className="block w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-3 pr-8 py-3 text-xs text-zinc-700 outline-none dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
-                      >
-                        {HEALTHS.map((h) => (
-                          <option key={h} value={h}>{healthText(h)}</option>
-                        ))}
-                      </select>
-                      <ChevronDownIcon className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none text-zinc-400 dark:text-zinc-500" />
-                    </div>
+                    <CustomSelect
+                      value={health}
+                      onChange={setHealth}
+                      options={healthOptions}
+                      className="mt-2"
+                    />
                   </div>
                 </div>
 
