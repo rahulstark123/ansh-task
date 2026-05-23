@@ -187,6 +187,66 @@ export function ProjectsListView() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
+  // Edit Drawer Form States
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempName, setTempName] = useState("");
+  const [tempDescription, setTempDescription] = useState("");
+  const [tempCategory, setTempCategory] = useState("");
+  const [tempOwner, setTempOwner] = useState("");
+  const [tempStatus, setTempStatus] = useState<Project["status"]>("Discovery");
+  const [tempPriority, setTempPriority] = useState<Project["priority"]>("Normal");
+  const [tempHealth, setTempHealth] = useState<Project["health"]>("good");
+  const [tempEstimatedHours, setTempEstimatedHours] = useState(0);
+  const [tempStartDate, setTempStartDate] = useState("");
+  const [tempDue, setTempDue] = useState("");
+  const [tempMembers, setTempMembers] = useState<string[]>([]);
+  const [tempProgress, setTempProgress] = useState(0);
+
+  useEffect(() => {
+    if (selectedProject) {
+      setTempName(selectedProject.name);
+      setTempDescription(selectedProject.description || "");
+      setTempCategory(selectedProject.category);
+      setTempOwner(selectedProject.owner);
+      setTempStatus(selectedProject.status);
+      setTempPriority(selectedProject.priority);
+      setTempHealth(selectedProject.health);
+      setTempEstimatedHours(selectedProject.estimatedHours);
+      setTempStartDate(selectedProject.startDate);
+      setTempDue(selectedProject.due);
+      setTempMembers(selectedProject.members);
+      setTempProgress(selectedProject.progress);
+      setIsEditing(false); // Default to read-only when opening
+    }
+  }, [selectedProject]);
+
+  const handleSaveDrawerEdits = async () => {
+    if (!selectedProject) return;
+    if (!tempName.trim()) {
+      showToast("Project name cannot be empty", "error");
+      return;
+    }
+
+    const updates: Partial<Project> = {
+      name: tempName.trim(),
+      description: tempDescription.trim(),
+      category: tempCategory,
+      owner: tempOwner,
+      status: tempStatus,
+      priority: tempPriority,
+      health: tempHealth,
+      estimatedHours: tempEstimatedHours,
+      startDate: tempStartDate,
+      due: tempDue,
+      members: tempMembers,
+      progress: tempProgress,
+    };
+
+    await handleUpdateProject(selectedProject.id, updates);
+    setIsEditing(false);
+    showToast("Project changes saved successfully!", "success");
+  };
+
   // Close menus on outside click
   useEffect(() => {
     const handleOutsideClick = () => setActiveMenuId(null);
@@ -738,17 +798,45 @@ export function ProjectsListView() {
               {/* Drawer Header */}
               <div className="flex items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-white/5">
                 <div className="flex items-center gap-2">
-                  <div className={`h-3 w-3 rounded-full ${healthDot(selectedProject.health)}`} />
+                  <div className={`h-3 w-3 rounded-full ${healthDot(isEditing ? tempHealth : selectedProject.health)}`} />
                   <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
                     Project Settings & Details
                   </span>
                 </div>
-                <button
-                  onClick={() => setSelectedProject(null)}
-                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
+                
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(!isEditing)}
+                    className={`rounded-lg p-1.5 transition-colors ${
+                      isEditing 
+                        ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400" 
+                        : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                    }`}
+                    title={isEditing ? "Viewing Mode" : "Edit Project"}
+                  >
+                    <PencilSquareIcon className="h-5 w-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteProject(selectedProject.id)}
+                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-450 transition-colors"
+                    title="Delete Project"
+                  >
+                    <TrashIcon className="h-5 w-5" />
+                  </button>
+                  <div className="h-4 w-[1px] bg-zinc-200 dark:bg-white/10 mx-1" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedProject(null);
+                      setIsEditing(false);
+                    }}
+                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  >
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Drawer Content */}
@@ -757,131 +845,173 @@ export function ProjectsListView() {
                 {/* Title & Desc */}
                 <div>
                   <input
-                    value={selectedProject.name}
-                    onChange={(e) => handleUpdateProject(selectedProject.id, { name: e.target.value })}
-                    className="w-full bg-transparent font-heading text-xl font-extrabold text-zinc-900 outline-none border-b border-transparent focus:border-zinc-200 dark:text-white dark:focus:border-zinc-800 pb-1"
+                    value={isEditing ? tempName : selectedProject.name}
+                    disabled={!isEditing}
+                    onChange={(e) => setTempName(e.target.value)}
+                    placeholder="Project Name"
+                    className={`w-full bg-transparent font-heading text-xl font-extrabold text-zinc-900 outline-none pb-1 transition-all ${
+                      isEditing 
+                        ? "border-b border-zinc-200 dark:border-zinc-800 focus:border-indigo-500" 
+                        : "border-b border-transparent cursor-default"
+                    } dark:text-white`}
                   />
                   <textarea
-                    value={selectedProject.description}
-                    onChange={(e) => handleUpdateProject(selectedProject.id, { description: e.target.value })}
+                    value={isEditing ? tempDescription : selectedProject.description}
+                    disabled={!isEditing}
+                    onChange={(e) => setTempDescription(e.target.value)}
                     rows={3}
-                    className="mt-2.5 w-full resize-none bg-transparent text-xs leading-relaxed text-zinc-400 outline-none border-b border-transparent focus:border-zinc-200 dark:text-zinc-500 dark:focus:border-zinc-800 pb-1"
+                    placeholder="Project Description"
+                    className={`mt-2.5 w-full resize-none bg-transparent text-xs leading-relaxed text-zinc-400 outline-none pb-1 transition-all ${
+                      isEditing 
+                        ? "border-b border-zinc-200 dark:border-zinc-800 focus:border-indigo-500" 
+                        : "border-b border-transparent cursor-default"
+                    } dark:text-zinc-500`}
                   />
                 </div>
 
                 <div className="space-y-4 pt-4 border-t border-zinc-150 dark:border-white/5">
-                                   {/* Category */}
+                  {/* Category */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
                       <TagIcon className="h-4 w-4 text-zinc-400" />
                       Category
                     </div>
                     <div className="relative">
                       <select
-                        value={selectedProject.category}
-                        onChange={(e) => handleUpdateProject(selectedProject.id, { category: e.target.value })}
-                        className="cursor-pointer appearance-none rounded-lg border border-zinc-250 bg-zinc-50 pl-2.5 pr-8 py-1.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-350"
+                        value={isEditing ? tempCategory : selectedProject.category}
+                        disabled={!isEditing}
+                        onChange={(e) => setTempCategory(e.target.value)}
+                        className={`cursor-pointer appearance-none rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-zinc-700 outline-none transition-all dark:text-zinc-350 ${
+                          isEditing 
+                            ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
+                            : "border-transparent bg-transparent cursor-default pointer-events-none"
+                        }`}
                       >
                         {CATEGORIES.map((cat) => (
                           <option key={cat} value={cat}>{cat}</option>
                         ))}
                       </select>
-                      <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />
+                      {isEditing && <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />}
                     </div>
                   </div>
 
                   {/* Owner */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
                       <UserIcon className="h-4 w-4 text-zinc-400" />
                       Project Lead
                     </div>
                     <div className="relative">
                       <select
-                        value={selectedProject.owner}
-                        onChange={(e) => handleUpdateProject(selectedProject.id, { owner: e.target.value })}
-                        className="cursor-pointer appearance-none rounded-lg border border-zinc-250 bg-zinc-50 pl-2.5 pr-8 py-1.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-355"
+                        value={isEditing ? tempOwner : selectedProject.owner}
+                        disabled={!isEditing}
+                        onChange={(e) => setTempOwner(e.target.value)}
+                        className={`cursor-pointer appearance-none rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-zinc-700 outline-none transition-all dark:text-zinc-355 ${
+                          isEditing 
+                            ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
+                            : "border-transparent bg-transparent cursor-default pointer-events-none"
+                        }`}
                       >
                         {availableUsers.map((user) => (
                           <option key={user.name} value={user.name}>{user.name}</option>
                         ))}
                       </select>
-                      <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />
+                      {isEditing && <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />}
                     </div>
                   </div>
 
                   {/* Status */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
                       <ChartBarIcon className="h-4 w-4 text-zinc-400" />
                       Status
                     </div>
                     <div className="relative">
                       <select
-                        value={selectedProject.status}
-                        onChange={(e) => handleUpdateProject(selectedProject.id, { status: e.target.value as any })}
-                        className="cursor-pointer appearance-none rounded-lg border border-zinc-250 bg-zinc-50 pl-2.5 pr-8 py-1.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-350"
+                        value={isEditing ? tempStatus : selectedProject.status}
+                        disabled={!isEditing}
+                        onChange={(e) => setTempStatus(e.target.value as any)}
+                        className={`cursor-pointer appearance-none rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-zinc-700 outline-none transition-all dark:text-zinc-355 ${
+                          isEditing 
+                            ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
+                            : "border-transparent bg-transparent cursor-default pointer-events-none"
+                        }`}
                       >
                         {STATUSES.filter(s => s !== "All").map((s) => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>
-                      <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />
+                      {isEditing && <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />}
                     </div>
                   </div>
 
                   {/* Priority */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
                       <Squares2X2Icon className="h-4 w-4 text-zinc-400" />
                       Priority
                     </div>
                     <div className="relative">
                       <select
-                        value={selectedProject.priority}
-                        onChange={(e) => handleUpdateProject(selectedProject.id, { priority: e.target.value as any })}
-                        className="cursor-pointer appearance-none rounded-lg border border-zinc-250 bg-zinc-50 pl-2.5 pr-8 py-1.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-350"
+                        value={isEditing ? tempPriority : selectedProject.priority}
+                        disabled={!isEditing}
+                        onChange={(e) => setTempPriority(e.target.value as any)}
+                        className={`cursor-pointer appearance-none rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-zinc-700 outline-none transition-all dark:text-zinc-355 ${
+                          isEditing 
+                            ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
+                            : "border-transparent bg-transparent cursor-default pointer-events-none"
+                        }`}
                       >
                         {PRIORITIES.filter(p => p !== "All").map((p) => (
                           <option key={p} value={p}>{p}</option>
                         ))}
                       </select>
-                      <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />
+                      {isEditing && <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />}
                     </div>
                   </div>
 
                   {/* Health */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
                       <HeartIcon className="h-4 w-4 text-zinc-400" />
                       Health Index
                     </div>
                     <div className="relative">
                       <select
-                        value={selectedProject.health}
-                        onChange={(e) => handleUpdateProject(selectedProject.id, { health: e.target.value as any })}
-                        className="cursor-pointer appearance-none rounded-lg border border-zinc-250 bg-zinc-50 pl-2.5 pr-8 py-1.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-355"
+                        value={isEditing ? tempHealth : selectedProject.health}
+                        disabled={!isEditing}
+                        onChange={(e) => setTempHealth(e.target.value as any)}
+                        className={`cursor-pointer appearance-none rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-zinc-700 outline-none transition-all dark:text-zinc-355 ${
+                          isEditing 
+                            ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
+                            : "border-transparent bg-transparent cursor-default pointer-events-none"
+                        }`}
                       >
                         {HEALTHS.map((h) => (
                           <option key={h} value={h}>{healthText(h)}</option>
                         ))}
                       </select>
-                      <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />
+                      {isEditing && <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 pointer-events-none text-zinc-400 dark:text-zinc-500" />}
                     </div>
                   </div>
 
                   {/* Estimated Hours */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
                       <CurrencyDollarIcon className="h-4 w-4 text-zinc-400" />
                       Allocated Workload
                     </div>
                     <div className="flex items-center gap-1.5">
                       <input
                         type="number"
-                        value={selectedProject.estimatedHours}
-                        onChange={(e) => handleUpdateProject(selectedProject.id, { estimatedHours: parseInt(e.target.value) || 0 })}
-                        className="w-16 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-center text-xs font-bold text-zinc-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
+                        value={isEditing ? tempEstimatedHours : selectedProject.estimatedHours}
+                        disabled={!isEditing}
+                        onChange={(e) => setTempEstimatedHours(parseInt(e.target.value) || 0)}
+                        className={`w-16 rounded-lg border px-2 py-1 text-center text-xs font-bold text-zinc-700 outline-none transition-all dark:text-zinc-300 ${
+                          isEditing 
+                            ? "border-zinc-200 bg-zinc-50 focus:border-indigo-500 dark:border-white/10 dark:bg-zinc-900" 
+                            : "border-transparent bg-transparent cursor-default"
+                        }`}
                       />
                       <span className="text-[10px] text-zinc-400 font-bold uppercase">hrs</span>
                     </div>
@@ -889,75 +1019,96 @@ export function ProjectsListView() {
 
                   {/* Start Date */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
                       <CalendarDaysIcon className="h-4 w-4 text-zinc-400" />
                       Start Date
                     </div>
                     <input
                       type="date"
-                      value={selectedProject.startDate}
-                      onChange={(e) => handleUpdateProject(selectedProject.id, { startDate: e.target.value })}
-                      className="cursor-pointer rounded-lg border border-zinc-250 bg-zinc-50 px-2.5 py-1 text-xs font-bold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
+                      value={isEditing ? tempStartDate : selectedProject.startDate}
+                      disabled={!isEditing}
+                      onChange={(e) => setTempStartDate(e.target.value)}
+                      className={`rounded-lg border px-2.5 py-1 text-xs font-bold text-zinc-700 outline-none transition-all dark:text-zinc-305 ${
+                        isEditing 
+                          ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
+                          : "border-transparent bg-transparent cursor-default pointer-events-none"
+                      }`}
                     />
                   </div>
 
                   {/* Due Date */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-wide">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
                       <ClockIcon className="h-4 w-4 text-zinc-400" />
                       Target Due Date
                     </div>
                     <input
                       type="date"
-                      value={selectedProject.due}
-                      onChange={(e) => handleUpdateProject(selectedProject.id, { due: e.target.value })}
-                      className="cursor-pointer rounded-lg border border-zinc-250 bg-zinc-50 px-2.5 py-1 text-xs font-bold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
+                      value={isEditing ? tempDue : selectedProject.due}
+                      disabled={!isEditing}
+                      onChange={(e) => setTempDue(e.target.value)}
+                      className={`rounded-lg border px-2.5 py-1 text-xs font-bold text-zinc-700 outline-none transition-all dark:text-zinc-305 ${
+                        isEditing 
+                          ? "border-zinc-250 bg-zinc-50 hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900" 
+                          : "border-transparent bg-transparent cursor-default pointer-events-none"
+                      }`}
                     />
                   </div>
 
                   {/* Progress slider */}
                   <div className="pt-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
+                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
                         Completion Status
                       </div>
-                      <span className="text-xs font-extrabold text-indigo-500">{selectedProject.progress}%</span>
+                      <span className="text-xs font-extrabold text-indigo-500">
+                        {isEditing ? tempProgress : selectedProject.progress}%
+                      </span>
                     </div>
                     <input
                       type="range"
                       min="0"
                       max="100"
-                      value={selectedProject.progress}
-                      onChange={(e) => handleUpdateProject(selectedProject.id, { progress: parseInt(e.target.value) })}
-                      className="mt-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-indigo-500 dark:bg-zinc-800"
+                      value={isEditing ? tempProgress : selectedProject.progress}
+                      disabled={!isEditing}
+                      onChange={(e) => setTempProgress(parseInt(e.target.value))}
+                      className="mt-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-indigo-500 dark:bg-zinc-800 disabled:opacity-75 disabled:cursor-default"
                     />
                   </div>
 
                   {/* Members list update */}
                   <div className="pt-4 border-t border-zinc-100 dark:border-white/5">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-500 uppercase tracking-wide mb-3">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide mb-3">
                       <UserGroupIcon className="h-4 w-4 text-zinc-400" />
                       Project Team contributors
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {selectedProject.members.map((m, idx) => (
+                      {(isEditing ? tempMembers : selectedProject.members).map((m, idx) => (
                         <div
                           key={idx}
-                          onClick={() => handleUpdateProject(selectedProject.id, { members: selectedProject.members.filter(x => x !== m) })}
-                          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600 hover:bg-rose-50 hover:text-rose-600 dark:bg-indigo-950/30 dark:text-indigo-300 dark:hover:bg-rose-950/30 dark:hover:text-rose-350 transition-colors shadow-sm"
-                          title="Click to remove from project"
+                          onClick={() => {
+                            if (!isEditing) return;
+                            setTempMembers((prev) => prev.filter((x) => x !== m));
+                          }}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600 transition-colors shadow-sm ${
+                            isEditing 
+                              ? "cursor-pointer hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-350" 
+                              : "cursor-default"
+                          } dark:bg-indigo-950/30 dark:text-indigo-300`}
+                          title={isEditing ? "Click to remove from project" : undefined}
                         >
                           {m}
                         </div>
                       ))}
                       
                       {/* Quick drop contributors */}
-                      {availableUsers.map((user) => {
-                        if (selectedProject.members.includes(user.initial)) return null;
+                      {isEditing && availableUsers.map((user) => {
+                        if (tempMembers.includes(user.initial)) return null;
                         return (
                           <button
                             key={user.initial}
-                            onClick={() => handleUpdateProject(selectedProject.id, { members: [...selectedProject.members, user.initial] })}
+                            type="button"
+                            onClick={() => setTempMembers((prev) => [...prev, user.initial])}
                             className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-zinc-300 text-zinc-400 hover:border-indigo-500 hover:bg-indigo-50/50 hover:text-indigo-600 dark:border-zinc-700 dark:hover:bg-zinc-800/50 text-[10px] font-bold"
                             title={`Add ${user.name}`}
                           >
@@ -968,20 +1119,43 @@ export function ProjectsListView() {
                     </div>
                   </div>
 
-                  {/* Delete Project Action */}
-                  <div className="pt-6 border-t border-zinc-150 dark:border-white/5">
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteProject(selectedProject.id)}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-rose-50 px-4 py-3 text-xs font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:hover:bg-rose-950/30 transition-colors shadow-sm"
-                    >
-                      Delete Project
-                    </button>
-                  </div>
-
                 </div>
               </div>
 
+              {/* Drawer Footer / Save Options */}
+              {isEditing && (
+                <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/60 px-6 py-4 dark:border-white/5 dark:bg-zinc-950/30 flex items-center justify-end gap-3 z-10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(false);
+                      // Reset values to saved state
+                      setTempName(selectedProject.name);
+                      setTempDescription(selectedProject.description || "");
+                      setTempCategory(selectedProject.category);
+                      setTempOwner(selectedProject.owner);
+                      setTempStatus(selectedProject.status);
+                      setTempPriority(selectedProject.priority);
+                      setTempHealth(selectedProject.health);
+                      setTempEstimatedHours(selectedProject.estimatedHours);
+                      setTempStartDate(selectedProject.startDate);
+                      setTempDue(selectedProject.due);
+                      setTempMembers(selectedProject.members);
+                      setTempProgress(selectedProject.progress);
+                    }}
+                    className="rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-bold text-zinc-650 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveDrawerEdits}
+                    className="rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              )}
             </motion.div>
           </>
         )}
