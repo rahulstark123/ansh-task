@@ -31,7 +31,7 @@ import PhoneInput from "react-phone-input-2";
 type TaskMock = {
   title: string;
   project: string;
-  status: "In Progress" | "Completed" | "Todo";
+  status: "In Progress" | "Completed" | "Todo" | "Blocked";
   progress: number;
 };
 
@@ -314,9 +314,7 @@ const mapDbUserToMember = (user: any): Member => {
       day: "numeric",
       year: "numeric",
     }),
-    tasks: [
-      { title: "Define roadmap objectives", project: "General", status: "In Progress", progress: 60 }
-    ],
+    tasks: user.tasks || [],
     activities: [
       { time: "Just now", description: "Created an account" }
     ]
@@ -355,6 +353,11 @@ export function TeamsManagementView() {
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskProjectId, setNewTaskProjectId] = useState("");
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [projects, setProjects] = useState<any[]>([]);
+
   // Dropdown menus state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
@@ -441,6 +444,17 @@ export function TeamsManagementView() {
           setAvailableDepts(json.departments);
         }
         setActiveWorkspaceId(json.workspaceId);
+
+        // Fetch projects for this workspace
+        try {
+          const projRes = await fetch(`/api/project?wid=${json.workspaceId}&email=${encodeURIComponent(email)}`);
+          const projJson = await projRes.json();
+          if (projJson.success) {
+            setProjects(projJson.projects);
+          }
+        } catch (err) {
+          console.error("Error fetching projects in team view:", err);
+        }
       }
     } catch (err) {
       console.error("Error fetching team:", err);
@@ -984,18 +998,114 @@ export function TeamsManagementView() {
 
                 {/* TASKS TAB */}
                 {activeTab === "tasks" && (
-                  <div className="space-y-4">
+                  <div className="space-y-4 flex flex-col flex-1 min-h-0">
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
                       Assigned Workspace Tasks
                     </h4>
-                    
-                    {selectedMember.tasks.length === 0 ? (
-                      <p className="text-center text-xs text-zinc-400 dark:text-zinc-500 py-8 italic">
-                        No tasks assigned to this user.
-                      </p>
-                    ) : (
-                      <div className="space-y-3">
-                        {selectedMember.tasks.map((task, i) => (
+
+                    {/* Inline Task Creator Form */}
+                    <form
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        if (!newTaskTitle.trim() || !selectedMember) return;
+                        setIsAddingTask(true);
+                        try {
+                          const { data: { user } } = await supabase.auth.getUser();
+                          const email = user?.email || "";
+                          const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid") || "";
+
+                          const res = await fetch("/api/project/tasks", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              title: newTaskTitle.trim(),
+                              projectId: newTaskProjectId || null,
+                              workspaceId: activeWorkspaceId,
+                              priority: "medium",
+                              status: "todo",
+                              assignee: selectedMember.name,
+                              due: "No date",
+                            }),
+                          });
+                          const json = await res.json();
+                          if (json.success) {
+                            showToast(`Task created and assigned to ${selectedMember.name}!`, "success");
+                            setNewTaskTitle("");
+                            setNewTaskProjectId("");
+                            
+                            // Re-fetch team to get the updated tasks list
+                            const latestRes = await fetch(`/api/team?email=${encodeURIComponent(email)}` + (onboardingWid ? `&wid=${onboardingWid}` : ""));
+                            const latestJson = await latestRes.json();
+                            if (latestJson.success) {
+                              const updatedMembers = latestJson.members.map(mapDbUserToMember);
+                              setMembers(updatedMembers);
+                              const updatedSelected = updatedMembers.find((m: any) => m.id === selectedMember.id);
+                              if (updatedSelected) {
+                                setSelectedMember(updatedSelected);
+                              }
+                            }
+                          } else {
+                            showToast(json.error || "Failed to add task", "error");
+                          }
+                        } catch (err) {
+                          console.error("Error adding member task:", err);
+                          showToast("Error adding task.", "error");
+                        } finally {
+                          setIsAddingTask(false);
+                        }
+                      }}
+                      className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-zinc-50/50 p-3.5 dark:border-white/5 dark:bg-zinc-900/40"
+                    >
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                        Create & Assign Task
+                      </span>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          required
+                          maxLength={80}
+                          value={newTaskTitle}
+                          onChange={(e) => setNewTaskTitle(e.target.value)}
+                          placeholder="Task title..."
+                          className="flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-850 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-250 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          disabled={isAddingTask}
+                        />
+                        
+                        <div className="relative w-36">
+                          <select
+                            value={newTaskProjectId}
+                            onChange={(e) => setNewTaskProjectId(e.target.value)}
+                            className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-3 pr-8 py-2 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            disabled={isAddingTask}
+                          >
+                            <option value="">No Project</option>
+                            {projects.map((proj) => (
+                              <option key={proj.id} value={proj.id}>
+                                {proj.name}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDownIcon className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-zinc-400" />
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isAddingTask || !newTaskTitle.trim()}
+                          className="rounded-xl bg-teal-500 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-teal-650 active:scale-98 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                          {isAddingTask ? "Adding..." : "Add"}
+                        </button>
+                      </div>
+                    </form>
+
+                    {/* Task list container */}
+                    <div className="flex-1 overflow-y-auto pr-0.5 space-y-3 scrollbar-thin">
+                      {selectedMember.tasks.length === 0 ? (
+                        <p className="text-center text-xs text-zinc-400 dark:text-zinc-500 py-8 italic">
+                          No tasks assigned to this user.
+                        </p>
+                      ) : (
+                        selectedMember.tasks.map((task, i) => (
                           <div 
                             key={i} 
                             className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-900/60"
@@ -1014,6 +1124,8 @@ export function TeamsManagementView() {
                                   ? "bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-500/10"
                                   : task.status === "In Progress"
                                   ? "bg-amber-50 text-amber-600 border border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-emerald-500/10"
+                                  : task.status === "Blocked"
+                                  ? "bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-955/20 dark:text-rose-400 dark:border-rose-500/10"
                                   : "bg-zinc-100 text-zinc-500 border border-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:border-white/5"
                               }`}>
                                 {task.status}
@@ -1026,17 +1138,17 @@ export function TeamsManagementView() {
                                 <span className="text-zinc-400">Completion</span>
                                 <span className="text-zinc-600 dark:text-zinc-300">{task.progress}%</span>
                               </div>
-                              <div className="mt-1.5 h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800">
+                              <div className="mt-1.5 h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                                 <div 
-                                  className="h-full rounded-full bg-[var(--app-primary)] transition-all duration-500"
+                                  className="h-full rounded-full bg-teal-500 transition-all duration-500"
                                   style={{ width: `${task.progress}%` }}
                                 />
                               </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
                 )}
 

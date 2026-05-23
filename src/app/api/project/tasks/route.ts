@@ -38,9 +38,9 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { title, projectId, workspaceId, priority, status, assignee, due } = body;
 
-    if (!title || !projectId || !workspaceId) {
+    if (!title || !workspaceId) {
       return NextResponse.json(
-        { success: false, error: "Title, Project ID, and Workspace ID are required" },
+        { success: false, error: "Title and Workspace ID are required" },
         { status: 400 }
       );
     }
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     const newTask = await prisma.task.create({
       data: {
         title,
-        projectId,
+        projectId: projectId || null,
         workspaceId: parseInt(workspaceId, 10),
         priority: priority || "medium",
         status: status || "todo",

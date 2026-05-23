@@ -28,8 +28,8 @@ export async function GET(request: Request) {
       workspaceId = 1;
     }
 
-    // Parallel fetch roles, departments, and members in one roundtrip
-    let [dbRoles, dbDepts, members] = await Promise.all([
+    // Parallel fetch roles, departments, members, and tasks in one roundtrip
+    let [dbRoles, dbDepts, members, dbTasks] = await Promise.all([
       prisma.workspaceRole.findMany({
         where: { workspaceId },
         orderBy: { name: "asc" },
@@ -41,6 +41,17 @@ export async function GET(request: Request) {
       prisma.user.findMany({
         where: { workspaceId },
         orderBy: { createdAt: "asc" },
+      }),
+      prisma.task.findMany({
+        where: { workspaceId },
+        include: {
+          project: {
+            select: {
+              name: true,
+            }
+          }
+        },
+        orderBy: { createdAt: "desc" },
       }),
     ]);
 
@@ -80,9 +91,42 @@ export async function GET(request: Request) {
       ]);
     }
 
+    // Map tasks to members based on assignee matching name or email
+    const membersWithTasks = members.map((member) => {
+      const memberName = `${member.firstName || ""} ${member.lastName || ""}`.trim() || member.email.split("@")[0];
+      const memberTasks = dbTasks.filter(
+        (task) =>
+          (task.assignee && task.assignee.toLowerCase() === memberName.toLowerCase()) ||
+          (task.assignee && task.assignee.toLowerCase() === member.email.toLowerCase())
+      );
+      return {
+        ...member,
+        tasks: memberTasks.map((t) => ({
+          id: t.id,
+          title: t.title,
+          project: t.project?.name || "General",
+          projectId: t.projectId,
+          status: t.status === "done"
+            ? "Completed"
+            : t.status === "in_progress"
+            ? "In Progress"
+            : t.status === "blocked"
+            ? "Blocked"
+            : "Todo",
+          progress: t.status === "done"
+            ? 100
+            : t.status === "in_progress"
+            ? 60
+            : t.status === "blocked"
+            ? 20
+            : 0,
+        })),
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      members,
+      members: membersWithTasks,
       roles: dbRoles.map((r) => r.name),
       departments: dbDepts.map((d) => d.name),
       workspaceId,
