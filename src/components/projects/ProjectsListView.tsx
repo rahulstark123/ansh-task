@@ -19,6 +19,10 @@ import {
   HeartIcon,
   CheckIcon,
   ChevronDownIcon,
+  EllipsisVerticalIcon,
+  EyeIcon,
+  PencilSquareIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
@@ -181,6 +185,14 @@ export function ProjectsListView() {
   // Drawer & Modal States
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handleOutsideClick = () => setActiveMenuId(null);
+    window.addEventListener("click", handleOutsideClick);
+    return () => window.removeEventListener("click", handleOutsideClick);
+  }, []);
 
   // New Project Form State
   const [name, setName] = useState("");
@@ -510,7 +522,7 @@ export function ProjectsListView() {
                 className="group relative flex cursor-pointer flex-col rounded-[20px] border border-zinc-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-xl hover:shadow-black/5 dark:border-white/10 dark:bg-zinc-900/60 dark:hover:border-white/20 dark:hover:shadow-black/40"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest block mb-1">
                       {p.category}
                     </span>
@@ -521,7 +533,66 @@ export function ProjectsListView() {
                       {p.description}
                     </p>
                   </div>
-                  <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${healthDot(p.health)}`} title={`Health: ${healthText(p.health)}`} />
+                  
+                  <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${healthDot(p.health)}`} title={`Health: ${healthText(p.health)}`} />
+                    
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenuId(activeMenuId === p.id ? null : p.id);
+                        }}
+                        className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                        title="Project Options"
+                      >
+                        <EllipsisVerticalIcon className="h-4.5 w-4.5" />
+                      </button>
+                      
+                      <AnimatePresence>
+                        {activeMenuId === p.id && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                            className="absolute right-0 mt-1 z-30 w-32 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 text-left"
+                          >
+                            <button
+                              onClick={() => {
+                                setSelectedProject(p);
+                                setActiveMenuId(null);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            >
+                              <EyeIcon className="h-4 w-4 text-zinc-400" />
+                              Preview
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedProject(p);
+                                setActiveMenuId(null);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            >
+                              <PencilSquareIcon className="h-4 w-4 text-zinc-400" />
+                              Edit
+                            </button>
+                            <div className="my-1 border-t border-zinc-100 dark:border-white/5" />
+                            <button
+                              onClick={() => {
+                                handleDeleteProject(p.id);
+                                setActiveMenuId(null);
+                              }}
+                              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                            >
+                              <TrashIcon className="h-4 w-4 text-rose-500" />
+                              Delete
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </div>
                 </div>
                 
                 <div className="mt-4 flex flex-wrap items-center gap-1.5">
