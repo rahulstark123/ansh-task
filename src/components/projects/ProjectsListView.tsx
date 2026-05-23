@@ -1024,12 +1024,16 @@ export function ProjectsListView() {
                     Project Name
                   </div>
                   {isEditing ? (
-                    <input
-                      value={tempName}
-                      onChange={(e) => setTempName(e.target.value)}
-                      placeholder="Project Name"
-                      className="w-48 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-850 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                    />
+                    <div className="flex flex-col items-end gap-1">
+                      <input
+                        value={tempName}
+                        maxLength={80}
+                        onChange={(e) => setTempName(e.target.value)}
+                        placeholder="Project Name"
+                        className="w-48 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-850 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                      />
+                      <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-550 pr-1">{tempName.length}/80</span>
+                    </div>
                   ) : (
                     <span className="text-xs font-bold text-zinc-850 dark:text-zinc-250 truncate max-w-[200px]" title={selectedProject.name}>
                       {selectedProject.name}
@@ -1044,17 +1048,21 @@ export function ProjectsListView() {
                     Description
                   </div>
                   {isEditing ? (
-                    <textarea
-                      value={tempDescription}
-                      onChange={(e) => setTempDescription(e.target.value)}
-                      rows={3}
-                      placeholder="Project Description"
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-250 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none leading-relaxed"
-                    />
+                    <div className="flex flex-col items-end gap-1 w-full">
+                      <textarea
+                        value={tempDescription}
+                        maxLength={300}
+                        onChange={(e) => setTempDescription(e.target.value)}
+                        rows={3}
+                        placeholder="Project Description"
+                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-250 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none leading-relaxed"
+                      />
+                      <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-550 pr-1">{tempDescription.length}/300</span>
+                    </div>
                   ) : (
-                    <div className="rounded-xl border border-zinc-150 bg-zinc-50/50 p-3 text-xs leading-relaxed text-zinc-500 dark:border-white/5 dark:bg-zinc-900/30 dark:text-zinc-400">
+                    <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 text-xs leading-relaxed text-zinc-600 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 shadow-inner">
                       {selectedProject.description || (
-                        <span className="italic text-zinc-450 dark:text-zinc-650">No description provided.</span>
+                        <span className="italic text-zinc-400 dark:text-zinc-600">No description provided.</span>
                       )}
                     </div>
                   )}
@@ -1396,14 +1404,18 @@ export function ProjectsListView() {
               {/* Scrollable Form body */}
               <form onSubmit={handleAddProject} className="flex-1 overflow-y-auto pr-1 py-4 space-y-4 scrollbar-thin">
                 
-                {/* Project Name */}
+                 {/* Project Name */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
-                    Project Name
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
+                      Project Name
+                    </label>
+                    <span className="text-[9px] font-bold text-zinc-450 dark:text-zinc-550">{name.length}/80</span>
+                  </div>
                   <input
                     type="text"
                     required
+                    maxLength={80}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Q3 Website Redesign"
@@ -1413,11 +1425,15 @@ export function ProjectsListView() {
 
                 {/* Description */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
-                    Description
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
+                      Description
+                    </label>
+                    <span className="text-[9px] font-bold text-zinc-450 dark:text-zinc-550">{description.length}/300</span>
+                  </div>
                   <textarea
                     rows={2}
+                    maxLength={300}
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Describe project objectives and scope..."
