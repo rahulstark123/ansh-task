@@ -207,9 +207,9 @@ export function TaskDashboard({
   
   // Advanced multi-filtering states
   const [filterPriority, setFilterPriority] = useState<string>("All");
-  const [filterAssignee, setFilterAssignee] = useState<string>("All");
-  const [filterCategory, setFilterCategory] = useState<string>("All");
-  const [filterLabel, setFilterLabel] = useState<string>("All");
+  const [filterAssignees, setFilterAssignees] = useState<string[]>([]);
+  const [filterCategories, setFilterCategories] = useState<string[]>([]);
+  const [filterLabels, setFilterLabels] = useState<string[]>([]);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // Modal & inline states
@@ -259,13 +259,13 @@ export function TaskDashboard({
         (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesPriority = filterPriority === "All" ? true : task.priority === filterPriority.toLowerCase();
-      const matchesAssignee = filterAssignee === "All" ? true : task.assignee === filterAssignee;
-      const matchesCategory = filterCategory === "All" ? true : task.category === filterCategory;
-      const matchesLabel = filterLabel === "All" ? true : (task.labels && task.labels.includes(filterLabel));
+      const matchesAssignee = filterAssignees.length === 0 ? true : filterAssignees.includes(task.assignee || "Unassigned");
+      const matchesCategory = filterCategories.length === 0 ? true : (task.category && filterCategories.includes(task.category));
+      const matchesLabel = filterLabels.length === 0 ? true : (task.labels && task.labels.some((l) => filterLabels.includes(l)));
 
       return matchesSearch && matchesPriority && matchesAssignee && matchesCategory && matchesLabel;
     });
-  }, [moduleTasks, searchQuery, filterPriority, filterAssignee, filterCategory, filterLabel]);
+  }, [moduleTasks, searchQuery, filterPriority, filterAssignees, filterCategories, filterLabels]);
 
   // Aggregate columns counts
   const columnsCounts = useMemo(() => {
@@ -522,12 +522,17 @@ export function TaskDashboard({
   function resetAllFilters() {
     setSearchQuery("");
     setFilterPriority("All");
-    setFilterAssignee("All");
-    setFilterCategory("All");
-    setFilterLabel("All");
+    setFilterAssignees([]);
+    setFilterCategories([]);
+    setFilterLabels([]);
   }
 
-  const hasActiveFilters = searchQuery !== "" || filterPriority !== "All" || filterAssignee !== "All" || filterCategory !== "All" || filterLabel !== "All";
+  const hasActiveFilters =
+    searchQuery !== "" ||
+    filterPriority !== "All" ||
+    filterAssignees.length > 0 ||
+    filterCategories.length > 0 ||
+    filterLabels.length > 0;
 
   return (
     <div className="flex h-[calc(100vh-3.75rem)] w-full flex-col overflow-hidden bg-transparent dark:bg-zinc-950">
@@ -580,20 +585,20 @@ export function TaskDashboard({
               type="button"
               onClick={() => setIsFilterModalOpen(true)}
               className={`inline-flex h-9 items-center gap-2 rounded-xl border px-3 text-xs font-bold transition-all hover:scale-[1.01] active:scale-95 ${
-                (filterPriority !== "All" || filterAssignee !== "All" || filterCategory !== "All" || filterLabel !== "All")
+                (filterPriority !== "All" || filterAssignees.length > 0 || filterCategories.length > 0 || filterLabels.length > 0)
                   ? "border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
                   : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
               }`}
             >
               <FunnelIcon className="h-4 w-4" />
               <span>Filters</span>
-              {(filterPriority !== "All" || filterAssignee !== "All" || filterCategory !== "All" || filterLabel !== "All") && (
+              {(filterPriority !== "All" || filterAssignees.length > 0 || filterCategories.length > 0 || filterLabels.length > 0) && (
                 <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--app-primary)] px-1 text-[10px] font-black text-white">
                   {[
                     filterPriority !== "All",
-                    filterAssignee !== "All",
-                    filterCategory !== "All",
-                    filterLabel !== "All"
+                    filterAssignees.length > 0,
+                    filterCategories.length > 0,
+                    filterLabels.length > 0
                   ].filter(Boolean).length}
                 </span>
               )}
@@ -670,7 +675,7 @@ export function TaskDashboard({
         </div>
 
         {/* Active Filter Badges Display */}
-        {(filterPriority !== "All" || filterAssignee !== "All" || filterCategory !== "All" || filterLabel !== "All" || searchQuery !== "") && (
+        {(filterPriority !== "All" || filterAssignees.length > 0 || filterCategories.length > 0 || filterLabels.length > 0 || searchQuery !== "") && (
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-100 dark:border-white/5">
             <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Applied Filters:</span>
             
@@ -678,55 +683,55 @@ export function TaskDashboard({
               <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
                 <span>Query:</span>
                 <span className="text-zinc-450 font-normal">"{searchQuery}"</span>
-                <button onClick={() => setSearchQuery("")} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white">
+                <button onClick={() => setSearchQuery("")} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white cursor-pointer">
                   <XMarkIcon className="h-3.5 w-3.5" />
                 </button>
               </span>
             )}
-
+ 
             {filterPriority !== "All" && (
               <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
                 <span>Priority:</span>
-                <span className="text-zinc-450 font-normal">{filterPriority}</span>
-                <button onClick={() => setFilterPriority("All")} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white">
+                <span className="text-zinc-450 font-normal">{filterPriority === "Medium" ? "Normal" : filterPriority}</span>
+                <button onClick={() => setFilterPriority("All")} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white cursor-pointer">
                   <XMarkIcon className="h-3.5 w-3.5" />
                 </button>
               </span>
             )}
-
-            {filterAssignee !== "All" && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
+ 
+            {filterAssignees.map((assigneeName) => (
+              <span key={assigneeName} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
                 <span>Assignee:</span>
-                <span className="text-zinc-450 font-normal">{filterAssignee}</span>
-                <button onClick={() => setFilterAssignee("All")} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white">
+                <span className="text-zinc-450 font-normal">{assigneeName}</span>
+                <button onClick={() => setFilterAssignees((prev) => prev.filter((a) => a !== assigneeName))} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white cursor-pointer">
                   <XMarkIcon className="h-3.5 w-3.5" />
                 </button>
               </span>
-            )}
-
-            {filterCategory !== "All" && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
+            ))}
+ 
+            {filterCategories.map((categoryName) => (
+              <span key={categoryName} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
                 <span>Category:</span>
-                <span className="text-zinc-450 font-normal">{filterCategory}</span>
-                <button onClick={() => setFilterCategory("All")} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white">
+                <span className="text-zinc-450 font-normal">{categoryName}</span>
+                <button onClick={() => setFilterCategories((prev) => prev.filter((c) => c !== categoryName))} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white cursor-pointer">
                   <XMarkIcon className="h-3.5 w-3.5" />
                 </button>
               </span>
-            )}
-
-            {filterLabel !== "All" && (
-              <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
+            ))}
+ 
+            {filterLabels.map((labelName) => (
+              <span key={labelName} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
                 <span>Label:</span>
-                <span className="text-zinc-450 font-normal">{filterLabel}</span>
-                <button onClick={() => setFilterLabel("All")} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white">
+                <span className="text-zinc-450 font-normal">{labelName}</span>
+                <button onClick={() => setFilterLabels((prev) => prev.filter((l) => l !== labelName))} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white cursor-pointer">
                   <XMarkIcon className="h-3.5 w-3.5" />
                 </button>
               </span>
-            )}
-
+            ))}
+ 
             <button
               onClick={resetAllFilters}
-              className="text-[11px] font-black text-rose-500 hover:text-rose-600 hover:underline px-1 py-0.5 ml-1 transition-colors"
+              className="text-[11px] font-black text-rose-500 hover:text-rose-600 hover:underline px-1 py-0.5 ml-1 transition-colors cursor-pointer"
             >
               Clear all
             </button>
@@ -1469,55 +1474,121 @@ export function TaskDashboard({
                   </div>
                 </div>
 
-                {/* 2. Assignee */}
+                {/* 2. Assignees */}
                 <div>
-                  <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Assignee</h4>
-                  <select
-                    value={filterAssignee}
-                    onChange={(e) => setFilterAssignee(e.target.value)}
-                    className="w-full h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-semibold text-zinc-700 shadow-sm outline-none transition-[border-color,box-shadow] focus:border-zinc-300 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
-                  >
-                    <option value="All" className="dark:bg-zinc-950">All Assignees</option>
-                    {assigneesList.map((a) => (
-                      <option key={a} value={a} className="dark:bg-zinc-950">
-                        {a}
-                      </option>
-                    ))}
-                  </select>
+                  <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Assignees</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setFilterAssignees([])}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
+                        filterAssignees.length === 0
+                          ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                          : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                      }`}
+                    >
+                      All
+                    </button>
+                    {assigneesList.map((a) => {
+                      const isSelected = filterAssignees.includes(a);
+                      return (
+                        <button
+                          key={a}
+                          type="button"
+                          onClick={() => {
+                            setFilterAssignees((prev) =>
+                              prev.includes(a) ? prev.filter((item) => item !== a) : [...prev, a]
+                            );
+                          }}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
+                            isSelected
+                              ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                              : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                          }`}
+                        >
+                          {a}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                {/* 3. Category */}
+                {/* 3. Categories */}
                 <div>
-                  <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Category</h4>
-                  <select
-                    value={filterCategory}
-                    onChange={(e) => setFilterCategory(e.target.value)}
-                    className="w-full h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-semibold text-zinc-700 shadow-sm outline-none transition-[border-color,box-shadow] focus:border-zinc-300 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
-                  >
-                    <option value="All" className="dark:bg-zinc-950">All Categories</option>
-                    {(customCategories || []).map((cat) => (
-                      <option key={cat} value={cat} className="dark:bg-zinc-950">
-                        {cat}
-                      </option>
-                    ))}
-                  </select>
+                  <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Categories</h4>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setFilterCategories([])}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
+                        filterCategories.length === 0
+                          ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                          : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                      }`}
+                    >
+                      All
+                    </button>
+                    {(customCategories || []).map((cat) => {
+                      const isSelected = filterCategories.includes(cat);
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            setFilterCategories((prev) =>
+                              prev.includes(cat) ? prev.filter((item) => item !== cat) : [...prev, cat]
+                            );
+                          }}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
+                            isSelected
+                              ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                              : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* 4. Labels */}
                 <div>
                   <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Labels</h4>
-                  <select
-                    value={filterLabel}
-                    onChange={(e) => setFilterLabel(e.target.value)}
-                    className="w-full h-10 rounded-xl border border-zinc-200 bg-zinc-50 px-3 text-xs font-semibold text-zinc-700 shadow-sm outline-none transition-[border-color,box-shadow] focus:border-zinc-300 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200"
-                  >
-                    <option value="All" className="dark:bg-zinc-950">All Labels</option>
-                    {(customLabels || []).map((lab) => (
-                      <option key={lab} value={lab} className="dark:bg-zinc-950">
-                        {lab}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setFilterLabels([])}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
+                        filterLabels.length === 0
+                          ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                          : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                      }`}
+                    >
+                      All
+                    </button>
+                    {(customLabels || []).map((lab) => {
+                      const isSelected = filterLabels.includes(lab);
+                      return (
+                        <button
+                          key={lab}
+                          type="button"
+                          onClick={() => {
+                            setFilterLabels((prev) =>
+                              prev.includes(lab) ? prev.filter((item) => item !== lab) : [...prev, lab]
+                            );
+                          }}
+                          className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
+                            isSelected
+                              ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
+                              : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                          }`}
+                        >
+                          {lab}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
