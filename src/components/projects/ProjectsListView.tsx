@@ -384,7 +384,6 @@ export function ProjectsListView() {
       startDate: tempStartDate,
       due: tempDue,
       members: tempMembers,
-      progress: tempProgress,
     };
 
     await handleUpdateProject(selectedProject.id, updates);
@@ -1241,44 +1240,23 @@ export function ProjectsListView() {
                     </div>
                   )}
 
-                  {/* Progress slider */}
-                  {isEditing ? (
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                          Completion Status
-                        </div>
-                        <span className="text-xs font-extrabold text-indigo-500">
-                          {tempProgress}%
-                        </span>
+                  {/* Progress bar */}
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
+                        Completion Status
                       </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={tempProgress}
-                        onChange={(e) => setTempProgress(parseInt(e.target.value))}
-                        className="mt-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-indigo-500 dark:bg-zinc-800 disabled:opacity-75"
+                      <span className="text-xs font-extrabold text-indigo-500">
+                        {selectedProject.progress}%
+                      </span>
+                    </div>
+                    <div className="mt-3 h-2 w-full rounded-full bg-zinc-150 dark:bg-zinc-850 overflow-hidden shadow-inner">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500"
+                        style={{ width: `${selectedProject.progress}%` }}
                       />
                     </div>
-                  ) : (
-                    <div className="pt-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                          Completion Status
-                        </div>
-                        <span className="text-xs font-extrabold text-indigo-500">
-                          {selectedProject.progress}%
-                        </span>
-                      </div>
-                      <div className="mt-3.5 h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-850 overflow-hidden shadow-inner">
-                        <div
-                          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500"
-                          style={{ width: `${selectedProject.progress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
+                  </div>
 
                   {/* Members list update */}
                   <div className="pt-4 border-t border-zinc-100 dark:border-white/5">
