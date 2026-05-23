@@ -197,16 +197,16 @@ export function LandingPageClient() {
 
               {/* Main Headline */}
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-[54px] font-extrabold tracking-tight leading-[1.1] text-zinc-900 dark:text-white">
-                The Workspace Where{" "}
+                The Next-Gen{" "}
                 <span className="bg-gradient-to-r from-teal-500 to-emerald-600 bg-clip-text text-transparent dark:from-teal-400 dark:to-emerald-500">
-                  Fast Teams
+                  Task & Project Management App
                 </span>{" "}
-                Collaborate
+                for Fast Teams
               </h1>
 
               {/* Description */}
               <p className="text-zinc-600 dark:text-zinc-300 text-lg md:text-xl font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                ANSH Task merges tasks, projects, collaborative brain boards, and documents into a single, high-performance command center.
+                ANSH Task combines project management tools, Kanban task boards, collaborative brain boards, and documents into a unified, high-performance workspace.
               </p>
 
               {/* Value Props: What ANSH Task Does (Crisp & Clear) */}
@@ -469,7 +469,7 @@ export function LandingPageClient() {
           {/* Header */}
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Everything you need to keep projects on track
+              Powerful Task Management Features for High-Performing Teams
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
               Say goodbye to fragmented SaaS apps. ANSH Task integrates productivity tools into one hyper-fast, customizable platform.
@@ -620,7 +620,7 @@ export function LandingPageClient() {
                 Themeable Workspace
               </div>
               <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white leading-tight">
-                Designed to fit your brand. Personalize in a click.
+                A Customizable Workspace That Fits Your Project Workflows
               </h2>
               <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg leading-relaxed">
                 ANSH Task includes a global, theme-aware appearance controller. Instantly toggle light, system default, or true midnight dark modes. Update the primary accent token to dynamically restyle the sidebar highlight pills, progress trackers, buttons, and custom badges.
@@ -667,8 +667,8 @@ export function LandingPageClient() {
           <div className="space-y-4">
             {[
               {
-                q: "What is ANSH Task and how does it help teams?",
-                a: "ANSH Task is a unified collaborative productivity hub designed for high-performance teams. It consolidates tasks (via Kanban boards), visual layouts (via Brain Boards), collaborative folders (via Documents Hub), and member accounts into a single dashboard. This prevents context-switching and boosts team alignment.",
+                q: "How does ANSH Task compare to other task management apps and project management tools?",
+                a: "ANSH Task is a unified collaborative productivity hub designed to stand out among task management apps. Unlike standalone project management tools, it integrates tasks (Kanban boards), visual whiteboards (Brain Boards), specs/wikis (Documents Hub), and support desks in one tab. This prevents context switching and maximizes team efficiency.",
               },
               {
                 q: "Can I customize the design system and theme accent colors?",
