@@ -536,8 +536,8 @@ export function ProjectsListView() {
                   </span>
                 </div>
                 
-                <div className="mt-6 mt-auto">
-                  <div className="mb-1.5 flex justify-between text-[11px] font-bold text-zinc-400">
+                <div className="mt-auto pt-5">
+                  <div className="mb-3 flex justify-between text-[11px] font-bold text-zinc-400">
                     <span>Progress</span>
                     <span className="text-zinc-700 dark:text-zinc-300">{p.progress}%</span>
                   </div>
