@@ -24,6 +24,7 @@ import {
   PencilSquareIcon,
   TrashIcon,
   DocumentTextIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
@@ -349,6 +350,7 @@ export function ProjectsListView() {
 
   // Tabbed Drawer States
   const [activeTab, setActiveTab] = useState<"details" | "tasks">("details");
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [projectTasks, setProjectTasks] = useState<any[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -677,23 +679,21 @@ export function ProjectsListView() {
   };
 
   const handleDeleteProject = async (id: string) => {
-    if (confirm("Are you sure you want to delete this project? This will dissociate any linked tasks.")) {
-      try {
-        const res = await fetch(`/api/project?id=${id}`, {
-          method: "DELETE",
-        });
-        const json = await res.json();
-        if (json.success) {
-          showToast("Project deleted successfully.", "success");
-          setProjects((prev) => prev.filter((p) => p.id !== id));
-          setSelectedProject(null);
-        } else {
-          showToast(json.error || "Failed to delete project", "error");
-        }
-      } catch (err) {
-        console.error("Error deleting project:", err);
-        showToast("An error occurred while deleting the project.", "error");
+    try {
+      const res = await fetch(`/api/project?id=${id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast("Project deleted successfully.", "success");
+        setProjects((prev) => prev.filter((p) => p.id !== id));
+        setSelectedProject(null);
+      } else {
+        showToast(json.error || "Failed to delete project", "error");
       }
+    } catch (err) {
+      console.error("Error deleting project:", err);
+      showToast("An error occurred while deleting the project.", "error");
     }
   };
 
@@ -875,7 +875,7 @@ export function ProjectsListView() {
                             <div className="my-1 border-t border-zinc-100 dark:border-white/5" />
                             <button
                               onClick={() => {
-                                handleDeleteProject(p.id);
+                                setProjectToDelete(p);
                                 setActiveMenuId(null);
                               }}
                               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
@@ -1054,8 +1054,8 @@ export function ProjectsListView() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDeleteProject(selectedProject.id)}
-                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-450 transition-colors"
+                    onClick={() => setProjectToDelete(selectedProject)}
+                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/20 dark:hover:text-rose-455 transition-colors"
                     title="Delete Project"
                   >
                     <TrashIcon className="h-5 w-5" />
@@ -1807,6 +1807,63 @@ export function ProjectsListView() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* DELETE PROJECT CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {projectToDelete && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setProjectToDelete(null)}
+              className="fixed inset-0 z-50 bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
+            />
+
+            {/* Modal Dialog */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="fixed inset-0 z-50 m-auto flex h-fit max-w-[400px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418] overflow-hidden"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-500 dark:bg-rose-950/30 dark:text-rose-400 mb-4 shadow-sm">
+                  <ExclamationTriangleIcon className="h-6 w-6" />
+                </div>
+                <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                  Delete Project
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Are you sure you want to delete <span className="font-semibold text-zinc-700 dark:text-zinc-300">"{projectToDelete.name}"</span>? This will dissociate any linked tasks and cannot be undone.
+                </p>
+              </div>
+
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setProjectToDelete(null)}
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-650 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const id = projectToDelete.id;
+                    setProjectToDelete(null);
+                    await handleDeleteProject(id);
+                  }}
+                  className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 active:scale-95 transition-all"
+                >
+                  Yes, Delete
+                </button>
+              </div>
             </motion.div>
           </>
         )}
