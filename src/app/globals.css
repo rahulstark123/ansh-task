@@ -1,26 +1,239 @@
 @import "tailwindcss";
 
+@custom-variant dark (.dark &);
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Slightly warm paper + ink — less “clinical SaaS” */
+  --background: #eae7e1;
+  --foreground: #18181b;
+  --app-font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --app-canvas-tint: var(--background);
+
+  --app-primary: #0d9488;
+  --app-primary-hover: #0f7669;
+  --app-primary-foreground: #ffffff;
+  --app-primary-soft: #ecfdf7;
+  --app-primary-soft-text: #115e59;
+  --app-primary-soft-border: #c4f0e8;
+  --app-primary-muted-icon: #0d9488;
+  --app-focus-border: #2dd4bf;
+  --app-ring: rgba(13, 148, 136, 0.18);
+  --app-row-hover: rgba(13, 148, 136, 0.06);
+  --app-gradient-from: #14b8a6;
+  --app-gradient-to: #0f7669;
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --app-canvas-tint: transparent;
+  --app-primary-soft: rgba(20, 184, 166, 0.08);
+  --app-primary-soft-text: #99f6e4;
+  --app-primary-soft-border: rgba(255, 255, 255, 0.09);
+  --app-row-hover: rgba(255, 255, 255, 0.04);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-outfit), var(--font-inter), ui-sans-serif, system-ui,
+    sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--background);
+  min-height: 100%;
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  width: 100%;
+  max-width: 100%;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--app-font-family);
+  text-rendering: optimizeLegibility;
 }
+
+.dark body {
+  background:
+    radial-gradient(ellipse 120% 80% at 10% -10%, rgba(13, 148, 136, 0.12), transparent 42%),
+    radial-gradient(ellipse 90% 60% at 100% 100%, rgba(59, 130, 246, 0.05), transparent 40%),
+    #09090b;
+  background-attachment: fixed;
+}
+
+/* Main column: dynamic light tint gradient matching the selected primary theme color */
+.app-main-column {
+  background-color: var(--background);
+  background-image: linear-gradient(
+    180deg,
+    var(--app-primary-soft) 0%,
+    rgba(234, 231, 225, 0.3) 50%,
+    var(--background) 100%
+  );
+  background-repeat: no-repeat;
+}
+
+.dark .app-main-column {
+  background: transparent;
+  background-image: none;
+}
+
+/* Sidebar custom themed light-mode background gradient */
+.app-sidebar {
+  background-color: #d5d2c9;
+  background-image: linear-gradient(
+    185deg,
+    var(--app-primary-soft) 0%,
+    rgba(213, 210, 201, 0.96) 100%
+  );
+}
+
+.dark .app-sidebar {
+  background-color: rgba(9, 9, 11, 0.8) !important;
+  background-image: none !important;
+}
+
+.app-hover-lift {
+  transition:
+    transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1),
+    box-shadow 0.28s cubic-bezier(0.25, 0.8, 0.25, 1),
+    border-color 0.25s ease;
+}
+
+.app-hover-lift:hover {
+  transform: translate3d(0, -2px, 0);
+  box-shadow: 0 12px 28px -8px rgba(24, 24, 27, 0.12);
+}
+
+.dark .app-hover-lift:hover {
+  box-shadow: 0 14px 36px -10px rgba(0, 0, 0, 0.55);
+}
+
+/* react-phone-input-2 premium integration & dark mode support */
+.react-tel-input {
+  width: 100% !important;
+  font-family: inherit;
+}
+
+.react-tel-input .form-control {
+  width: 100% !important;
+  height: auto !important;
+  border-radius: 0.75rem !important; /* rounded-xl */
+  border: 1px solid #e4e4e7 !important; /* border-zinc-200 */
+  padding: 0.75rem 1rem 0.75rem 3rem !important; /* px-4 py-3, with space for the flag */
+  font-size: 0.875rem !important; /* text-sm */
+  color: #18181b !important; /* text-zinc-900 */
+  background-color: #ffffff !important;
+  outline: none !important;
+  transition: all 0.2s !important;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+
+.dark .react-tel-input .form-control {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: #18181b !important;
+  color: #f4f4f5 !important; /* dark:text-zinc-100 */
+}
+
+.react-tel-input .form-control:focus {
+  border-color: var(--app-primary) !important;
+  box-shadow: 0 0 0 1px var(--app-primary), 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+
+.react-tel-input .flag-dropdown {
+  background-color: #f4f4f5 !important;
+  border: 1px solid #e4e4e7 !important;
+  border-radius: 0.75rem 0 0 0.75rem !important;
+  transition: all 0.2s !important;
+}
+
+.dark .react-tel-input .flag-dropdown {
+  background-color: #18181b !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-tel-input .selected-flag:hover,
+.react-tel-input .selected-flag:focus {
+  background-color: #e4e4e7 !important;
+}
+
+.dark .react-tel-input .selected-flag:hover,
+.dark .react-tel-input .selected-flag:focus {
+  background-color: #27272a !important;
+}
+
+.react-tel-input .country-list {
+  background-color: #ffffff !important;
+  border: 1px solid #e4e4e7 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  color: #18181b !important;
+  margin-top: 4px !important;
+  z-index: 50 !important;
+}
+
+.dark .react-tel-input .country-list {
+  background-color: #121418 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f4f4f5 !important;
+}
+
+.react-tel-input .country-list .country:hover {
+  background-color: #f4f4f5 !important;
+}
+
+.dark .react-tel-input .country-list .country:hover {
+  background-color: #27272a !important;
+}
+
+.react-tel-input .country-list .country.highlight {
+  background-color: var(--app-primary-soft) !important;
+  color: var(--app-primary) !important;
+}
+
+.dark .react-tel-input .country-list .country.highlight {
+  background-color: #27272a !important;
+  color: #ffffff !important;
+}
+
+.react-tel-input .country-list .search {
+  background-color: #ffffff !important;
+  padding: 8px !important;
+  z-index: 51 !important;
+}
+
+.dark .react-tel-input .country-list .search {
+  background-color: #121418 !important;
+}
+
+.react-tel-input .country-list .search-box {
+  border: 1px solid #e4e4e7 !important;
+  border-radius: 0.5rem !important;
+  background-color: #ffffff !important;
+  color: #18181b !important;
+}
+
+.dark .react-tel-input .country-list .search-box {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  background-color: #18181b !important;
+  color: #f4f4f5 !important;
+}
+
+/* Brain Board canvas custom background and grid dots */
+.brain-board-canvas {
+  background-color: #f1ebd9; /* Rich warmer paper tone */
+  background-image: radial-gradient(circle at 1.5px 1.5px, rgba(24, 24, 27, 0.15) 1.5px, transparent 0);
+}
+
+.dark .brain-board-canvas {
+  background-color: #09090b;
+  background-image: radial-gradient(circle at 1.5px 1.5px, rgba(255, 255, 255, 0.08) 1.5px, transparent 0);
+}
+

@@ -1,0 +1,138 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  password   String?
+  phone      String?
+  firstName  String?
+  lastName   String?
+  avatar     String?
+  bio        String?
+  jobTitle   String?
+  department String?
+  timezone   String?
+  language   String?
+  reportsTo  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relationships
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+  brainboardNotes BrainboardNote[]
+}
+
+model Workspace {
+  id           Int      @id @default(autoincrement())
+  name         String
+  domain       String?
+  logo         String?
+  industry     String?
+  size         String?
+  website      String?
+  billingEmail String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  users       User[]
+  projects    Project[]
+  tasks       Task[]
+  roles       WorkspaceRole[]
+  departments WorkspaceDepartment[]
+  brainboardNotes BrainboardNote[]
+}
+
+model WorkspaceRole {
+  id          String    @id @default(uuid())
+  name        String
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, name])
+}
+
+model WorkspaceDepartment {
+  id          String    @id @default(uuid())
+  name        String
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, name])
+}
+
+model Project {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  progress       Int      @default(0)
+  startDate      DateTime @default(now())
+  due            DateTime
+  priority       String   @default("Normal") // "Urgent" | "High" | "Normal" | "Low"
+  status         String   @default("Active") // "Discovery" | "Planning" | "Active" | "Review" | "Completed" | "On Hold"
+  health         String   @default("neutral") // "good" | "warn" | "danger" | "neutral"
+  owner          String
+  estimatedHours Int      @default(0)
+  category       String
+  members        String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relationships
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  tasks       Task[]
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  due         String
+  priority    String   @default("medium") // "low" | "medium" | "high"
+  category    String?
+  labels      String[] @default([])
+  assignee    String?
+  status      String   @default("todo") // "todo" | "in_progress" | "blocked" | "done"
+  estimate    String?
+  done        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  projectId   String?
+  project     Project?  @relation(fields: [projectId], references: [id])
+}
+
+model BrainboardNote {
+  id          String    @id @default(uuid())
+  title       String
+  body        String
+  color       String
+  x           Float
+  y           Float
+  rotation    Float
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
