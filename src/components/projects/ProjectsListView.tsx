@@ -347,6 +347,28 @@ export function ProjectsListView() {
   const [tempMembers, setTempMembers] = useState<string[]>([]);
   const [tempProgress, setTempProgress] = useState(0);
 
+  // Tabbed Drawer States
+  const [activeTab, setActiveTab] = useState<"details" | "tasks">("details");
+  const [projectTasks, setProjectTasks] = useState<any[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [isAddingTask, setIsAddingTask] = useState(false);
+
+  const fetchProjectTasks = async (projectId: string) => {
+    setTasksLoading(true);
+    try {
+      const res = await fetch(`/api/project/tasks?projectId=${projectId}`);
+      const json = await res.json();
+      if (json.success) {
+        setProjectTasks(json.tasks);
+      }
+    } catch (err) {
+      console.error("Error fetching project tasks:", err);
+    } finally {
+      setTasksLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedProject) {
       setTempName(selectedProject.name);
@@ -362,6 +384,10 @@ export function ProjectsListView() {
       setTempMembers(selectedProject.members);
       setTempProgress(selectedProject.progress);
       setIsEditing(false); // Default to read-only when opening
+      setActiveTab("details");
+      fetchProjectTasks(selectedProject.id);
+    } else {
+      setProjectTasks([]);
     }
   }, [selectedProject]);
 
@@ -389,6 +415,41 @@ export function ProjectsListView() {
     await handleUpdateProject(selectedProject.id, updates);
     setIsEditing(false);
     showToast("Project changes saved successfully!", "success");
+  };
+
+  const handleAddTaskInline = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskTitle.trim() || !selectedProject) return;
+
+    setIsAddingTask(true);
+    try {
+      const res = await fetch("/api/project/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTaskTitle.trim(),
+          projectId: selectedProject.id,
+          workspaceId: activeWorkspaceId,
+          priority: "medium",
+          status: "todo",
+          assignee: "Unassigned",
+          due: "No date",
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast(`Task "${newTaskTitle.trim()}" created successfully!`, "success");
+        setNewTaskTitle("");
+        await fetchProjectTasks(selectedProject.id);
+      } else {
+        showToast(json.error || "Failed to add task", "error");
+      }
+    } catch (err) {
+      console.error("Error adding inline task:", err);
+      showToast("Error adding task.", "error");
+    } finally {
+      setIsAddingTask(false);
+    }
   };
 
   // Close menus on outside click
@@ -1013,299 +1074,420 @@ export function ProjectsListView() {
                 </div>
               </div>
 
-              {/* Drawer Content */}
-              <div className="flex-1 overflow-y-auto p-6 scrollbar-thin space-y-4">
-                
-                {/* Project Name */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
-                    <FolderIcon className="h-4 w-4 text-zinc-400" />
-                    Project Name
-                  </div>
-                  {isEditing ? (
-                    <div className="flex flex-col items-end gap-1">
-                      <input
-                        value={tempName}
-                        maxLength={80}
-                        onChange={(e) => setTempName(e.target.value)}
-                        placeholder="Project Name"
-                        className="w-48 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-850 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                      />
-                      <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-550 pr-1">{tempName.length}/80</span>
-                    </div>
-                  ) : (
-                    <span className="text-xs font-bold text-zinc-850 dark:text-zinc-250 truncate max-w-[200px]" title={selectedProject.name}>
-                      {selectedProject.name}
-                    </span>
-                  )}
-                </div>
+              {/* Tab Switcher */}
+              <div className="flex border-b border-zinc-100 px-6 dark:border-white/5 bg-zinc-50/50 dark:bg-[#121418] shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("details")}
+                  className={`relative py-3 text-xs font-bold transition-all border-b-2 px-1 ${
+                    activeTab === "details"
+                      ? "border-indigo-500 text-indigo-600 dark:text-indigo-405 font-black"
+                      : "border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  Project Details
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("tasks")}
+                  className={`relative py-3 text-xs font-bold transition-all border-b-2 px-1 ml-6 ${
+                    activeTab === "tasks"
+                      ? "border-indigo-500 text-indigo-600 dark:text-indigo-405 font-black"
+                      : "border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
+                  }`}
+                >
+                  Tasks ({projectTasks.length})
+                </button>
+              </div>
 
-                {/* Description */}
-                <div className="flex flex-col gap-2 pt-1">
-                  <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
-                    <DocumentTextIcon className="h-4 w-4 text-zinc-400" />
-                    Description
-                  </div>
-                  {isEditing ? (
-                    <div className="flex flex-col items-end gap-1 w-full">
-                      <textarea
-                        value={tempDescription}
-                        maxLength={300}
-                        onChange={(e) => setTempDescription(e.target.value)}
-                        rows={3}
-                        placeholder="Project Description"
-                        className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-250 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none leading-relaxed"
-                      />
-                      <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-550 pr-1">{tempDescription.length}/300</span>
+              {/* Drawer Content - Details Tab */}
+              {activeTab === "details" && (
+                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin space-y-4">
+                  
+                  {/* Project Name */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
+                      <FolderIcon className="h-4 w-4 text-zinc-400" />
+                      Project Name
                     </div>
-                  ) : (
-                    <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 text-xs leading-relaxed text-zinc-600 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 shadow-inner">
-                      {selectedProject.description || (
-                        <span className="italic text-zinc-400 dark:text-zinc-600">No description provided.</span>
+                    {isEditing ? (
+                      <div className="flex flex-col items-end gap-1">
+                        <input
+                          value={tempName}
+                          maxLength={80}
+                          onChange={(e) => setTempName(e.target.value)}
+                          placeholder="Project Name"
+                          className="w-48 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-855 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                        />
+                        <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-550 pr-1">{tempName.length}/80</span>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-bold text-zinc-850 dark:text-zinc-250 truncate max-w-[200px]" title={selectedProject.name}>
+                        {selectedProject.name}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Description */}
+                  <div className="flex flex-col gap-2 pt-1">
+                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
+                      <DocumentTextIcon className="h-4 w-4 text-zinc-400" />
+                      Description
+                    </div>
+                    {isEditing ? (
+                      <div className="flex flex-col items-end gap-1 w-full">
+                        <textarea
+                          value={tempDescription}
+                          maxLength={300}
+                          onChange={(e) => setTempDescription(e.target.value)}
+                          rows={3}
+                          placeholder="Project Description"
+                          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-250 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 resize-none leading-relaxed"
+                        />
+                        <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-555 pr-1">{tempDescription.length}/300</span>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 text-xs leading-relaxed text-zinc-600 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 shadow-inner">
+                        {selectedProject.description || (
+                          <span className="italic text-zinc-400 dark:text-zinc-655">No description provided.</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="my-4 border-t border-zinc-150 dark:border-white/5" />
+
+                  <div className="space-y-4 pt-1">
+                    {/* Category */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
+                        <TagIcon className="h-4 w-4 text-zinc-400" />
+                        Category
+                      </div>
+                      {isEditing ? (
+                        <CustomSelect
+                          value={tempCategory}
+                          onChange={setTempCategory}
+                          options={categoryOptions}
+                          className="w-48"
+                        />
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50/80 px-2.5 py-1 text-xs font-bold text-indigo-650 border border-indigo-100/50 dark:bg-indigo-950/30 dark:text-indigo-350 dark:border-indigo-900/30">
+                          {selectedProject.category}
+                        </span>
                       )}
                     </div>
-                  )}
-                </div>
 
-                <div className="my-4 border-t border-zinc-150 dark:border-white/5" />
-
-                <div className="space-y-4 pt-1">
-                  {/* Category */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
-                      <TagIcon className="h-4 w-4 text-zinc-400" />
-                      Category
-                    </div>
-                    {isEditing ? (
-                      <CustomSelect
-                        value={tempCategory}
-                        onChange={setTempCategory}
-                        options={categoryOptions}
-                        className="w-48"
-                      />
-                    ) : (
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50/80 px-2.5 py-1 text-xs font-bold text-indigo-650 border border-indigo-100/50 dark:bg-indigo-950/30 dark:text-indigo-350 dark:border-indigo-900/30">
-                        {selectedProject.category}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Owner */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
-                      <UserIcon className="h-4 w-4 text-zinc-400" />
-                      Project Lead
-                    </div>
-                    {isEditing ? (
-                      <CustomSelect
-                        value={tempOwner}
-                        onChange={setTempOwner}
-                        options={leadOptions}
-                        className="w-48"
-                      />
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-black text-indigo-750 dark:bg-indigo-950/60 dark:text-indigo-300">
-                          {selectedProject.owner ? selectedProject.owner.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : "A"}
-                        </div>
-                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{selectedProject.owner}</span>
+                    {/* Owner */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
+                        <UserIcon className="h-4 w-4 text-zinc-400" />
+                        Project Lead
                       </div>
-                    )}
-                  </div>
-
-                  {/* Status */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                      <ChartBarIcon className="h-4 w-4 text-zinc-400" />
-                      Status
-                    </div>
-                    {isEditing ? (
-                      <CustomSelect
-                        value={tempStatus}
-                        onChange={setTempStatus}
-                        options={statusOptions}
-                        className="w-48"
-                      />
-                    ) : (
-                      <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${statusStyle(selectedProject.status)}`}>
-                        {selectedProject.status}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Priority */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                      <Squares2X2Icon className="h-4 w-4 text-zinc-400" />
-                      Priority
-                    </div>
-                    {isEditing ? (
-                      <CustomSelect
-                        value={tempPriority}
-                        onChange={setTempPriority}
-                        options={priorityOptions}
-                        className="w-48"
-                      />
-                    ) : (
-                      <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${priorityColor(selectedProject.priority)}`}>
-                        {selectedProject.priority}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Health */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                      <HeartIcon className="h-4 w-4 text-zinc-400" />
-                      Health Index
-                    </div>
-                    {isEditing ? (
-                      <CustomSelect
-                        value={tempHealth}
-                        onChange={setTempHealth}
-                        options={healthOptions}
-                        className="w-48"
-                      />
-                    ) : (
-                      <span className="inline-flex items-center gap-2 rounded-lg bg-zinc-50 px-2.5 py-1 text-xs font-bold text-zinc-700 border border-zinc-200/50 dark:bg-zinc-900 dark:text-zinc-300 dark:border-white/5">
-                        <span className={`h-2.5 w-2.5 rounded-full ${healthDot(selectedProject.health)}`} />
-                        {healthText(selectedProject.health)}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Estimated Hours */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                      <CurrencyDollarIcon className="h-4 w-4 text-zinc-400" />
-                      Allocated Workload
-                    </div>
-                    {isEditing ? (
-                      <div className="flex items-center gap-1.5">
-                        <input
-                          type="number"
-                          value={tempEstimatedHours}
-                          onChange={(e) => setTempEstimatedHours(parseInt(e.target.value) || 0)}
-                          className="w-20 rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-center text-xs font-bold text-zinc-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
+                      {isEditing ? (
+                        <CustomSelect
+                          value={tempOwner}
+                          onChange={setTempOwner}
+                          options={leadOptions}
+                          className="w-48"
                         />
-                        <span className="text-[10px] text-zinc-400 font-bold uppercase">hrs</span>
-                      </div>
-                    ) : (
-                      <span className="text-xs font-extrabold text-zinc-800 dark:text-zinc-100 bg-zinc-50 border border-zinc-200/50 dark:bg-zinc-900 dark:border-white/5 px-2.5 py-1 rounded-lg">
-                        {selectedProject.estimatedHours} <span className="text-[10px] text-zinc-450 font-bold uppercase ml-0.5">hrs</span>
-                      </span>
-                    )}
-                  </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-[10px] font-black text-indigo-750 dark:bg-indigo-950/60 dark:text-indigo-300">
+                            {selectedProject.owner ? selectedProject.owner.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : "A"}
+                          </div>
+                          <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">{selectedProject.owner}</span>
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Start Date & Target Due Date */}
-                  {isEditing ? (
-                    <>
+                    {/* Status */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
+                        <ChartBarIcon className="h-4 w-4 text-zinc-400" />
+                        Status
+                      </div>
+                      {isEditing ? (
+                        <CustomSelect
+                          value={tempStatus}
+                          onChange={setTempStatus}
+                          options={statusOptions}
+                          className="w-48"
+                        />
+                      ) : (
+                        <span className={`inline-flex rounded-lg border px-2.5 py-1 text-xs font-bold ${statusStyle(selectedProject.status)}`}>
+                          {selectedProject.status}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Priority */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
+                        <Squares2X2Icon className="h-4 w-4 text-zinc-400" />
+                        Priority
+                      </div>
+                      {isEditing ? (
+                        <CustomSelect
+                          value={tempPriority}
+                          onChange={setTempPriority}
+                          options={priorityOptions}
+                          className="w-48"
+                        />
+                      ) : (
+                        <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${priorityColor(selectedProject.priority)}`}>
+                          {selectedProject.priority}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Health */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
+                        <HeartIcon className="h-4 w-4 text-zinc-400" />
+                        Health Index
+                      </div>
+                      {isEditing ? (
+                        <CustomSelect
+                          value={tempHealth}
+                          onChange={setTempHealth}
+                          options={healthOptions}
+                          className="w-48"
+                        />
+                      ) : (
+                        <span className="inline-flex items-center gap-2 rounded-lg bg-zinc-50 px-2.5 py-1 text-xs font-bold text-zinc-700 border border-zinc-200/50 dark:bg-zinc-900 dark:text-zinc-300 dark:border-white/5">
+                          <span className={`h-2.5 w-2.5 rounded-full ${healthDot(selectedProject.health)}`} />
+                          {healthText(selectedProject.health)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Estimated Hours */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
+                        <CurrencyDollarIcon className="h-4 w-4 text-zinc-400" />
+                        Allocated Workload
+                      </div>
+                      {isEditing ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            value={tempEstimatedHours}
+                            onChange={(e) => setTempEstimatedHours(parseInt(e.target.value) || 0)}
+                            className="w-20 rounded-xl border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-center text-xs font-bold text-zinc-700 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
+                          />
+                          <span className="text-[10px] text-zinc-400 font-bold uppercase">hrs</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs font-extrabold text-zinc-800 dark:text-zinc-100 bg-zinc-50 border border-zinc-200/50 dark:bg-zinc-900 dark:border-white/5 px-2.5 py-1 rounded-lg">
+                          {selectedProject.estimatedHours} <span className="text-[10px] text-zinc-450 font-bold uppercase ml-0.5">hrs</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Start Date & Target Due Date */}
+                    {isEditing ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
+                            <CalendarDaysIcon className="h-4 w-4 text-zinc-400" />
+                            Start Date
+                          </div>
+                          <input
+                            type="date"
+                            value={tempStartDate}
+                            onChange={(e) => setTempStartDate(e.target.value)}
+                            className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-750 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 focus:border-indigo-500"
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
+                            <ClockIcon className="h-4 w-4 text-zinc-400" />
+                            Target Due Date
+                          </div>
+                          <input
+                            type="date"
+                            value={tempDue}
+                            onChange={(e) => setTempDue(e.target.value)}
+                            className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-750 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 focus:border-indigo-500"
+                          />
+                        </div>
+                      </>
+                    ) : (
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
                           <CalendarDaysIcon className="h-4 w-4 text-zinc-400" />
-                          Start Date
+                          Timeline
                         </div>
-                        <input
-                          type="date"
-                          value={tempStartDate}
-                          onChange={(e) => setTempStartDate(e.target.value)}
-                          className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-750 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 focus:border-indigo-500"
-                        />
+                        <div className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                          <span>{formatDate(selectedProject.startDate)}</span>
+                          <span className="text-zinc-400 dark:text-zinc-650">—</span>
+                          <span>{formatDate(selectedProject.due)}</span>
+                        </div>
                       </div>
+                    )}
 
+                    {/* Progress bar */}
+                    <div className="pt-2">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                          <ClockIcon className="h-4 w-4 text-zinc-400" />
-                          Target Due Date
+                        <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
+                          Completion Status
                         </div>
-                        <input
-                          type="date"
-                          value={tempDue}
-                          onChange={(e) => setTempDue(e.target.value)}
-                          className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-bold text-zinc-750 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 focus:border-indigo-500"
+                        <span className="text-xs font-extrabold text-indigo-500">
+                          {selectedProject.progress}%
+                        </span>
+                      </div>
+                      <div className="mt-3 h-2 w-full rounded-full bg-zinc-150 dark:bg-zinc-850 overflow-hidden shadow-inner">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500"
+                          style={{ width: `${selectedProject.progress}%` }}
                         />
                       </div>
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide">
-                        <CalendarDaysIcon className="h-4 w-4 text-zinc-400" />
-                        Timeline
-                      </div>
-                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                        <span>{formatDate(selectedProject.startDate)}</span>
-                        <span className="text-zinc-400 dark:text-zinc-650">—</span>
-                        <span>{formatDate(selectedProject.due)}</span>
-                      </div>
                     </div>
-                  )}
 
-                  {/* Progress bar */}
-                  <div className="pt-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
-                        Completion Status
+                    {/* Members list update */}
+                    <div className="pt-4 border-t border-zinc-100 dark:border-white/5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide mb-3">
+                        <UserGroupIcon className="h-4 w-4 text-zinc-400" />
+                        Project Team contributors
                       </div>
-                      <span className="text-xs font-extrabold text-indigo-500">
-                        {selectedProject.progress}%
-                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {(isEditing ? tempMembers : selectedProject.members).map((m, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              if (!isEditing) return;
+                              setTempMembers((prev) => prev.filter((x) => x !== m));
+                            }}
+                            className={`flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600 transition-colors shadow-sm ${
+                              isEditing 
+                                ? "cursor-pointer hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-350" 
+                                : "cursor-default"
+                            } dark:bg-indigo-950/30 dark:text-indigo-300`}
+                            title={isEditing ? "Click to remove from project" : undefined}
+                          >
+                            {m}
+                          </div>
+                        ))}
+                        
+                        {/* Quick drop contributors */}
+                        {isEditing && availableUsers.map((user) => {
+                          if (tempMembers.includes(user.initial)) return null;
+                          return (
+                            <button
+                              key={user.initial}
+                              type="button"
+                              onClick={() => setTempMembers((prev) => [...prev, user.initial])}
+                              className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-zinc-300 text-zinc-400 hover:border-indigo-500 hover:bg-indigo-50/50 hover:text-indigo-600 dark:border-zinc-700 dark:hover:bg-zinc-800/50 text-[10px] font-bold"
+                              title={`Add ${user.name}`}
+                            >
+                              +{user.initial}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="mt-3 h-2 w-full rounded-full bg-zinc-150 dark:bg-zinc-850 overflow-hidden shadow-inner">
-                      <div
-                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500"
-                        style={{ width: `${selectedProject.progress}%` }}
-                      />
-                    </div>
+
                   </div>
+                </div>
+              )}
 
-                  {/* Members list update */}
-                  <div className="pt-4 border-t border-zinc-100 dark:border-white/5">
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-555 uppercase tracking-wide mb-3">
-                      <UserGroupIcon className="h-4 w-4 text-zinc-400" />
-                      Project Team contributors
+              {/* Drawer Content - Tasks Tab */}
+              {activeTab === "tasks" && (
+                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin flex flex-col space-y-4">
+                  {/* Inline Task Creator Form */}
+                  <form onSubmit={handleAddTaskInline} className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      maxLength={80}
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      placeholder="Add task to this project..."
+                      className="flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-850 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-250 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                      disabled={isAddingTask}
+                    />
+                    <button
+                      type="submit"
+                      disabled={isAddingTask || !newTaskTitle.trim()}
+                      className="rounded-xl bg-indigo-500 px-4 py-2 text-xs font-bold text-white shadow-sm hover:bg-indigo-650 active:scale-98 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      {isAddingTask ? "Adding..." : "Add"}
+                    </button>
+                  </form>
+
+                  {/* Tasks List */}
+                  {tasksLoading ? (
+                    <div className="flex flex-1 flex-col items-center justify-center py-12">
+                      <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                      <span className="mt-2 text-[11px] font-semibold text-zinc-400">Loading project tasks...</span>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {(isEditing ? tempMembers : selectedProject.members).map((m, idx) => (
+                  ) : projectTasks.length === 0 ? (
+                    <div className="flex flex-1 flex-col items-center justify-center text-center py-12">
+                      <CheckIcon className="h-8 w-8 text-zinc-350 dark:text-zinc-650" />
+                      <h4 className="mt-3 text-xs font-bold text-zinc-700 dark:text-zinc-300">No tasks yet</h4>
+                      <p className="mt-1 text-[11px] text-zinc-450 dark:text-zinc-550 max-w-[200px]">Create tasks above to build the project backlog.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5 overflow-y-auto pr-0.5">
+                      {projectTasks.map((task) => (
                         <div
-                          key={idx}
-                          onClick={() => {
-                            if (!isEditing) return;
-                            setTempMembers((prev) => prev.filter((x) => x !== m));
-                          }}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600 transition-colors shadow-sm ${
-                            isEditing 
-                              ? "cursor-pointer hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-350" 
-                              : "cursor-default"
-                          } dark:bg-indigo-950/30 dark:text-indigo-300`}
-                          title={isEditing ? "Click to remove from project" : undefined}
+                          key={task.id}
+                          className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-white/5 dark:bg-zinc-900/40 hover:border-zinc-300 dark:hover:border-white/10 transition-colors"
                         >
-                          {m}
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="text-xs font-bold text-zinc-800 dark:text-zinc-200 leading-snug">
+                              {task.title}
+                            </span>
+                            <span
+                              className={`shrink-0 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${
+                                task.priority === "high"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
+                                  : task.priority === "medium"
+                                  ? "bg-amber-50 text-amber-700 border border-amber-100 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30"
+                                  : "bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
+                              }`}
+                            >
+                               {task.priority}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between border-t border-zinc-100 pt-2 dark:border-white/[0.04] text-[10px] font-bold text-zinc-450 dark:text-zinc-500">
+                            <span
+                              className={`rounded-md px-1.5 py-0.5 border text-[9px] uppercase tracking-wider font-extrabold ${
+                                task.status === "done"
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
+                                  : task.status === "in_progress"
+                                  ? "bg-teal-50 text-teal-700 border border-teal-100 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30"
+                                  : task.status === "blocked"
+                                  ? "bg-rose-50 text-rose-750 border border-rose-100 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
+                                  : "bg-zinc-50 text-zinc-650 border border-zinc-200 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800"
+                              }`}
+                            >
+                              {task.status === "in_progress"
+                                ? "In Progress"
+                                : task.status === "blocked"
+                                ? "Blocked"
+                                : task.status === "done"
+                                ? "Done"
+                                : "To Do"}
+                            </span>
+
+                            <div className="flex items-center gap-1.5 font-semibold">
+                              <CalendarDaysIcon className="h-3.5 w-3.5" />
+                              <span>{task.due}</span>
+                            </div>
+                          </div>
                         </div>
                       ))}
-                      
-                      {/* Quick drop contributors */}
-                      {isEditing && availableUsers.map((user) => {
-                        if (tempMembers.includes(user.initial)) return null;
-                        return (
-                          <button
-                            key={user.initial}
-                            type="button"
-                            onClick={() => setTempMembers((prev) => [...prev, user.initial])}
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-zinc-300 text-zinc-400 hover:border-indigo-500 hover:bg-indigo-50/50 hover:text-indigo-600 dark:border-zinc-700 dark:hover:bg-zinc-800/50 text-[10px] font-bold"
-                            title={`Add ${user.name}`}
-                          >
-                            +{user.initial}
-                          </button>
-                        );
-                      })}
                     </div>
-                  </div>
-
+                  )}
                 </div>
-              </div>
+              )}
 
               {/* Drawer Footer / Save Options */}
-              {isEditing && (
+              {isEditing && activeTab === "details" && (
                 <div className="shrink-0 border-t border-zinc-100 bg-zinc-50/60 px-6 py-4 dark:border-white/5 dark:bg-zinc-950/30 flex items-center justify-end gap-3 z-10">
                   <button
                     type="button"
