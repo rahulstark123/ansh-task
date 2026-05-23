@@ -121,6 +121,100 @@ function getAvatar(name: string) {
   );
 }
 
+interface SelectOption {
+  value: string;
+  label: string;
+  icon?: React.ReactNode;
+  colorDot?: string;
+}
+
+interface CustomSelectProps {
+  value: string;
+  onChange: (val: any) => void;
+  options: readonly SelectOption[] | SelectOption[];
+  placeholder?: string;
+  className?: string;
+}
+
+function CustomSelect({ value, onChange, options, placeholder = "Select...", className = "" }: CustomSelectProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selectedOption = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div ref={containerRef} className={`relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-705 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800/80 transition-all focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+      >
+        <div className="flex items-center gap-2 truncate">
+          {selectedOption?.colorDot && (
+            <span className={`h-2 w-2 rounded-full ${selectedOption.colorDot}`} />
+          )}
+          {selectedOption?.icon && (
+            <span className="text-zinc-400 dark:text-zinc-500 shrink-0">{selectedOption.icon}</span>
+          )}
+          <span className="truncate">{selectedOption ? selectedOption.label : placeholder}</span>
+        </div>
+        <ChevronDownIcon className={`h-3.5 w-3.5 text-zinc-450 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.12 }}
+            className="absolute left-0 right-0 z-40 mt-1 max-h-60 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#121418] scrollbar-thin min-w-[160px]"
+          >
+            {options.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-left transition-colors cursor-pointer ${
+                    isSelected
+                      ? "bg-indigo-50 text-indigo-650 dark:bg-indigo-950/40 dark:text-indigo-300"
+                      : "text-zinc-650 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    {opt.colorDot && (
+                      <span className={`h-2 w-2 rounded-full ${opt.colorDot}`} />
+                    )}
+                    {opt.icon && (
+                      <span className="text-zinc-400 dark:text-zinc-500 shrink-0">{opt.icon}</span>
+                    )}
+                    <span className="truncate">{opt.label}</span>
+                  </div>
+                  {isSelected && <CheckIcon className="h-3.5 w-3.5 stroke-[2.5]" />}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 type TaskDashboardProps = {
   eyebrow?: string;
   heading: string;
@@ -217,6 +311,34 @@ export function TaskDashboard({
   const [addOpen, setAddOpen] = useState(false);
   const [addModalSession, setAddModalSession] = useState(0);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+  // Drawer Edit Form States
+  const [isEditingTaskDetails, setIsEditingTaskDetails] = useState(false);
+  const [tempTitle, setTempTitle] = useState("");
+  const [tempDescription, setTempDescription] = useState("");
+  const [tempStatus, setTempStatus] = useState<TaskStatus>("todo");
+  const [tempPriority, setTempPriority] = useState<TaskPriority>("medium");
+  const [tempAssignee, setTempAssignee] = useState("Unassigned");
+  const [tempCategory, setTempCategory] = useState("General");
+  const [tempEstimate, setTempEstimate] = useState("—");
+  const [tempDue, setTempDue] = useState("No date");
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+
+  // Sync selected task to edit state
+  useEffect(() => {
+    if (selectedTask) {
+      setTempTitle(selectedTask.title);
+      setTempDescription(selectedTask.description || "");
+      setTempStatus(selectedTask.status || "todo");
+      setTempPriority(selectedTask.priority || "medium");
+      setTempAssignee(selectedTask.assignee || "Unassigned");
+      setTempCategory(selectedTask.category || "General");
+      setTempEstimate(selectedTask.estimate || "—");
+      setTempDue(selectedTask.due || "No date");
+      setIsEditingTaskDetails(false); // Default to read-only when opening
+    }
+  }, [selectedTask]);
+
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
   
@@ -361,6 +483,58 @@ export function TaskDashboard({
     patchTask(id, { estimate: est });
     showToast(`Task story points set to ${newEstimate}`, "info");
   }
+
+  const handleSaveTaskEdits = async () => {
+    if (!selectedTask) return;
+    if (!tempTitle.trim()) {
+      showToast("Task title cannot be empty", "error");
+      return;
+    }
+
+    const updates: Partial<Task> = {
+      title: tempTitle.trim(),
+      description: tempDescription.trim(),
+      status: tempStatus,
+      priority: tempPriority,
+      assignee: tempAssignee,
+      category: tempCategory,
+      estimate: tempEstimate === "—" ? undefined : tempEstimate,
+      due: tempDue,
+    };
+
+    setTasks((prev) =>
+      prev.map((t) => (t.id === selectedTask.id ? { ...t, ...updates, done: tempStatus === "done" } : t))
+    );
+    setSelectedTask((prev) => prev ? { ...prev, ...updates, done: tempStatus === "done" } : null);
+
+    await patchTask(selectedTask.id, {
+      title: updates.title,
+      description: updates.description,
+      status: updates.status,
+      priority: updates.priority,
+      assignee: updates.assignee,
+      category: updates.category,
+      estimate: updates.estimate ?? null,
+      due: updates.due,
+      done: updates.status === "done",
+    });
+
+    setIsEditingTaskDetails(false);
+    showToast("Task changes saved successfully!", "success");
+  };
+
+  const handleCancelTaskEdits = () => {
+    if (!selectedTask) return;
+    setTempTitle(selectedTask.title);
+    setTempDescription(selectedTask.description || "");
+    setTempStatus(selectedTask.status || "todo");
+    setTempPriority(selectedTask.priority || "medium");
+    setTempAssignee(selectedTask.assignee || "Unassigned");
+    setTempCategory(selectedTask.category || "General");
+    setTempEstimate(selectedTask.estimate || "—");
+    setTempDue(selectedTask.due || "No date");
+    setIsEditingTaskDetails(false);
+  };
 
   function handleTitleChange(id: string, newTitle: string) {
     if (!newTitle.trim()) return;
@@ -1219,16 +1393,37 @@ export function TaskDashboard({
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleTaskDelete(selectedTask.id)}
-                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/20 transition-colors"
+                    onClick={() => {
+                      if (isEditingTaskDetails) {
+                        handleCancelTaskEdits();
+                      } else {
+                        setIsEditingTaskDetails(true);
+                      }
+                    }}
+                    className={`rounded-lg p-1.5 transition-colors ${
+                      isEditingTaskDetails 
+                        ? "bg-indigo-50 text-indigo-650 dark:bg-indigo-950/40 dark:text-indigo-400" 
+                        : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                    }`}
+                    title={isEditingTaskDetails ? "Viewing Mode" : "Edit Task"}
+                  >
+                    <PencilIcon className="h-4.5 w-4.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTaskToDelete(selectedTask)}
+                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-505 dark:hover:bg-rose-950/20 transition-colors"
                     title="Delete task"
                   >
                     <TrashIcon className="h-4.5 w-4.5" />
                   </button>
                   <button
                     type="button"
-                    onClick={() => setSelectedTask(null)}
-                    className="rounded-lg border border-zinc-200/80 p-1.5 text-zinc-500 transition-colors hover:bg-white hover:text-zinc-800 dark:border-white/[0.08] dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                    onClick={() => {
+                      setSelectedTask(null);
+                      setIsEditingTaskDetails(false);
+                    }}
+                    className="rounded-lg border border-zinc-200/80 p-1.5 text-zinc-505 transition-colors hover:bg-white hover:text-zinc-800 dark:border-white/[0.08] dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                     aria-label="Close panel"
                   >
                     <XMarkIcon className="h-4.5 w-4.5" />
@@ -1244,19 +1439,18 @@ export function TaskDashboard({
                   <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                     Title
                   </label>
-                  <input
-                    type="text"
-                    value={selectedTask.title}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setTasks((prev) =>
-                        prev.map((t) => (t.id === selectedTask.id ? { ...t, title: val } : t))
-                      );
-                      setSelectedTask((prev) => prev ? { ...prev, title: val } : null);
-                    }}
-                    onBlur={(e) => { if (e.target.value.trim()) patchTask(selectedTask.id, { title: e.target.value }); }}
-                    className="w-full text-base font-bold bg-transparent border-b border-transparent hover:border-zinc-200 focus:border-[var(--app-primary)] py-1.5 outline-none tracking-tight text-zinc-900 dark:text-zinc-100 dark:hover:border-zinc-700 dark:focus:border-teal-500 transition-colors"
-                  />
+                  {isEditingTaskDetails ? (
+                    <input
+                      type="text"
+                      value={tempTitle}
+                      onChange={(e) => setTempTitle(e.target.value)}
+                      className="w-full text-base font-bold bg-transparent border-b border-zinc-200 focus:border-[var(--app-primary)] py-1.5 outline-none tracking-tight text-zinc-900 dark:text-zinc-100 dark:border-zinc-700 dark:focus:border-teal-500 transition-colors"
+                    />
+                  ) : (
+                    <div className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100 py-1.5">
+                      {selectedTask.title}
+                    </div>
+                  )}
                 </div>
 
                 {/* Description (Interactive edit) */}
@@ -1264,24 +1458,27 @@ export function TaskDashboard({
                   <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                     Description
                   </label>
-                  <textarea
-                    rows={4}
-                    value={selectedTask.description || ""}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      handleDescriptionChange(selectedTask.id, val);
-                      setSelectedTask((prev) => prev ? { ...prev, description: val } : null);
-                    }}
-                    onBlur={(e) => patchTask(selectedTask.id, { description: e.target.value })}
-                    placeholder="Describe this task in detail so others can pick it up..."
-                    className="w-full text-xs font-normal text-zinc-800 leading-relaxed bg-white border border-zinc-200 rounded-xl p-3 outline-none focus:border-zinc-400 focus:shadow-[0_0_0_3px_var(--app-ring)] dark:bg-zinc-950/40 dark:border-white/[0.08] dark:text-zinc-200 dark:focus:border-zinc-700 transition-[border-color,box-shadow]"
-                  />
+                  {isEditingTaskDetails ? (
+                    <textarea
+                      rows={4}
+                      value={tempDescription}
+                      onChange={(e) => setTempDescription(e.target.value)}
+                      placeholder="Describe this task in detail so others can pick it up..."
+                      className="w-full text-xs font-normal text-zinc-800 leading-relaxed bg-white border border-zinc-200 rounded-xl p-3 outline-none focus:border-zinc-400 focus:shadow-[0_0_0_3px_var(--app-ring)] dark:bg-zinc-950/40 dark:border-white/[0.08] dark:text-zinc-200 dark:focus:border-zinc-700 transition-[border-color,box-shadow]"
+                    />
+                  ) : (
+                    <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 text-xs leading-relaxed text-zinc-600 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 shadow-inner min-h-[5rem]">
+                      {selectedTask.description || (
+                        <span className="italic text-zinc-400 dark:text-zinc-500">No description provided.</span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Metadata attributes list */}
                 <div className="rounded-xl border border-zinc-200/80 bg-white p-4.5 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/50 space-y-4">
                   
-                  <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 pb-2 border-b border-zinc-100 dark:border-white/[0.03]">
+                  <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-505 dark:text-zinc-400 pb-2 border-b border-zinc-100 dark:border-white/[0.03]">
                     Attributes
                   </h5>
 
@@ -1289,16 +1486,35 @@ export function TaskDashboard({
                   <div className="grid grid-cols-3 items-center gap-2">
                     <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Status</span>
                     <div className="col-span-2 select-none">
-                      <select
-                        value={selectedTask.status || "todo"}
-                        onChange={(e) => handleStatusChange(selectedTask.id, e.target.value as TaskStatus)}
-                        className="w-full text-xs font-bold text-zinc-700 bg-stone-50 hover:bg-stone-100 border border-zinc-200 p-2 rounded-lg outline-none cursor-pointer dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-200"
-                      >
-                        <option value="todo">To Do</option>
-                        <option value="in_progress">In Progress</option>
-                        <option value="blocked">Blocked</option>
-                        <option value="done">Done</option>
-                      </select>
+                      {isEditingTaskDetails ? (
+                        <CustomSelect
+                          value={tempStatus}
+                          onChange={(val) => setTempStatus(val as TaskStatus)}
+                          options={[
+                            { value: "todo", label: "To Do", colorDot: "bg-zinc-450" },
+                            { value: "in_progress", label: "In Progress", colorDot: "bg-teal-500" },
+                            { value: "blocked", label: "Blocked", colorDot: "bg-rose-505" },
+                            { value: "done", label: "Done", colorDot: "bg-emerald-500" }
+                          ]}
+                        />
+                      ) : (
+                        <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${
+                          selectedTask.status === "done" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40" :
+                          selectedTask.status === "in_progress" ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40" :
+                          selectedTask.status === "blocked" ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40" :
+                          "bg-zinc-50 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${
+                            selectedTask.status === "done" ? "bg-emerald-500" :
+                            selectedTask.status === "in_progress" ? "bg-teal-500" :
+                            selectedTask.status === "blocked" ? "bg-rose-500" :
+                            "bg-zinc-400"
+                          }`} />
+                          {selectedTask.status === "done" ? "Done" :
+                           selectedTask.status === "in_progress" ? "In Progress" :
+                           selectedTask.status === "blocked" ? "Blocked" : "To Do"}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1306,15 +1522,30 @@ export function TaskDashboard({
                   <div className="grid grid-cols-3 items-center gap-2">
                     <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Priority</span>
                     <div className="col-span-2">
-                      <select
-                        value={selectedTask.priority}
-                        onChange={(e) => handlePriorityChange(selectedTask.id, e.target.value as TaskPriority)}
-                        className="w-full text-xs font-bold text-zinc-700 bg-stone-50 hover:bg-stone-100 border border-zinc-200 p-2 rounded-lg outline-none cursor-pointer dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-200"
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Normal / Medium</option>
-                        <option value="high">High / Urgent</option>
-                      </select>
+                      {isEditingTaskDetails ? (
+                        <CustomSelect
+                          value={tempPriority}
+                          onChange={(val) => setTempPriority(val as TaskPriority)}
+                          options={[
+                            { value: "low", label: "Low", colorDot: "bg-emerald-500" },
+                            { value: "medium", label: "Normal / Medium", colorDot: "bg-amber-400" },
+                            { value: "high", label: "High / Urgent", colorDot: "bg-rose-505" }
+                          ]}
+                        />
+                      ) : (
+                        <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${
+                          selectedTask.priority === "high" ? "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50" :
+                          selectedTask.priority === "medium" ? "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50" :
+                          "bg-emerald-550/10 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50"
+                        }`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${
+                            selectedTask.priority === "high" ? "bg-rose-500" :
+                            selectedTask.priority === "medium" ? "bg-amber-400" :
+                            "bg-emerald-400"
+                          }`} />
+                          {selectedTask.priority.charAt(0).toUpperCase() + selectedTask.priority.slice(1)}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1322,15 +1553,29 @@ export function TaskDashboard({
                   <div className="grid grid-cols-3 items-center gap-2">
                     <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Assignee</span>
                     <div className="col-span-2">
-                      <select
-                        value={selectedTask.assignee || "Unassigned"}
-                        onChange={(e) => handleAssigneeChange(selectedTask.id, e.target.value)}
-                        className="w-full text-xs font-medium text-zinc-700 bg-stone-50 hover:bg-stone-100 border border-zinc-200 p-2 rounded-lg outline-none cursor-pointer dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-200"
-                      >
-                        {assigneesList.map((a) => (
-                          <option key={a} value={a}>{a}</option>
-                        ))}
-                      </select>
+                      {isEditingTaskDetails ? (
+                        <CustomSelect
+                          value={tempAssignee}
+                          onChange={(val) => setTempAssignee(val)}
+                          options={assigneesList.map((a) => {
+                            const initials = a === "Me" ? "ME" : a === "Unassigned" ? "UN" : a.trim().split(/\s+/).map(n => n[0]).join("").toUpperCase().slice(0, 2);
+                            return {
+                              value: a,
+                              label: a,
+                              icon: (
+                                <span className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-indigo-100 text-[8px] font-black text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 shrink-0">
+                                  {initials}
+                                </span>
+                              )
+                            };
+                          })}
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {getAvatar(selectedTask.assignee || "Unassigned")}
+                          <span className="text-xs font-bold text-zinc-750 dark:text-zinc-300">{selectedTask.assignee || "Unassigned"}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1338,15 +1583,20 @@ export function TaskDashboard({
                   <div className="grid grid-cols-3 items-center gap-2">
                     <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Category</span>
                     <div className="col-span-2">
-                      <select
-                        value={selectedTask.category || "General"}
-                        onChange={(e) => handleCategoryChange(selectedTask.id, e.target.value)}
-                        className="w-full text-xs font-medium text-zinc-700 bg-stone-50 hover:bg-stone-100 border border-zinc-200 p-2 rounded-lg outline-none cursor-pointer dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-200"
-                      >
-                        {(customCategories || []).map((cat) => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
+                      {isEditingTaskDetails ? (
+                        <CustomSelect
+                          value={tempCategory}
+                          onChange={(val) => setTempCategory(val)}
+                          options={(customCategories || []).map((cat) => ({
+                            value: cat,
+                            label: cat
+                          }))}
+                        />
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50/80 px-2.5 py-1 text-xs font-bold text-indigo-650 border border-indigo-100/50 dark:bg-indigo-950/30 dark:text-indigo-350 dark:border-indigo-900/30">
+                          {selectedTask.category || "General"}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1354,15 +1604,20 @@ export function TaskDashboard({
                   <div className="grid grid-cols-3 items-center gap-2">
                     <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Story Points</span>
                     <div className="col-span-2">
-                      <select
-                        value={selectedTask.estimate || "—"}
-                        onChange={(e) => handleEstimateChange(selectedTask.id, e.target.value)}
-                        className="w-full text-xs font-semibold text-zinc-700 bg-stone-50 hover:bg-stone-100 border border-zinc-200 p-2 rounded-lg outline-none cursor-pointer dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-200"
-                      >
-                        {ESTIMATES.map((est) => (
-                          <option key={est} value={est}>{est}</option>
-                        ))}
-                      </select>
+                      {isEditingTaskDetails ? (
+                        <CustomSelect
+                          value={tempEstimate}
+                          onChange={(val) => setTempEstimate(val)}
+                          options={ESTIMATES.map((est) => ({
+                             value: est,
+                             label: est
+                          }))}
+                        />
+                      ) : (
+                        <span className="text-xs font-extrabold text-zinc-800 dark:text-zinc-100 bg-zinc-50 border border-zinc-200/50 dark:bg-zinc-900 dark:border-white/5 px-2.5 py-1 rounded-lg">
+                          {selectedTask.estimate || "—"}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1370,18 +1625,18 @@ export function TaskDashboard({
                   <div className="grid grid-cols-3 items-center gap-2">
                     <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Due Label</span>
                     <div className="col-span-2">
-                      <input
-                        type="text"
-                        value={selectedTask.due}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setTasks((prev) =>
-                            prev.map((t) => (t.id === selectedTask.id ? { ...t, due: val } : t))
-                          );
-                          setSelectedTask((prev) => prev ? { ...prev, due: val } : null);
-                        }}
-                        className="w-full text-xs font-semibold text-zinc-700 bg-stone-50 border border-zinc-200 p-2 rounded-lg outline-none focus:bg-white dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-200"
-                      />
+                      {isEditingTaskDetails ? (
+                        <input
+                          type="text"
+                          value={tempDue}
+                          onChange={(e) => setTempDue(e.target.value)}
+                          className="w-full text-xs font-semibold text-zinc-700 bg-stone-50 border border-zinc-200 p-2 rounded-lg outline-none focus:bg-white dark:bg-zinc-950 dark:border-zinc-800 dark:text-zinc-200"
+                        />
+                      ) : (
+                        <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-50 border border-zinc-200/50 dark:bg-zinc-900 dark:border-white/5 px-2.5 py-1 rounded-lg">
+                          {selectedTask.due || "No date"}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1391,13 +1646,32 @@ export function TaskDashboard({
 
               {/* Drawer Footer Actions */}
               <div className="flex shrink-0 items-center justify-end gap-3 border-t border-zinc-200/60 px-6 py-4 dark:border-white/[0.06] bg-white dark:bg-zinc-900">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTask(null)}
-                  className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-white/[0.08] dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700/80"
-                >
-                  Close panel
-                </button>
+                {isEditingTaskDetails ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleCancelTaskEdits}
+                      className="rounded-xl border border-zinc-205 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-white/[0.08] dark:bg-zinc-800 dark:text-zinc-350 dark:hover:bg-zinc-700/80"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveTaskEdits}
+                      className="rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all"
+                    >
+                      Save Changes
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTask(null)}
+                    className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-white/[0.08] dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700/80"
+                  >
+                    Close panel
+                  </button>
+                )}
               </div>
 
             </motion.div>
@@ -1658,8 +1932,63 @@ export function TaskDashboard({
         )}
       </AnimatePresence>
 
+      {/* DELETE TASK CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {taskToDelete && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setTaskToDelete(null)}
+              className="fixed inset-0 z-[200] bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
+            />
 
-      
+            {/* Modal Dialog */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="fixed inset-0 z-[210] m-auto flex h-fit max-w-[400px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418] overflow-hidden"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-500 dark:bg-rose-950/30 dark:text-rose-400 mb-4 shadow-sm">
+                  <ExclamationTriangleIcon className="h-6 w-6" />
+                </div>
+                <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                  Delete Task
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Are you sure you want to delete <span className="font-semibold text-zinc-700 dark:text-zinc-300">"{taskToDelete.title}"</span>? This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTaskToDelete(null)}
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-655 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const id = taskToDelete.id;
+                    setTaskToDelete(null);
+                    await handleTaskDelete(id);
+                  }}
+                  className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 active:scale-95 transition-all"
+                >
+                  Yes, Delete
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }
