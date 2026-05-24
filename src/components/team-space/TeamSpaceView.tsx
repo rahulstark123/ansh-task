@@ -101,7 +101,7 @@ export function TeamSpaceView() {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [currentUser, setCurrentUser] = useState<{ name: string; initials: string; email: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; name: string; initials: string; email: string } | null>(null);
 
   // Custom states for resolved workspace and side details drawer
   const [resolvedWorkspaceId, setResolvedWorkspaceId] = useState<number>(1);
@@ -222,7 +222,7 @@ export function TeamSpaceView() {
             .join("")
             .toUpperCase()
             .slice(0, 2);
-          setCurrentUser({ name, initials, email: user.email || "" });
+          setCurrentUser({ id: user.id, name, initials, email: user.email || "" });
 
           const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid");
           const wid = onboardingWid ? parseInt(onboardingWid, 10) : 1;
@@ -349,6 +349,81 @@ export function TeamSpaceView() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, activeChat?.id]);
+
+  // Listen for real-time messages via Supabase
+  useEffect(() => {
+    if (!activeChat?.id || !currentUser) return;
+
+    const channelName = `realtime-messages-${activeChat.id}`;
+    
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "Message",
+        },
+        async (payload) => {
+          const newMessage = payload.new;
+
+          // Check if this new message belongs to our currently active chat thread
+          if (activeChat.type === "channel" && newMessage.channelId === activeChat.id) {
+            // Avoid adding duplicates (e.g. messages we sent ourselves)
+            if (newMessage.senderId === currentUser.id) return;
+            
+            // Find sender details
+            const sender = workspaceMembers.find(m => m.id === newMessage.senderId);
+            const senderName = sender ? sender.name : "Teammate";
+            const initials = senderName.split(/\s+/).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+            const timeString = new Date(newMessage.createdAt || new Date()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === newMessage.id)) return prev;
+              return [
+                ...prev,
+                {
+                  id: newMessage.id,
+                  user: senderName,
+                  initials,
+                  avatarColor: "",
+                  time: timeString,
+                  content: newMessage.content,
+                }
+              ];
+            });
+          } else if (activeChat.type === "dm") {
+            // For DMs, the sender must be the teammate we are chatting with
+            if (newMessage.senderId === activeChat.id && !newMessage.channelId) {
+              const senderName = activeChat.name;
+              const initials = senderName.split(/\s+/).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+              const timeString = new Date(newMessage.createdAt || new Date()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+              
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === newMessage.id)) return prev;
+                return [
+                  ...prev,
+                  {
+                    id: newMessage.id,
+                    user: senderName,
+                    initials,
+                    avatarColor: "",
+                    time: timeString,
+                    content: newMessage.content,
+                  }
+                ];
+              });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [activeChat?.id, activeChat?.type, workspaceMembers, currentUser]);
 
   async function handleSendMessage() {
     if (!draft.trim() || !currentUser || !activeChat) return;

@@ -3,19 +3,17 @@
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 
-const DashboardWidgetGrid = dynamic(
+const DashboardRealData = dynamic(
   () =>
-    import("./DashboardWidgetGrid").then((mod) => mod.DashboardWidgetGrid),
+    import("./DashboardRealData").then((mod) => mod.DashboardRealData),
   {
     ssr: false,
     loading: () => (
-      <div className="grid animate-pulse grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-52 rounded-2xl border border-zinc-200/80 bg-stone-100/90 dark:border-white/[0.07] dark:bg-zinc-900/40"
-          />
-        ))}
+      <div className="flex h-96 w-full flex-col items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-teal-500 border-t-transparent" />
+        <span className="mt-3 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+          Gathering database analytics...
+        </span>
       </div>
     ),
   },
@@ -34,13 +32,12 @@ export function MainDashboardView() {
         <h1 className="mt-1.5 font-heading text-2xl font-semibold tracking-tight text-zinc-900 sm:text-[1.75rem] dark:text-zinc-50">
           Morning overview
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          A few cards you actually glance at — drag them into an order that matches your
-          week. Nothing here is saved to the server yet.
+        <p className="mt-2 text-sm leading-relaxed text-zinc-650 dark:text-zinc-400">
+          Real-time metrics, project progression trackers, and support tickets from your current workspace. Expand advanced analytics to see priority allocation, workload depth, and status distributions.
         </p>
       </div>
 
-      <DashboardWidgetGrid />
+      <DashboardRealData />
     </motion.div>
   );
 }

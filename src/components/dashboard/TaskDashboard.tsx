@@ -415,6 +415,7 @@ export function TaskDashboard({
   const [tempAttachments, setTempAttachments] = useState<TaskAttachment[]>([]);
   const detailAttachInputRef = useRef<HTMLInputElement>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [taskToComplete, setTaskToComplete] = useState<Task | null>(null);
 
   // Sync selected task to edit state
   useEffect(() => {
@@ -544,21 +545,43 @@ export function TaskDashboard({
     }
   }
 
-  function handleToggleDone(id: string) {
-    let newDone = false;
+  function applyTaskComplete(id: string) {
     setTasks((prev) =>
-      prev.map((t) => {
-        if (t.id === id) {
-          newDone = !t.done;
-          return { ...t, done: newDone, status: newDone ? "done" : "todo" };
-        }
-        return t;
-      })
+      prev.map((t) => (t.id === id ? { ...t, done: true, status: "done" as TaskStatus } : t))
     );
+    if (selectedTask?.id === id) {
+      setSelectedTask((prev) => (prev ? { ...prev, done: true, status: "done" } : null));
+      setTempStatus("done");
+    }
+    patchTask(id, { done: true, status: "done" });
+    showToast("Task completed 🎉", "success");
+  }
+
+  function applyTaskIncomplete(id: string) {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, done: false, status: "todo" as TaskStatus } : t))
+    );
+    if (selectedTask?.id === id) {
+      setSelectedTask((prev) => (prev ? { ...prev, done: false, status: "todo" } : null));
+      setTempStatus("todo");
+    }
+    patchTask(id, { done: false, status: "todo" });
+    showToast("Task marked as incomplete", "success");
+  }
+
+  function requestMarkComplete(task: Task) {
+    if (task.done) return;
+    setTaskToComplete(task);
+  }
+
+  function handleToggleDone(id: string) {
     const task = tasks.find((t) => t.id === id);
-    const willBeDone = task ? !task.done : false;
-    patchTask(id, { done: willBeDone, status: willBeDone ? "done" : "todo" });
-    showToast(willBeDone ? "Task completed 🎉" : "Task marked as incomplete", "success");
+    if (!task) return;
+    if (task.done) {
+      applyTaskIncomplete(id);
+    } else {
+      requestMarkComplete(task);
+    }
   }
 
   const statusLabelMap: Record<string, string> = {
@@ -570,11 +593,18 @@ export function TaskDashboard({
   };
 
   function handleStatusChange(id: string, newStatus: TaskStatus) {
+    const task = tasks.find((t) => t.id === id);
+    if (newStatus === "done" && task && !task.done) {
+      requestMarkComplete(task);
+      return;
+    }
     setTasks((prev) =>
       prev.map((t) => t.id === id ? { ...t, status: newStatus, done: newStatus === "done" } : t)
     );
-    if (selectedTask && selectedTask.id === id)
-      setSelectedTask((prev) => prev ? { ...prev, status: newStatus, done: newStatus === "done" } : null);
+    if (selectedTask && selectedTask.id === id) {
+      setSelectedTask((prev) => (prev ? { ...prev, status: newStatus, done: newStatus === "done" } : null));
+      if (isEditingTaskDetails) setTempStatus(newStatus);
+    }
     patchTask(id, { status: newStatus, done: newStatus === "done" });
     showToast(`Task status updated to "${statusLabelMap[newStatus]}"`, "info");
   }
@@ -2534,6 +2564,63 @@ export function TaskDashboard({
                   className="rounded-xl bg-[var(--app-primary)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--app-primary-hover)]"
                 >
                   Apply & Close
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* MARK COMPLETE CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {taskToComplete && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setTaskToComplete(null)}
+              className="fixed inset-0 z-[200] bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="fixed inset-0 z-[210] m-auto flex h-fit max-w-[400px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418] overflow-hidden"
+            >
+              <div className="flex flex-col items-center text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400 mb-4 shadow-sm">
+                  <CheckCircleIcon className="h-6 w-6" />
+                </div>
+                <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                  Mark task as complete?
+                </h3>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Are you sure you want to mark{" "}
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                    &quot;{taskToComplete.title}&quot;
+                  </span>{" "}
+                  as complete?
+                </p>
+              </div>
+              <div className="mt-6 flex items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setTaskToComplete(null)}
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = taskToComplete.id;
+                    setTaskToComplete(null);
+                    applyTaskComplete(id);
+                  }}
+                  className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition-all"
+                >
+                  Yes, mark complete
                 </button>
               </div>
             </motion.div>
