@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
+import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, SwatchIcon } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
 import { useAppearance } from "@/context/AppearanceContext";
 import { isNavActive, NAV_SECTIONS } from "@/config/navigation";
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { isSidebarCollapsed, setIsSidebarCollapsed } = useAppearance();
+  const { isSidebarCollapsed, setIsSidebarCollapsed, setIsAppearanceOpen } = useAppearance();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export function AppSidebar() {
                       isSidebarCollapsed ? "justify-center w-11 h-11 mx-auto" : "gap-3 px-3 text-[13px] font-medium",
                       active
                         ? "text-[var(--app-primary-soft-text)] dark:text-teal-100"
-                        : "text-zinc-650 hover:bg-white/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-100",
+                        : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-100",
                     ].join(" ")}
                   >
                     {active && (
@@ -103,27 +103,50 @@ export function AppSidebar() {
         ))}
       </nav>
 
-      {/* Bottom Panel (Collapse/Expand Toggle) */}
-      <div className="border-t border-zinc-200/60 p-4 dark:border-white/[0.06]">
+      {/* Bottom Panel (Footer Options) */}
+      <div className="border-t border-zinc-200/60 p-3 dark:border-white/[0.06] space-y-1">
         {mounted && (
-          isSidebarCollapsed ? (
-            <button
-              onClick={() => setIsSidebarCollapsed(false)}
-              className="flex h-11 w-11 items-center justify-center rounded-xl mx-auto border border-zinc-200/60 bg-white/70 text-zinc-500 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all hover:bg-white hover:text-zinc-900 dark:border-white/[0.08] dark:bg-zinc-900/50 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
-              title="Expand Sidebar"
-            >
-              <ChevronRightIcon className="h-5 w-5 shrink-0" />
-            </button>
-          ) : (
-            <button
-              onClick={() => setIsSidebarCollapsed(true)}
-              className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-250/60 bg-white/50 px-3 py-2 text-xs font-semibold text-zinc-500 shadow-[0_1px_2px_rgba(0,0,0,0.02)] transition-all hover:bg-white/90 hover:text-zinc-900 dark:border-white/[0.08] dark:bg-zinc-900/40 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
-              title="Collapse Sidebar"
-            >
-              <ChevronLeftIcon className="h-4.5 w-4.5 shrink-0" />
-              <span>Collapse Sidebar</span>
-            </button>
-          )
+          <>
+            {/* Appearance Option */}
+            {isSidebarCollapsed ? (
+              <button
+                onClick={() => setIsAppearanceOpen(true)}
+                className="group relative flex h-11 w-11 items-center justify-center rounded-[11px] transition-colors mx-auto text-zinc-600 hover:bg-white/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-100 cursor-pointer"
+                title="Customize Theme & Appearance"
+              >
+                <SwatchIcon className="relative z-10 h-[1.15rem] w-[1.15rem] shrink-0 transition-colors text-zinc-450 group-hover:text-zinc-700 dark:group-hover:text-zinc-300" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsAppearanceOpen(true)}
+                className="group relative flex min-h-[2.5rem] w-full items-center rounded-[11px] transition-colors text-left gap-3 px-3 text-[13px] font-medium text-zinc-600 hover:bg-white/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-100 cursor-pointer"
+                title="Customize Theme & Appearance"
+              >
+                <SwatchIcon className="relative z-10 h-[1.15rem] w-[1.15rem] shrink-0 transition-colors text-zinc-450 group-hover:text-zinc-700 dark:group-hover:text-zinc-300" />
+                <span className="relative z-10 truncate">Theme & Appearance</span>
+              </button>
+            )}
+
+            {/* Collapse/Expand Toggle */}
+            {isSidebarCollapsed ? (
+              <button
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="group relative flex h-11 w-11 items-center justify-center rounded-[11px] transition-colors mx-auto text-zinc-600 hover:bg-white/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-100 cursor-pointer"
+                title="Expand Sidebar"
+              >
+                <ChevronRightIcon className="relative z-10 h-[1.15rem] w-[1.15rem] shrink-0 transition-colors text-zinc-450 group-hover:text-zinc-700 dark:group-hover:text-zinc-300" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setIsSidebarCollapsed(true)}
+                className="group relative flex min-h-[2.5rem] w-full items-center rounded-[11px] transition-colors text-left gap-3 px-3 text-[13px] font-medium text-zinc-600 hover:bg-white/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-100 cursor-pointer"
+                title="Collapse Sidebar"
+              >
+                <ChevronLeftIcon className="relative z-10 h-[1.15rem] w-[1.15rem] shrink-0 transition-colors text-zinc-450 group-hover:text-zinc-700 dark:group-hover:text-zinc-300" />
+                <span className="relative z-10 truncate">Collapse Sidebar</span>
+              </button>
+            )}
+          </>
         )}
       </div>
     </aside>

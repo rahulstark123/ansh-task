@@ -1123,12 +1123,12 @@ export function ProjectsListView() {
                           maxLength={80}
                           onChange={(e) => setTempName(e.target.value)}
                           placeholder="Project Name"
-                          className="w-48 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-855 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                          className="w-48 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                         />
                         <span className="text-[9px] font-bold text-zinc-400 dark:text-zinc-550 pr-1">{tempName.length}/80</span>
                       </div>
                     ) : (
-                      <span className="text-xs font-bold text-zinc-850 dark:text-zinc-250 truncate max-w-[200px]" title={selectedProject.name}>
+                      <span className="text-xs font-bold text-zinc-800 dark:text-zinc-250 truncate max-w-[200px]" title={selectedProject.name}>
                         {selectedProject.name}
                       </span>
                     )}
@@ -1344,7 +1344,7 @@ export function ProjectsListView() {
                           {selectedProject.progress}%
                         </span>
                       </div>
-                      <div className="mt-3 h-2 w-full rounded-full bg-zinc-150 dark:bg-zinc-850 overflow-hidden shadow-inner">
+                      <div className="mt-3 h-2 w-full rounded-full bg-zinc-150 dark:bg-zinc-800 overflow-hidden shadow-inner">
                         <div
                           className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 transition-all duration-500"
                           style={{ width: `${selectedProject.progress}%` }}
@@ -1484,7 +1484,7 @@ export function ProjectsListView() {
                             <div className="flex items-start gap-2.5">
                               <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${priorityStyle.dot}`} />
                               <div className="min-w-0 flex-1">
-                                <p className="text-[12px] font-semibold text-zinc-850 dark:text-zinc-150 leading-snug truncate">
+                                <p className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-150 leading-snug truncate">
                                   {task.title}
                                 </p>
                                 {task.description && (
@@ -1778,7 +1778,7 @@ export function ProjectsListView() {
                   <button
                     type="button"
                     onClick={() => setIsTeamDropdownOpen((prev) => !prev)}
-                    className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-850"
+                    className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                   >
                     <div className="flex flex-wrap gap-1.5 max-w-[90%] text-left">
                       {selectedMembers.length === 0 ? (
@@ -1857,7 +1857,7 @@ export function ProjectsListView() {
                   <button
                     type="button"
                     onClick={() => setIsAddModalOpen(false)}
-                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-850"
+                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
                   >
                     Cancel
                   </button>

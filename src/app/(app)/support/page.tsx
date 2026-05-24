@@ -399,7 +399,7 @@ export default function SupportPage() {
                             {ticket.category}
                           </span>
                         </div>
-                        <h3 className="text-xs font-bold text-zinc-850 dark:text-zinc-150 hover:text-[var(--app-primary)] transition-colors truncate">
+                        <h3 className="text-xs font-bold text-zinc-800 dark:text-zinc-150 hover:text-[var(--app-primary)] transition-colors truncate">
                           {ticket.subject}
                         </h3>
                         <p className="text-[10px] text-zinc-400">{formatDate(ticket.createdAt)}</p>
@@ -528,7 +528,7 @@ export default function SupportPage() {
                         AN
                       </div>
                       <div className="rounded-xl bg-zinc-100 p-3 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                        <p className="font-semibold text-zinc-850 dark:text-zinc-100">Ansh Helpdesk</p>
+                        <p className="font-semibold text-zinc-800 dark:text-zinc-100">Ansh Helpdesk</p>
                         <p className="mt-1 text-[11px]">We have received your ticket. A support engineer has been assigned and is reviewing your request.</p>
                       </div>
                     </div>

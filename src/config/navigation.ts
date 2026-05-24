@@ -5,7 +5,6 @@ import {
   CheckCircleIcon,
   ClipboardDocumentListIcon,
   Cog6ToothIcon,
-  DocumentDuplicateIcon,
   HomeModernIcon,
   LightBulbIcon,
   QuestionMarkCircleIcon,
@@ -67,7 +66,6 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/projects", label: "Projects", icon: BriefcaseIcon, match: "prefix" },
       { href: "/brain-board", label: "Brain board", icon: LightBulbIcon, match: "exact" },
-      { href: "/documents", label: "Documents", icon: DocumentDuplicateIcon, match: "prefix" },
     ],
   },
   {

@@ -71,6 +71,8 @@ export async function POST(request: Request) {
       estimate,
       projectId,
       workspaceId,
+      attachmentUrls,
+      notes,
     } = body;
 
     if (!title?.trim()) {
@@ -86,6 +88,7 @@ export async function POST(request: Request) {
       data: {
         title: title.trim(),
         description: description || null,
+        notes: notes || null,
         category: category || "General",
         priority: priority || "medium",
         status: status || "todo",
@@ -94,6 +97,7 @@ export async function POST(request: Request) {
         assignee: assignee || null,
         estimate: estimate || null,
         done: status === "done",
+        attachmentUrls: attachmentUrls || [],
         workspaceId: wid,
         projectId: projectId || null,
       },
@@ -134,6 +138,8 @@ export async function PATCH(request: Request) {
       estimate,
       projectId,
       done,
+      attachmentUrls,
+      notes,
     } = body;
 
     if (!id) {
@@ -148,6 +154,7 @@ export async function PATCH(request: Request) {
       data: {
         title: title !== undefined ? title.trim() : undefined,
         description: description !== undefined ? description : undefined,
+        notes: notes !== undefined ? notes : undefined,
         category: category !== undefined ? category : undefined,
         priority: priority !== undefined ? priority : undefined,
         status: status !== undefined ? status : undefined,
@@ -156,6 +163,7 @@ export async function PATCH(request: Request) {
         assignee: assignee !== undefined ? assignee : undefined,
         estimate: estimate !== undefined ? estimate : undefined,
         done: done !== undefined ? done : status !== undefined ? status === "done" : undefined,
+        attachmentUrls: attachmentUrls !== undefined ? attachmentUrls : undefined,
         projectId: projectId !== undefined ? projectId : undefined,
       },
       include: { project: { select: { name: true } } },

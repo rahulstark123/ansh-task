@@ -8,6 +8,7 @@ const SUB_LINKS = [
   { href: "/settings/defaults", label: "General Defaults" },
   { href: "/settings/defaults/categories", label: "Categories" },
   { href: "/settings/defaults/labels", label: "Labels" },
+  { href: "/settings/defaults/statuses", label: "Statuses" },
 ] as const;
 
 export default function DefaultsSubLayout({
@@ -41,7 +42,7 @@ export default function DefaultsSubLayout({
                 className={[
                   "whitespace-nowrap rounded-xl px-3 py-1.5 text-xs font-bold transition-colors border",
                   active
-                    ? "bg-zinc-100/80 border-zinc-200 text-zinc-800 dark:bg-zinc-850/60 dark:border-white/5 dark:text-zinc-100"
+                    ? "bg-zinc-100/80 border-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:border-white/10 dark:text-zinc-100"
                     : "border-transparent text-zinc-500 hover:bg-zinc-50 hover:text-zinc-800 dark:hover:bg-white/5 dark:hover:text-zinc-300",
                 ].join(" ")}
               >

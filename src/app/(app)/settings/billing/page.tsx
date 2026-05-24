@@ -60,6 +60,25 @@ export default function BillingSettingsPage() {
   // Simulate current plan — swap "free" ↔ "pro" as needed
   const currentPlan = "free" as "free" | "pro";
 
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutUsers, setCheckoutUsers] = useState<number>(1);
+  const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success">("idle");
+
+  const handleOpenCheckout = () => {
+    setCheckoutUsers(userCount || 1);
+    setPaymentStatus("idle");
+    setIsCheckoutOpen(true);
+  };
+
+  const handleProceedToPay = async () => {
+    setPaymentStatus("processing");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    setPaymentStatus("success");
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setIsCheckoutOpen(false);
+    setPaymentStatus("idle");
+  };
+
   /* fetch real member count from /api/team */
   useEffect(() => {
     async function load() {
@@ -86,6 +105,12 @@ export default function BillingSettingsPage() {
     billing === "monthly" ? MONTHLY_PRICE : YEARLY_PER_MONTH;
   const totalMonthly = pricePerUser * userCount;
   const totalYearlyFull = YEARLY_PRICE * userCount;
+
+  const subtotal = billing === "monthly" 
+    ? MONTHLY_PRICE * checkoutUsers 
+    : YEARLY_PRICE * checkoutUsers;
+  const gst = Math.round(subtotal * 0.18);
+  const grandTotal = subtotal + gst;
 
   return (
     <div className="space-y-8">
@@ -371,6 +396,7 @@ export default function BillingSettingsPage() {
           <button
             type="button"
             id="pro-plan-cta"
+            onClick={handleOpenCheckout}
             disabled={currentPlan === "pro"}
             className={`mt-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-all active:scale-[0.98] disabled:cursor-default disabled:opacity-60 ${
               currentPlan === "pro"
@@ -443,6 +469,7 @@ export default function BillingSettingsPage() {
           <button
             type="button"
             id="compare-upgrade-cta"
+            onClick={handleOpenCheckout}
             className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98]"
           >
             Get Pro <ArrowRightIcon className="h-3.5 w-3.5" />
@@ -461,6 +488,163 @@ export default function BillingSettingsPage() {
           card details are never stored on our servers.
         </p>
       </div>
+
+      {/* ── Checkout Upgrade Modal ── */}
+      <AnimatePresence>
+        {isCheckoutOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => paymentStatus === "idle" && setIsCheckoutOpen(false)}
+              className="fixed inset-0 z-50 bg-zinc-950/45 backdrop-blur-sm dark:bg-black/60"
+            />
+
+            {/* Modal Container */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="fixed inset-0 z-50 m-auto flex h-fit w-full max-w-[440px] flex-col rounded-3xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418]"
+            >
+              {paymentStatus === "idle" && (
+                <>
+                  {/* Header */}
+                  <div className="flex items-center justify-between border-b border-zinc-150 pb-4 dark:border-white/5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--app-primary)] to-emerald-500 text-white shadow-md">
+                        <SparklesIcon className="h-5 w-5 animate-pulse text-white" />
+                      </div>
+                      <div className="text-left">
+                        <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                          Upgrade to Pro Plan
+                        </h3>
+                        <p className="text-[10px] text-zinc-400">Secure checkout powered by Stripe</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setIsCheckoutOpen(false)}
+                      className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-750 dark:hover:bg-zinc-800 dark:hover:text-zinc-250"
+                    >
+                      <XMarkIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  {/* Body Content */}
+                  <div className="mt-5 space-y-4">
+                    {/* Billing Cycle Display */}
+                    <div className="flex items-center justify-between rounded-xl bg-zinc-50 dark:bg-zinc-900/50 px-4 py-3">
+                      <span className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">Billing Cycle</span>
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-bold text-teal-600 dark:text-teal-300 capitalize">
+                        {billing}
+                      </span>
+                    </div>
+
+                    {/* Seats Field */}
+                    <div className="text-left">
+                      <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
+                        Number of Seats / Users
+                      </label>
+                      <div className="relative mt-1">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                          <UsersIcon className="h-4 w-4 text-zinc-400" />
+                        </div>
+                        <input
+                          type="number"
+                          min={1}
+                          max={500}
+                          value={checkoutUsers}
+                          onChange={(e) => setCheckoutUsers(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="block w-full h-11 rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-3 text-xs font-semibold text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Pricing Breakdown */}
+                    <div className="rounded-2xl border border-zinc-150 bg-zinc-50/50 p-4 dark:border-white/5 dark:bg-zinc-900/30 space-y-2.5 text-left">
+                      <div className="flex justify-between text-xs text-zinc-500 font-semibold">
+                        <span>Price per seat</span>
+                        <span>₹{billing === "monthly" ? "399 / mo" : "331 / mo"}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-zinc-500 font-semibold">
+                        <span>Subtotal ({checkoutUsers} {checkoutUsers === 1 ? "user" : "users"})</span>
+                        <span>₹{subtotal.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-zinc-500 font-semibold">
+                        <span>GST (18%)</span>
+                        <span>₹{gst.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="h-[1px] bg-zinc-200 dark:bg-white/5 my-1" />
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Grand Total</span>
+                        <div className="text-right">
+                          <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">
+                            ₹{grandTotal.toLocaleString("en-IN")}
+                          </span>
+                          <span className="block text-[9px] text-zinc-400 font-medium">
+                            {billing === "monthly" ? "billed monthly" : "billed annually"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3 pt-5 border-t border-zinc-150 dark:border-white/5 mt-5">
+                    <button
+                      type="button"
+                      onClick={() => setIsCheckoutOpen(false)}
+                      className="flex-1 inline-flex h-11 items-center justify-center rounded-2xl border border-zinc-200 text-xs font-bold text-zinc-650 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800 transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleProceedToPay}
+                      className="flex-1 inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                    >
+                      Proceed to Pay
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {paymentStatus === "processing" && (
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <div className="relative flex h-14 w-14 items-center justify-center">
+                    <div className="absolute h-full w-full animate-spin rounded-full border-4 border-teal-500/20 border-t-teal-500" />
+                    <BoltIcon className="h-6 w-6 text-teal-500 animate-pulse" />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="font-heading text-sm font-bold text-zinc-900 dark:text-zinc-50">
+                      Processing Payment...
+                    </h3>
+                    <p className="text-xs text-zinc-500 mt-1">Connecting to secure gateway. Please do not close or refresh.</p>
+                  </div>
+                </div>
+              )}
+
+              {paymentStatus === "success" && (
+                <div className="flex flex-col items-center justify-center py-10 space-y-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500 shadow-md">
+                    <CheckCircleIcon className="h-10 w-10 text-emerald-500" />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                      Upgrade Successful!
+                    </h3>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      Your workspace has been successfully upgraded to the Pro plan.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

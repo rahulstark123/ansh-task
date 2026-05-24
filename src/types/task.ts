@@ -1,11 +1,24 @@
 export type TaskPriority = "low" | "medium" | "high";
 
-export type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
+export type TaskStatus = "todo" | "in_progress" | "on_hold" | "blocked" | "done" | (string & {});
+
+export type TaskNote = {
+  id: string;
+  content: string;
+  taskId: string;
+  userId: string;
+  authorName: string;
+  authorEmail: string;
+  authorAvatar?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type Task = {
   id: string;
   title: string;
   description?: string;
+  notes?: string;
   due: string;
   priority: TaskPriority;
   category?: string;
@@ -14,6 +27,7 @@ export type Task = {
   status?: TaskStatus;
   estimate?: string;
   done: boolean;
+  attachmentUrls?: string[];
 };
 
 export type NewTaskPayload = {
@@ -27,4 +41,5 @@ export type NewTaskPayload = {
   assignee: string;
   estimate?: string;
   projectId?: string | null;
+  attachmentUrls?: string[];
 };

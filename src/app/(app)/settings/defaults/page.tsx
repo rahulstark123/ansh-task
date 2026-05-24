@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckIcon,
@@ -20,12 +20,40 @@ const PRIORITY_OPTIONS = [
   { value: "low", label: "Low", dot: "bg-emerald-500", activeColor: "border-emerald-300 bg-emerald-50/50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300" },
 ];
 
-const STATUS_OPTIONS = [
-  { value: "todo", label: "To Do", dot: "bg-zinc-400", activeColor: "border-zinc-300 bg-zinc-50 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300" },
-  { value: "in_progress", label: "In Progress", dot: "bg-teal-500", activeColor: "border-teal-300 bg-teal-50/50 text-teal-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-teal-300" },
-  { value: "blocked", label: "Blocked", dot: "bg-rose-500", activeColor: "border-rose-300 bg-rose-50/50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300" },
-  { value: "done", label: "Done", dot: "bg-emerald-500", activeColor: "border-emerald-300 bg-emerald-50/50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300" },
-];
+function getStatusOption(statusId: string, index: number) {
+  if (statusId === "todo") {
+    return { value: "todo", label: "To Do", dot: "bg-zinc-400", activeColor: "border-zinc-300 bg-zinc-50 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300" };
+  }
+  if (statusId === "in_progress") {
+    return { value: "in_progress", label: "In Progress", dot: "bg-teal-500", activeColor: "border-teal-300 bg-teal-50/50 text-teal-700 dark:border-teal-900/40 dark:bg-teal-950/20 dark:text-teal-300" };
+  }
+  if (statusId === "blocked") {
+    return { value: "blocked", label: "Blocked", dot: "bg-rose-500", activeColor: "border-rose-300 bg-rose-50/50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300" };
+  }
+  if (statusId === "done") {
+    return { value: "done", label: "Done", dot: "bg-emerald-500", activeColor: "border-emerald-300 bg-emerald-50/50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300" };
+  }
+
+  // Custom status formatting
+  const label = statusId
+    .replace(/[_-]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  // Cycle colors: indigo, purple, amber, fuchsia, cyan
+  const colors = [
+    { dot: "bg-indigo-500", activeColor: "border-indigo-300 bg-indigo-50/50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-950/20 dark:text-indigo-300" },
+    { dot: "bg-purple-500", activeColor: "border-purple-300 bg-purple-50/50 text-purple-700 dark:border-purple-900/40 dark:bg-purple-950/20 dark:text-purple-300" },
+    { dot: "bg-amber-500", activeColor: "border-amber-300 bg-amber-50/50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300" },
+    { dot: "bg-fuchsia-500", activeColor: "border-fuchsia-300 bg-fuchsia-50/50 text-fuchsia-700 dark:border-fuchsia-900/40 dark:bg-fuchsia-950/20 dark:text-fuchsia-300" },
+    { dot: "bg-cyan-500", activeColor: "border-cyan-300 bg-cyan-50/50 text-cyan-700 dark:border-cyan-900/40 dark:bg-cyan-950/20 dark:text-cyan-300" },
+  ];
+
+  return {
+    value: statusId,
+    label,
+    ...colors[index % colors.length]
+  };
+}
 
 export default function WorkspaceDefaultsPage() {
   const {
@@ -35,6 +63,7 @@ export default function WorkspaceDefaultsPage() {
     labels,
     customCategories,
     customLabels,
+    kanbanColumnOrder,
     loading,
     fetchDefaults,
     updateDefaults,
@@ -46,6 +75,13 @@ export default function WorkspaceDefaultsPage() {
   const [selCategory, setSelCategory] = useState("General");
   const [selLabels, setSelLabels] = useState<string[]>([]);
   const [showToast, setShowToast] = useState(false);
+
+  const dynamicStatusOptions = useMemo(() => {
+    const order = kanbanColumnOrder && kanbanColumnOrder.length > 0
+      ? kanbanColumnOrder
+      : ["todo", "in_progress", "blocked", "done"];
+    return order.map((id, index) => getStatusOption(id, index));
+  }, [kanbanColumnOrder]);
 
   // Get workspace id from session storage on mount
   useEffect(() => {
@@ -158,8 +194,8 @@ export default function WorkspaceDefaultsPage() {
               <Squares2X2Icon className="h-4 w-4" />
               Default Status
             </label>
-            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
-              {STATUS_OPTIONS.map((opt) => {
+            <div className="flex flex-wrap gap-3">
+              {dynamicStatusOptions.map((opt) => {
                 const selected = selStatus === opt.value;
                 return (
                   <button
@@ -167,10 +203,10 @@ export default function WorkspaceDefaultsPage() {
                     type="button"
                     onClick={() => setSelStatus(opt.value)}
                     className={[
-                      "flex items-center justify-center gap-2 rounded-xl border p-3 text-xs font-bold transition-all hover:scale-[1.01] active:scale-[0.99]",
+                      "flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-bold transition-all hover:scale-[1.01] active:scale-[0.99] min-w-[110px] cursor-pointer",
                       selected
                         ? `${opt.activeColor} border-2 ring-2 ring-indigo-400/10`
-                        : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-950/30 dark:text-zinc-450 dark:hover:border-zinc-700",
+                        : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-950/30 dark:text-zinc-400 dark:hover:border-zinc-700",
                     ].join(" ")}
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${opt.dot}`} />

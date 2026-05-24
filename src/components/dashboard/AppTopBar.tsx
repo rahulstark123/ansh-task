@@ -4,9 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import { 
   MagnifyingGlassIcon, 
-  SwatchIcon,
   FolderIcon,
   ClipboardDocumentIcon,
   UserIcon,
@@ -16,6 +16,7 @@ import {
   SunIcon,
   SparklesIcon,
   ArrowLeftOnRectangleIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 import { useAppearance } from "@/context/AppearanceContext";
 import { supabase } from "@/lib/supabase";
@@ -37,32 +38,44 @@ export function AppTopBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isProfileCardOpen, setIsProfileCardOpen] = useState(false);
+  const [userInfo, setUserInfo] = useState<{ name: string; email: string; avatar: string } | null>(null);
+  const [userInitial, setUserInitial] = useState("A");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-
-  const [userInitial, setUserInitial] = useState("A");
 
   useEffect(() => {
     async function fetchUser() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const fullName = user.user_metadata?.full_name || "";
-          if (fullName) {
-            const initials = fullName
-              .trim()
-              .split(/\s+/)
-              .map((n: string) => n[0])
-              .join("")
-              .toUpperCase();
-            if (initials) {
-              setUserInitial(initials.slice(0, 2));
-              return;
-            }
+        if (user && user.email) {
+          const res = await fetch(`/api/profile?email=${encodeURIComponent(user.email)}`);
+          const json = await res.json();
+          let name = user.user_metadata?.full_name || user.email.split("@")[0];
+          let avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.email)}`;
+          
+          if (json.success && json.user) {
+            const u = json.user;
+            name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || name;
+            avatar = u.avatar || avatar;
           }
-          if (user.email) {
-            setUserInitial(user.email[0].toUpperCase());
+
+          setUserInfo({
+            name,
+            email: user.email,
+            avatar,
+          });
+
+          const initials = name
+            .trim()
+            .split(/\s+/)
+            .map((n: string) => n[0])
+            .join("")
+            .toUpperCase();
+          if (initials) {
+            setUserInitial(initials.slice(0, 2));
           }
         }
       } catch (err) {
@@ -199,7 +212,7 @@ export function AppTopBar() {
             type="text"
             placeholder="Search... (Ctrl + K)"
             readOnly
-            className="w-full cursor-pointer rounded-xl border border-zinc-200/90 bg-white/80 py-2 pr-14 pl-10 text-xs font-semibold text-zinc-650 shadow-[0_1px_0_rgba(0,0,0,0.03)] outline-none transition-[border-color,box-shadow] placeholder:text-zinc-400 focus:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-900/50 dark:text-zinc-350 dark:placeholder:text-zinc-500"
+            className="w-full cursor-pointer rounded-xl border border-zinc-200/90 bg-white/80 py-2 pr-14 pl-10 text-xs font-semibold text-zinc-600 shadow-[0_1px_0_rgba(0,0,0,0.03)] outline-none transition-[border-color,box-shadow] placeholder:text-zinc-400 focus:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-900/50 dark:text-zinc-350 dark:placeholder:text-zinc-500"
           />
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold text-zinc-400 border border-zinc-200/60 dark:bg-zinc-800 dark:border-white/5 dark:text-zinc-500">
             <span>Ctrl</span>
@@ -208,25 +221,80 @@ export function AppTopBar() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setIsAppearanceOpen(true)}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white/90 text-zinc-600 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-colors hover:border-zinc-300 hover:text-[var(--app-primary)] dark:border-white/[0.08] dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:text-[var(--app-primary)]"
-            title="Customize Theme & Appearance"
+          {/* Profile Popover Menu */}
+          <div 
+            className="relative" 
+            onMouseEnter={() => setIsProfileCardOpen(true)} 
+            onMouseLeave={() => setIsProfileCardOpen(false)}
           >
-            <SwatchIcon className="h-5 w-5" />
-          </button>
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] text-[11px] font-semibold text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10"
-            aria-hidden
-          >
-            {userInitial}
+            <button 
+              onClick={() => setIsProfileCardOpen(!isProfileCardOpen)}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] text-[11px] font-semibold text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10 cursor-pointer overflow-hidden outline-none"
+            >
+              {userInfo?.avatar ? (
+                <img src={userInfo.avatar} alt={userInfo.name} className="h-full w-full object-cover" />
+              ) : (
+                userInitial
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isProfileCardOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2.5 w-64 z-50 rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl dark:border-white/10 dark:bg-[#121418] text-left"
+                >
+                  <div className="flex items-center gap-3 pb-3 border-b border-zinc-100 dark:border-white/[0.04]">
+                    <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] flex items-center justify-center text-xs font-bold text-white overflow-hidden">
+                      {userInfo?.avatar ? (
+                        <img src={userInfo.avatar} alt={userInfo.name} className="h-full w-full object-cover" />
+                      ) : (
+                        userInitial
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-zinc-900 dark:text-zinc-50 truncate">
+                        {userInfo?.name || "ANSH User"}
+                      </h4>
+                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                        {userInfo?.email || ""}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="pt-2.5 space-y-1">
+                    <Link
+                      href="/settings/profile"
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[11px] font-bold text-zinc-600 hover:bg-zinc-50 dark:text-zinc-350 dark:hover:bg-zinc-800/40 transition-colors"
+                    >
+                      <UserIcon className="h-4 w-4 text-zinc-400" />
+                      Manage Profile
+                    </Link>
+                    <Link
+                      href="/settings"
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[11px] font-bold text-zinc-600 hover:bg-zinc-50 dark:text-zinc-350 dark:hover:bg-zinc-800/40 transition-colors"
+                    >
+                      <Cog6ToothIcon className="h-4 w-4 text-zinc-400" />
+                      Workspace Settings
+                    </Link>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
+
           <button
             onClick={async () => {
-              await supabase.auth.signOut();
-              router.push("/login");
+              setIsLoggingOut(true);
+              setTimeout(async () => {
+                await supabase.auth.signOut();
+                router.push("/login");
+              }, 1200);
             }}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white/90 text-rose-600 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-colors hover:border-rose-300 hover:bg-rose-50 dark:border-white/[0.08] dark:bg-zinc-900/50 dark:text-rose-450 dark:hover:bg-rose-950/20"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white/90 text-rose-600 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-colors hover:border-rose-300 hover:bg-rose-50 dark:border-white/[0.08] dark:bg-zinc-900/50 dark:text-rose-400 dark:hover:bg-rose-950/20 cursor-pointer"
             title="Logout"
           >
             <ArrowLeftOnRectangleIcon className="h-5 w-5" />
@@ -342,6 +410,34 @@ export function AppTopBar() {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Logout Loader Modal */}
+      <AnimatePresence>
+        {isLoggingOut && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="w-full max-w-sm rounded-3xl border border-white/[0.08] bg-zinc-900/90 p-8 text-center shadow-2xl backdrop-blur-xl"
+            >
+              <div className="flex justify-center mb-6">
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-450">
+                  <ArrowPathIcon className="h-6 w-6 animate-spin" />
+                </div>
+              </div>
+              <h3 className="font-heading text-base font-bold text-white mb-2">Signing out</h3>
+              <p className="text-xs text-zinc-450">Clearing your workspace session...</p>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </>

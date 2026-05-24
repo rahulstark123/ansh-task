@@ -211,7 +211,7 @@ export default function OnboardingPage() {
                 </div>
                 <span className={`text-xs font-semibold ${
                   isActive || isCompleted 
-                    ? "text-zinc-850 dark:text-zinc-200" 
+                    ? "text-zinc-800 dark:text-zinc-200" 
                     : "text-zinc-400"
                 }`}>
                   {s.label}

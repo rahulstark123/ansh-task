@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppearanceProvider } from "@/context/AppearanceContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { ResponsiveLayoutGuard } from "@/components/ResponsiveLayoutGuard";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -32,7 +33,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${inter.variable} ${outfit.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col text-zinc-800 bg-white dark:text-zinc-100 dark:bg-zinc-950 transition-colors duration-300">
+      <body className="min-h-full flex flex-col antialiased text-zinc-900 bg-white dark:text-zinc-100 dark:bg-zinc-950 transition-colors duration-300">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -41,7 +42,9 @@ export default function RootLayout({
         >
           <AppearanceProvider>
             <ToastProvider>
-              {children}
+              <ResponsiveLayoutGuard>
+                {children}
+              </ResponsiveLayoutGuard>
             </ToastProvider>
           </AppearanceProvider>
         </ThemeProvider>

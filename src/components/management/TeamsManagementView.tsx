@@ -400,7 +400,6 @@ export function TeamsManagementView() {
   const [newTaskPriority, setNewTaskPriority] = useState("medium");
   const [newTaskCategory, setNewTaskCategory] = useState("General");
   const [newTaskLabels, setNewTaskLabels] = useState("");
-  const [newTaskEstimate, setNewTaskEstimate] = useState("");
   const [newTaskDue, setNewTaskDue] = useState("");
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
@@ -1117,12 +1116,7 @@ export function TeamsManagementView() {
                               
                               {/* Estimate and Due Dates */}
                               <div className="flex items-center gap-2">
-                                {task.estimate && (
-                                  <div className="flex items-center gap-0.5 rounded-full bg-teal-50/70 border border-teal-100/50 px-1.5 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/30">
-                                    <ClockIcon className="h-3 w-3 shrink-0 opacity-80" />
-                                    <span>{task.estimate}</span>
-                                  </div>
-                                )}
+
                                 {task.due && task.due !== "No date" && (
                                   <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${
                                     task.due.includes("Today") || task.due.includes("Urgent") || task.due.includes("Yesterday")
@@ -1361,7 +1355,7 @@ export function TeamsManagementView() {
                         <button
                           type="button"
                           onClick={() => setIsCreatingRole(true)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-850"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
                           title="Create custom role"
                         >
                           <PlusIcon className="h-4.5 w-4.5" />
@@ -1428,7 +1422,7 @@ export function TeamsManagementView() {
                         <button
                           type="button"
                           onClick={() => setIsCreatingDept(true)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-850"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
                           title="Create custom department"
                         >
                           <PlusIcon className="h-4.5 w-4.5" />
@@ -1469,7 +1463,7 @@ export function TeamsManagementView() {
                       setIsCreatingRole(false);
                       setIsCreatingDept(false);
                     }}
-                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-850"
+                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
                   >
                     Cancel
                   </button>
@@ -1663,7 +1657,7 @@ export function TeamsManagementView() {
                         <button
                           type="button"
                           onClick={() => setIsCreatingRole(true)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-850"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
                           title="Create custom role"
                         >
                           <PlusIcon className="h-4.5 w-4.5" />
@@ -1730,7 +1724,7 @@ export function TeamsManagementView() {
                         <button
                           type="button"
                           onClick={() => setIsCreatingDept(true)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-850"
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
                           title="Create custom department"
                         >
                           <PlusIcon className="h-4.5 w-4.5" />
@@ -1773,7 +1767,7 @@ export function TeamsManagementView() {
                       setIsCreatingRole(false);
                       setIsCreatingDept(false);
                     }}
-                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-850"
+                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
                   >
                     Cancel
                   </button>
@@ -1865,7 +1859,6 @@ export function TeamsManagementView() {
                 setNewTaskPriority("medium");
                 setNewTaskCategory("General");
                 setNewTaskLabels("");
-                setNewTaskEstimate("");
                 setNewTaskDue("");
               }}
               className="fixed inset-0 z-50 bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
@@ -1895,7 +1888,6 @@ export function TeamsManagementView() {
                     setNewTaskPriority("medium");
                     setNewTaskCategory("General");
                     setNewTaskLabels("");
-                    setNewTaskEstimate("");
                     setNewTaskDue("");
                   }}
                   className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
@@ -1928,7 +1920,6 @@ export function TeamsManagementView() {
                         description: newTaskDesc.trim() || null,
                         category: newTaskCategory.trim() || "General",
                         labels: newTaskLabels.trim() ? newTaskLabels.split(",").map(s => s.trim()).filter(Boolean) : [],
-                        estimate: newTaskEstimate.trim() || null,
                       }),
                     });
                     const json = await res.json();
@@ -1941,7 +1932,6 @@ export function TeamsManagementView() {
                       setNewTaskPriority("medium");
                       setNewTaskCategory("General");
                       setNewTaskLabels("");
-                      setNewTaskEstimate("");
                       setNewTaskDue("");
                       setIsTaskModalOpen(false);
                       
@@ -2011,7 +2001,7 @@ export function TeamsManagementView() {
                       <select
                         value={newTaskProjectId}
                         onChange={(e) => setNewTaskProjectId(e.target.value)}
-                        className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-zinc-50 pl-3.5 pr-10 py-2.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-850"
+                        className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-zinc-50 pl-3.5 pr-10 py-2.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                         disabled={isAddingTask}
                       >
                         <option value="">No Project</option>
@@ -2034,7 +2024,7 @@ export function TeamsManagementView() {
                       <select
                         value={newTaskPriority}
                         onChange={(e) => setNewTaskPriority(e.target.value)}
-                        className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-zinc-50 pl-3.5 pr-10 py-2.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-850"
+                        className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-zinc-50 pl-3.5 pr-10 py-2.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                         disabled={isAddingTask}
                       >
                         <option value="low">Low</option>
@@ -2063,21 +2053,7 @@ export function TeamsManagementView() {
                     />
                   </div>
 
-                  {/* Estimate */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
-                      Story Points / Estimate
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={10}
-                      value={newTaskEstimate}
-                      onChange={(e) => setNewTaskEstimate(e.target.value)}
-                      placeholder="e.g. 5"
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                      disabled={isAddingTask}
-                    />
-                  </div>
+
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -2126,10 +2102,9 @@ export function TeamsManagementView() {
                       setNewTaskPriority("medium");
                       setNewTaskCategory("General");
                       setNewTaskLabels("");
-                      setNewTaskEstimate("");
                       setNewTaskDue("");
                     }}
-                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-650 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-850"
+                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-650 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
                   >
                     Cancel
                   </button>

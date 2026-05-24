@@ -25,6 +25,7 @@ export async function GET(request: Request) {
         defaultLabels: true,
         customCategories: true,
         customLabels: true,
+        kanbanColumnOrder: true,
       },
     });
 
@@ -39,6 +40,7 @@ export async function GET(request: Request) {
         },
         customCategories: ["General", "Product", "Engineering", "Design", "Operations", "Marketing"],
         customLabels: ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"],
+        kanbanColumnOrder: ["todo", "in_progress", "blocked", "done"],
       });
     }
 
@@ -52,6 +54,7 @@ export async function GET(request: Request) {
       },
       customCategories: workspace.customCategories,
       customLabels: workspace.customLabels,
+      kanbanColumnOrder: workspace.kanbanColumnOrder,
     });
   } catch (error: any) {
     console.error("Workspace defaults GET API Error:", error);
@@ -73,6 +76,7 @@ export async function PATCH(request: Request) {
       labels,
       customCategories,
       customLabels,
+      kanbanColumnOrder,
     } = body;
 
     if (!workspaceId) {
@@ -93,6 +97,7 @@ export async function PATCH(request: Request) {
         defaultLabels: labels !== undefined ? labels : undefined,
         customCategories: customCategories !== undefined ? customCategories : undefined,
         customLabels: customLabels !== undefined ? customLabels : undefined,
+        kanbanColumnOrder: kanbanColumnOrder !== undefined ? kanbanColumnOrder : undefined,
       },
     });
 
@@ -107,6 +112,7 @@ export async function PATCH(request: Request) {
       },
       customCategories: updatedWorkspace.customCategories,
       customLabels: updatedWorkspace.customLabels,
+      kanbanColumnOrder: updatedWorkspace.kanbanColumnOrder,
     });
   } catch (error: any) {
     console.error("Workspace defaults PATCH API Error:", error);

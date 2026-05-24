@@ -29,6 +29,10 @@ model User {
   workspaceId Int?
   workspace   Workspace? @relation(fields: [workspaceId], references: [id])
   brainboardNotes BrainboardNote[]
+  sentMessages Message[]
+  conversations ConversationParticipant[]
+  channelMemberships ChannelMember[]
+  taskNotes          TaskNote[]
 }
 
 model Workspace {
@@ -50,6 +54,7 @@ model Workspace {
   defaultLabels   String[] @default([])
   customCategories String[] @default(["General", "Product", "Engineering", "Design", "Operations", "Marketing"])
   customLabels     String[] @default(["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"])
+  kanbanColumnOrder String[] @default(["todo", "in_progress", "on_hold", "blocked", "done"])
 
   // Relationships
   users       User[]
@@ -59,6 +64,8 @@ model Workspace {
   departments WorkspaceDepartment[]
   brainboardNotes BrainboardNote[]
   tickets     Ticket[]
+  channels    Channel[]
+  conversations Conversation[]
 }
 
 model WorkspaceRole {
@@ -110,14 +117,16 @@ model Task {
   id          String   @id @default(uuid())
   title       String
   description String?
+  notes       String?
   due         String
   priority    String   @default("medium") // "low" | "medium" | "high"
   category    String?
   labels      String[] @default([])
   assignee    String?
-  status      String   @default("todo") // "todo" | "in_progress" | "blocked" | "done"
+  status      String   @default("todo") // "todo" | "in_progress" | "on_hold" | "blocked" | "done"
   estimate    String?
   done        Boolean  @default(false)
+  attachmentUrls String[] @default([])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -126,6 +135,20 @@ model Task {
   workspace   Workspace @relation(fields: [workspaceId], references: [id])
   projectId   String?
   project     Project?  @relation(fields: [projectId], references: [id])
+  taskNotes   TaskNote[]
+}
+
+model TaskNote {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model BrainboardNote {
@@ -161,4 +184,63 @@ model Ticket {
   // Relationships
   workspaceId   Int
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model Channel {
+  id          String    @id @default(uuid())
+  name        String
+  topic       String?
+  isPrivate   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relationships
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages    Message[]
+  members     ChannelMember[]
+}
+
+model Conversation {
+  id           String                    @id @default(uuid())
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  workspaceId  Int
+  workspace    Workspace                 @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  participants ConversationParticipant[]
+  messages     Message[]
+}
+
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String        @id @default(uuid())
+  content        String
+  createdAt      DateTime      @default(now())
+  senderId       String
+  sender         User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  channelId      String?
+  channel        Channel?      @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model ChannelMember {
+  id        String   @id @default(uuid())
+  channelId String
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([channelId, userId])
 }

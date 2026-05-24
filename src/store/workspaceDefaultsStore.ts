@@ -7,6 +7,7 @@ interface WorkspaceDefaultsState {
   labels: string[];
   customCategories: string[];
   customLabels: string[];
+  kanbanColumnOrder: string[];
   loading: boolean;
   initialized: boolean;
   fetchDefaults: (workspaceId: number) => Promise<void>;
@@ -19,6 +20,7 @@ interface WorkspaceDefaultsState {
       labels?: string[];
       customCategories?: string[];
       customLabels?: string[];
+      kanbanColumnOrder?: string[];
     }
   ) => Promise<boolean>;
 }
@@ -30,6 +32,7 @@ export const useWorkspaceDefaultsStore = create<WorkspaceDefaultsState>((set, ge
   labels: [],
   customCategories: ["General", "Product", "Engineering", "Design", "Operations", "Marketing"],
   customLabels: ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"],
+  kanbanColumnOrder: ["todo", "in_progress", "blocked", "done"],
   loading: false,
   initialized: false,
 
@@ -48,6 +51,7 @@ export const useWorkspaceDefaultsStore = create<WorkspaceDefaultsState>((set, ge
           labels: json.defaults?.labels || [],
           customCategories: json.customCategories || ["General", "Product", "Engineering", "Design", "Operations", "Marketing"],
           customLabels: json.customLabels || ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"],
+          kanbanColumnOrder: json.kanbanColumnOrder || ["todo", "in_progress", "blocked", "done"],
           initialized: true,
         });
       }
@@ -78,6 +82,7 @@ export const useWorkspaceDefaultsStore = create<WorkspaceDefaultsState>((set, ge
           labels: json.defaults?.labels || [],
           customCategories: json.customCategories || ["General", "Product", "Engineering", "Design", "Operations", "Marketing"],
           customLabels: json.customLabels || ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"],
+          kanbanColumnOrder: json.kanbanColumnOrder || ["todo", "in_progress", "blocked", "done"],
         });
         return true;
       }

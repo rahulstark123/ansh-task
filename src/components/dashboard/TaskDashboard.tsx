@@ -18,6 +18,10 @@ import {
   CheckCircleIcon,
   ClockIcon,
   ArrowPathIcon,
+  PaperClipIcon,
+  ArrowDownTrayIcon,
+  DocumentTextIcon,
+  ClipboardDocumentListIcon,
 } from "@heroicons/react/24/outline";
 import { CheckCircleIcon as CheckCircleSolid } from "@heroicons/react/24/solid";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,7 +29,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 
 import { AddTaskModal } from "@/components/tasks/AddTaskModal";
-import type { NewTaskPayload, Task, TaskPriority, TaskStatus } from "@/types/task";
+import type { NewTaskPayload, Task, TaskNote, TaskPriority, TaskStatus } from "@/types/task";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
 import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
@@ -37,6 +41,79 @@ import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
 function getWid(): number {
   if (typeof window === "undefined") return 1;
   return parseInt(sessionStorage.getItem("ansh_onboarding_wid") ?? "1", 10);
+}
+
+type TaskAttachment = { name: string; size: number; dataUrl: string };
+
+function fileNameFromAttachmentUrl(url: string, index: number): string {
+  if (url.startsWith("data:")) {
+    const mime = url.match(/^data:([^;,]+)/)?.[1] ?? "";
+    if (mime.includes("pdf")) return `attachment-${index + 1}.pdf`;
+    if (mime.includes("png")) return `attachment-${index + 1}.png`;
+    if (mime.includes("jpeg") || mime.includes("jpg")) return `attachment-${index + 1}.jpg`;
+    if (mime.includes("gif")) return `attachment-${index + 1}.gif`;
+    if (mime.includes("webp")) return `attachment-${index + 1}.webp`;
+    return `attachment-${index + 1}`;
+  }
+  try {
+    const segment = new URL(url).pathname.split("/").pop();
+    if (segment) return decodeURIComponent(segment);
+  } catch {
+    /* ignore */
+  }
+  return `attachment-${index + 1}`;
+}
+
+function urlsToAttachments(urls: string[] | undefined): TaskAttachment[] {
+  return (urls ?? []).map((dataUrl, index) => ({
+    name: fileNameFromAttachmentUrl(dataUrl, index),
+    size: 0,
+    dataUrl,
+  }));
+}
+
+function formatAttachmentSize(bytes: number): string {
+  if (!bytes) return "—";
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getNoteAuthorHsl(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const h = Math.abs(hash % 360);
+  return `hsl(${h}, 55%, 42%)`;
+}
+
+function formatNoteTimestamp(iso: string) {
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+function noteWasEdited(note: TaskNote) {
+  return new Date(note.updatedAt).getTime() - new Date(note.createdAt).getTime() > 2000;
+}
+
+function openAttachment(att: TaskAttachment) {
+  const link = document.createElement("a");
+  link.href = att.dataUrl;
+  link.download = att.name;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 /** Map a raw Prisma task row to the frontend Task shape */
@@ -53,12 +130,14 @@ function mapApiTask(t: any): Task {
     status: (t.status as Task["status"]) ?? "todo",
     estimate: t.estimate ?? undefined,
     done: t.done ?? false,
+    attachmentUrls: t.attachmentUrls ?? [],
   };
 }
 
 const COLUMNS: { id: TaskStatus; label: string; bg: string; dot: string; border: string; darkBorder: string }[] = [
   { id: "todo", label: "To Do", bg: "bg-zinc-100/70 dark:bg-zinc-900/30", dot: "bg-zinc-400", border: "border-zinc-200/80", darkBorder: "dark:border-white/[0.06]" },
   { id: "in_progress", label: "In Progress", bg: "bg-teal-50/40 dark:bg-teal-950/10", dot: "bg-teal-500", border: "border-teal-100", darkBorder: "dark:border-teal-900/20" },
+  { id: "on_hold", label: "On Hold", bg: "bg-amber-50/40 dark:bg-amber-950/10", dot: "bg-amber-500", border: "border-amber-100", darkBorder: "dark:border-amber-900/20" },
   { id: "blocked", label: "Blocked", bg: "bg-rose-50/40 dark:bg-rose-950/10", dot: "bg-rose-500", border: "border-rose-100", darkBorder: "dark:border-rose-900/20" },
   { id: "done", label: "Done", bg: "bg-emerald-50/40 dark:bg-emerald-950/10", dot: "bg-emerald-500", border: "border-emerald-100", darkBorder: "dark:border-emerald-900/20" },
 ];
@@ -66,7 +145,7 @@ const COLUMNS: { id: TaskStatus; label: string; bg: string; dot: string; border:
 const CATEGORIES = ["Product", "Engineering", "Design", "Operations", "Marketing", "General"];
 const PRIORITIES: TaskPriority[] = ["low", "medium", "high"];
 const ASSIGNEES = ["Unassigned", "Me", "Alex Rivera", "Jordan Lee", "Sam Chen"];
-const ESTIMATES = ["1", "2", "3", "5", "8", "—"];
+
 const ALL_LABELS = ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"];
 
 function priorityColor(p: TaskPriority) {
@@ -238,6 +317,7 @@ export function TaskDashboard({
   const [searchQuery, setSearchQuery] = useState("");
 
   const [assigneesList, setAssigneesList] = useState<string[]>(ASSIGNEES);
+  const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
   const {
     priority: defaultPriority,
@@ -280,6 +360,7 @@ export function TaskDashboard({
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          setCurrentUserEmail(user.email || null);
           const wid = getWid();
           const res = await fetch(`/api/team?email=${encodeURIComponent(user.email || "")}&wid=${wid}`);
           const json = await res.json();
@@ -310,18 +391,29 @@ export function TaskDashboard({
   // Modal & inline states
   const [addOpen, setAddOpen] = useState(false);
   const [addModalSession, setAddModalSession] = useState(0);
+  const [addModalDefaultStatus, setAddModalDefaultStatus] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
   // Drawer Edit Form States
   const [isEditingTaskDetails, setIsEditingTaskDetails] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
   const [tempDescription, setTempDescription] = useState("");
+  const [detailDrawerTab, setDetailDrawerTab] = useState<"details" | "notes">("details");
+  const [taskNotes, setTaskNotes] = useState<TaskNote[]>([]);
+  const [taskNotesLoading, setTaskNotesLoading] = useState(false);
+  const [showNotesModal, setShowNotesModal] = useState(false);
+  const [notesModalDraft, setNotesModalDraft] = useState("");
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<TaskNote | null>(null);
   const [tempStatus, setTempStatus] = useState<TaskStatus>("todo");
   const [tempPriority, setTempPriority] = useState<TaskPriority>("medium");
   const [tempAssignee, setTempAssignee] = useState("Unassigned");
   const [tempCategory, setTempCategory] = useState("General");
-  const [tempEstimate, setTempEstimate] = useState("—");
+
   const [tempDue, setTempDue] = useState("No date");
+  const [tempAttachments, setTempAttachments] = useState<TaskAttachment[]>([]);
+  const detailAttachInputRef = useRef<HTMLInputElement>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
 
   // Sync selected task to edit state
@@ -329,23 +421,56 @@ export function TaskDashboard({
     if (selectedTask) {
       setTempTitle(selectedTask.title);
       setTempDescription(selectedTask.description || "");
+      setDetailDrawerTab("details");
+      setShowNotesModal(false);
+      setEditingNoteId(null);
+      setTaskNotes([]);
       setTempStatus(selectedTask.status || "todo");
       setTempPriority(selectedTask.priority || "medium");
       setTempAssignee(selectedTask.assignee || "Unassigned");
       setTempCategory(selectedTask.category || "General");
-      setTempEstimate(selectedTask.estimate || "—");
+
       setTempDue(selectedTask.due || "No date");
+      setTempAttachments(urlsToAttachments(selectedTask.attachmentUrls));
       setIsEditingTaskDetails(false); // Default to read-only when opening
     }
   }, [selectedTask]);
 
+  async function loadTaskNotes(taskId: string) {
+    setTaskNotesLoading(true);
+    try {
+      const res = await fetch(`/api/task/notes?taskId=${encodeURIComponent(taskId)}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.notes)) {
+        setTaskNotes(json.notes);
+      } else {
+        setTaskNotes([]);
+      }
+    } catch (err) {
+      console.error("Error loading task notes:", err);
+      setTaskNotes([]);
+    } finally {
+      setTaskNotesLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedTask?.id) {
+      setTaskNotes([]);
+      return;
+    }
+    loadTaskNotes(selectedTask.id);
+  }, [selectedTask?.id]);
+
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
+  const statusBeforeHoldRef = useRef<TaskStatus | null>(null);
   
   // Inline column add text inputs
   const [columnQuickAdd, setColumnQuickAdd] = useState<Record<string, string>>({
     todo: "",
     in_progress: "",
+    on_hold: "",
     blocked: "",
     done: "",
   });
@@ -402,7 +527,7 @@ export function TaskDashboard({
 
   // ── Core task mutation helpers ──────────────────────────────
 
-  async function patchTask(id: string, fields: Record<string, unknown>) {
+  async function patchTask(id: string, fields: Record<string, unknown>): Promise<boolean> {
     try {
       const res = await fetch("/api/task", {
         method: "PATCH",
@@ -411,9 +536,11 @@ export function TaskDashboard({
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
+      return true;
     } catch (err) {
       console.error("Task PATCH error:", err);
       showToast("Failed to update task", "error" as any);
+      return false;
     }
   }
 
@@ -434,9 +561,10 @@ export function TaskDashboard({
     showToast(willBeDone ? "Task completed 🎉" : "Task marked as incomplete", "success");
   }
 
-  const statusLabelMap: Record<TaskStatus, string> = {
+  const statusLabelMap: Record<string, string> = {
     todo: "To Do",
     in_progress: "In Progress",
+    on_hold: "On Hold",
     blocked: "Blocked",
     done: "Done"
   };
@@ -449,6 +577,20 @@ export function TaskDashboard({
       setSelectedTask((prev) => prev ? { ...prev, status: newStatus, done: newStatus === "done" } : null);
     patchTask(id, { status: newStatus, done: newStatus === "done" });
     showToast(`Task status updated to "${statusLabelMap[newStatus]}"`, "info");
+  }
+
+  function handleHoldToggle() {
+    if (!selectedTask) return;
+    if (selectedTask.status === "on_hold") {
+      const restore = statusBeforeHoldRef.current || "todo";
+      statusBeforeHoldRef.current = null;
+      setTempStatus(restore);
+      handleStatusChange(selectedTask.id, restore);
+    } else {
+      statusBeforeHoldRef.current = (selectedTask.status || "todo") as TaskStatus;
+      setTempStatus("on_hold");
+      handleStatusChange(selectedTask.id, "on_hold");
+    }
   }
 
   function handlePriorityChange(id: string, newPriority: TaskPriority) {
@@ -475,14 +617,7 @@ export function TaskDashboard({
     showToast(`Task category set to "${newCategory}"`, "info");
   }
 
-  function handleEstimateChange(id: string, newEstimate: string) {
-    const est = newEstimate === "—" ? null : newEstimate;
-    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, estimate: est ?? undefined } : t));
-    if (selectedTask && selectedTask.id === id)
-      setSelectedTask((prev) => prev ? { ...prev, estimate: est ?? undefined } : null);
-    patchTask(id, { estimate: est });
-    showToast(`Task story points set to ${newEstimate}`, "info");
-  }
+
 
   const handleSaveTaskEdits = async () => {
     if (!selectedTask) return;
@@ -498,8 +633,9 @@ export function TaskDashboard({
       priority: tempPriority,
       assignee: tempAssignee,
       category: tempCategory,
-      estimate: tempEstimate === "—" ? undefined : tempEstimate,
+
       due: tempDue,
+      attachmentUrls: tempAttachments.map((a) => a.dataUrl),
     };
 
     setTasks((prev) =>
@@ -514,9 +650,9 @@ export function TaskDashboard({
       priority: updates.priority,
       assignee: updates.assignee,
       category: updates.category,
-      estimate: updates.estimate ?? null,
       due: updates.due,
       done: updates.status === "done",
+      attachmentUrls: updates.attachmentUrls,
     });
 
     setIsEditingTaskDetails(false);
@@ -531,10 +667,118 @@ export function TaskDashboard({
     setTempPriority(selectedTask.priority || "medium");
     setTempAssignee(selectedTask.assignee || "Unassigned");
     setTempCategory(selectedTask.category || "General");
-    setTempEstimate(selectedTask.estimate || "—");
+
     setTempDue(selectedTask.due || "No date");
+    setTempAttachments(urlsToAttachments(selectedTask.attachmentUrls));
     setIsEditingTaskDetails(false);
   };
+
+  function openNotesModal(note?: TaskNote) {
+    if (!selectedTask) return;
+    if (note) {
+      setEditingNoteId(note.id);
+      setNotesModalDraft(note.content);
+    } else {
+      setEditingNoteId(null);
+      setNotesModalDraft("");
+    }
+    setShowNotesModal(true);
+  }
+
+  async function handleSaveNotesModal() {
+    if (!selectedTask) return;
+    const content = notesModalDraft.trim();
+    if (!content) {
+      showToast("Note cannot be empty", "error" as any);
+      return;
+    }
+
+    setNotesSaving(true);
+    try {
+      if (editingNoteId) {
+        const res = await fetch("/api/task/notes", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingNoteId, content }),
+        });
+        const json = await res.json();
+        if (json.success && json.note) {
+          setTaskNotes((prev) =>
+            prev.map((n) => (n.id === editingNoteId ? json.note : n))
+          );
+          setShowNotesModal(false);
+          setEditingNoteId(null);
+          showToast("Note updated", "success");
+        } else {
+          showToast(json.error || "Failed to update note", "error" as any);
+        }
+      } else {
+        if (!currentUserEmail) {
+          showToast("Sign in to add notes", "error" as any);
+          return;
+        }
+        const res = await fetch("/api/task/notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            taskId: selectedTask.id,
+            content,
+            email: currentUserEmail,
+          }),
+        });
+        const json = await res.json();
+        if (json.success && json.note) {
+          setTaskNotes((prev) => [json.note, ...prev]);
+          setShowNotesModal(false);
+          showToast("Note added", "success");
+        } else {
+          showToast(json.error || "Failed to add note", "error" as any);
+        }
+      }
+    } catch (err) {
+      console.error("Save note error:", err);
+      showToast("Failed to save note", "error" as any);
+    } finally {
+      setNotesSaving(false);
+    }
+  }
+
+  async function handleDeleteNote(note: TaskNote) {
+    try {
+      const res = await fetch(`/api/task/notes?id=${encodeURIComponent(note.id)}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (json.success) {
+        setTaskNotes((prev) => prev.filter((n) => n.id !== note.id));
+        setNoteToDelete(null);
+        showToast("Note deleted", "success");
+      } else {
+        showToast(json.error || "Failed to delete note", "error" as any);
+      }
+    } catch (err) {
+      console.error("Delete note error:", err);
+      showToast("Failed to delete note", "error" as any);
+    }
+  }
+
+  function handleDetailFilesSelected(files: FileList | null) {
+    if (!files?.length) return;
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setTempAttachments((prev) => [
+          ...prev,
+          {
+            name: file.name,
+            size: file.size,
+            dataUrl: ev.target?.result as string,
+          },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
 
   function handleTitleChange(id: string, newTitle: string) {
     if (!newTitle.trim()) return;
@@ -576,8 +820,8 @@ export function TaskDashboard({
       labels: payload.labels.length ? payload.labels : undefined,
       assignee: payload.assignee,
       status: payload.status,
-      estimate: payload.estimate,
       done: payload.status === "done",
+      attachmentUrls: payload.attachmentUrls || [],
     };
     setTasks((prev) => [optimisticTask, ...prev]);
 
@@ -594,8 +838,8 @@ export function TaskDashboard({
           due: payload.dueLabel,
           labels: payload.labels,
           assignee: payload.assignee,
-          estimate: payload.estimate,
           projectId: payload.projectId,
+          attachmentUrls: payload.attachmentUrls || [],
           workspaceId: wid,
         }),
       });
@@ -960,9 +1204,11 @@ export function TaskDashboard({
                       <button
                         type="button"
                         onClick={() => {
-                          setActiveQuickAddColumn(col.id);
+                          setAddModalDefaultStatus(col.id);
+                          setAddModalSession((s) => s + 1);
+                          setAddOpen(true);
                         }}
-                        className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                        className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
                         title={`Add task to ${col.label}`}
                       >
                         <PlusIcon className="h-4 w-4" />
@@ -1029,14 +1275,8 @@ export function TaskDashboard({
                           {/* Card Footer: Due Date, Estimates & Assignee */}
                           <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-2.5 dark:border-white/[0.03]">
                             
-                            {/* Estimate and Due Dates */}
+                            {/* Due Date + Attachments */}
                             <div className="flex items-center gap-2">
-                              {task.estimate && (
-                                <div className="flex items-center gap-0.5 rounded-full bg-teal-50/70 border border-teal-100/50 px-1.5 py-0.5 text-[10px] font-bold text-teal-700 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/30">
-                                  <ClockIcon className="h-3 w-3 shrink-0 opacity-80" />
-                                  <span>{task.estimate}</span>
-                                </div>
-                              )}
                               {task.due && task.due !== "No date" && (
                                 <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${
                                   task.due.includes("Today") || task.due.includes("Urgent") || task.due.includes("Yesterday")
@@ -1045,6 +1285,12 @@ export function TaskDashboard({
                                 }`}>
                                   <CalendarIcon className="h-3.5 w-3.5 shrink-0 opacity-70" />
                                   <span>{task.due}</span>
+                                </span>
+                              )}
+                              {task.attachmentUrls && task.attachmentUrls.length > 0 && (
+                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500">
+                                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                  {task.attachmentUrls.length}
                                 </span>
                               )}
                             </div>
@@ -1105,8 +1351,12 @@ export function TaskDashboard({
                       ) : (
                         <button
                           type="button"
-                          onClick={() => setActiveQuickAddColumn(col.id)}
-                          className="flex w-full items-center justify-center gap-1 rounded-xl py-2 text-xs font-semibold text-zinc-500 hover:bg-white hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-zinc-200 border border-transparent hover:border-zinc-200/60 dark:hover:border-zinc-800 transition-colors"
+                          onClick={() => {
+                            setAddModalDefaultStatus(col.id);
+                            setAddModalSession((s) => s + 1);
+                            setAddOpen(true);
+                          }}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-semibold text-zinc-500 hover:bg-white hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-zinc-200 border border-transparent hover:border-zinc-200/60 dark:hover:border-zinc-800 transition-colors cursor-pointer"
                         >
                           <PlusIcon className="h-3.5 w-3.5" />
                           Add a card
@@ -1135,13 +1385,12 @@ export function TaskDashboard({
                   <thead>
                     <tr className="border-b border-zinc-200/80 dark:border-white/[0.06] bg-stone-50/50 dark:bg-zinc-900/40 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 h-10">
                       <th className="w-[4%] text-center pl-3">Done</th>
-                      <th className="w-[30%] px-4">Task Name</th>
+                      <th className="w-[35%] px-4">Task Name</th>
                       <th className="w-[11%] px-3">Status</th>
                       <th className="w-[11%] px-3">Priority</th>
-                      <th className="w-[12%] px-3">Assignee</th>
-                      <th className="w-[8%] px-3">Estimate</th>
-                      <th className="w-[12%] px-3">Category</th>
-                      <th className="w-[12%] px-3">Due Date</th>
+                      <th className="w-[13%] px-3">Assignee</th>
+                      <th className="w-[13%] px-3">Category</th>
+                      <th className="w-[13%] px-3">Due Date</th>
                     </tr>
                   </thead>
                   
@@ -1267,39 +1516,9 @@ export function TaskDashboard({
                                     handleAssigneeChange(task.id, assignee);
                                     setActiveDropdown(null);
                                   }}
-                                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                                >
-                                  {getAvatar(assignee)}
-                                  <span>{assignee}</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-
-                        {/* 6. Inline Estimate selector */}
-                        <td className="px-3 relative" ref={activeDropdown?.taskId === task.id && activeDropdown?.field === "estimate" ? dropdownRef : null}>
-                          <button
-                            type="button"
-                            onClick={() => setActiveDropdown(activeDropdown?.taskId === task.id && activeDropdown?.field === "estimate" ? null : { taskId: task.id, field: "estimate" })}
-                            className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 border border-transparent hover:border-zinc-200 dark:hover:border-zinc-700"
-                          >
-                            <span>{task.estimate || "—"}</span>
-                            <ChevronDownIcon className="h-2.5 w-2.5 opacity-55" />
-                          </button>
-                          {activeDropdown?.taskId === task.id && activeDropdown?.field === "estimate" && (
-                            <div className="absolute left-3 top-10 z-30 w-24 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
-                              {ESTIMATES.map((est) => (
-                                <button
-                                  key={est}
-                                  type="button"
-                                  onClick={() => {
-                                    handleEstimateChange(task.id, est);
-                                    setActiveDropdown(null);
-                                  }}
                                   className="flex w-full items-center px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                                 >
-                                  {est}
+                                  {assignee}
                                 </button>
                               ))}
                             </div>
@@ -1344,7 +1563,7 @@ export function TaskDashboard({
 
                     {filteredTasks.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="text-center py-16 text-zinc-400 dark:text-zinc-500">
+                        <td colSpan={7} className="text-center py-16 text-zinc-400 dark:text-zinc-500">
                           No tasks match the search or filter query.
                         </td>
                       </tr>
@@ -1394,6 +1613,17 @@ export function TaskDashboard({
                   <button
                     type="button"
                     onClick={() => {
+                      setDetailDrawerTab("notes");
+                      openNotesModal();
+                    }}
+                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-teal-50 hover:text-teal-700 dark:hover:bg-teal-950/30 dark:hover:text-teal-400 transition-colors"
+                    title="Add or edit notes"
+                  >
+                    <DocumentTextIcon className="h-4.5 w-4.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       if (isEditingTaskDetails) {
                         handleCancelTaskEdits();
                       } else {
@@ -1432,10 +1662,9 @@ export function TaskDashboard({
               </div>
 
               {/* Drawer Content */}
-              <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-thin">
-                
-                {/* Title (Interactive edit) */}
-                <div className="space-y-1.5">
+              <div className="flex-1 flex flex-col min-h-0">
+                {/* Title (always visible) */}
+                <div className="shrink-0 px-6 pt-6 pb-4 space-y-1.5">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                     Title
                   </label>
@@ -1453,6 +1682,48 @@ export function TaskDashboard({
                   )}
                 </div>
 
+                {/* Tabs */}
+                <div className="shrink-0 flex gap-1 border-b border-zinc-200/80 px-6 dark:border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setDetailDrawerTab("details")}
+                    className={`relative flex items-center gap-1.5 px-3 py-2.5 text-xs font-bold transition-colors ${
+                      detailDrawerTab === "details"
+                        ? "text-[var(--app-primary)] dark:text-teal-400"
+                        : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <ClipboardDocumentListIcon className="h-4 w-4" />
+                    Details
+                    {detailDrawerTab === "details" && (
+                      <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[var(--app-primary)] dark:bg-teal-400" />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDetailDrawerTab("notes")}
+                    className={`relative flex items-center gap-1.5 px-3 py-2.5 text-xs font-bold transition-colors ${
+                      detailDrawerTab === "notes"
+                        ? "text-[var(--app-primary)] dark:text-teal-400"
+                        : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <DocumentTextIcon className="h-4 w-4" />
+                    Notes
+                    {taskNotes.length > 0 && (
+                      <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
+                        {taskNotes.length}
+                      </span>
+                    )}
+                    {detailDrawerTab === "notes" && (
+                      <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[var(--app-primary)] dark:bg-teal-400" />
+                    )}
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-thin">
+                {detailDrawerTab === "details" ? (
+                <>
                 {/* Description (Interactive edit) */}
                 <div className="space-y-2">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
@@ -1493,6 +1764,7 @@ export function TaskDashboard({
                           options={[
                             { value: "todo", label: "To Do", colorDot: "bg-zinc-450" },
                             { value: "in_progress", label: "In Progress", colorDot: "bg-teal-500" },
+                            { value: "on_hold", label: "On Hold", colorDot: "bg-amber-500" },
                             { value: "blocked", label: "Blocked", colorDot: "bg-rose-505" },
                             { value: "done", label: "Done", colorDot: "bg-emerald-500" }
                           ]}
@@ -1501,20 +1773,49 @@ export function TaskDashboard({
                         <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${
                           selectedTask.status === "done" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40" :
                           selectedTask.status === "in_progress" ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40" :
+                          selectedTask.status === "on_hold" ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40" :
                           selectedTask.status === "blocked" ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40" :
                           "bg-zinc-50 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
                         }`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${
                             selectedTask.status === "done" ? "bg-emerald-500" :
                             selectedTask.status === "in_progress" ? "bg-teal-500" :
+                            selectedTask.status === "on_hold" ? "bg-amber-500" :
                             selectedTask.status === "blocked" ? "bg-rose-500" :
                             "bg-zinc-400"
                           }`} />
-                          {selectedTask.status === "done" ? "Done" :
-                           selectedTask.status === "in_progress" ? "In Progress" :
-                           selectedTask.status === "blocked" ? "Blocked" : "To Do"}
+                          {statusLabelMap[selectedTask.status || "todo"] || "To Do"}
                         </span>
                       )}
+                    </div>
+                  </div>
+
+                  {/* On Hold quick toggle */}
+                  <div className="grid grid-cols-3 items-center gap-2">
+                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">On Hold</span>
+                    <div className="col-span-2 flex items-center justify-between gap-3">
+                      <p className="text-[11px] text-zinc-450 dark:text-zinc-500">
+                        {selectedTask.status === "on_hold"
+                          ? "Paused — toggle off to resume"
+                          : "Pause this task temporarily"}
+                      </p>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={selectedTask.status === "on_hold"}
+                        onClick={handleHoldToggle}
+                        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/50 ${
+                          selectedTask.status === "on_hold"
+                            ? "bg-amber-500"
+                            : "bg-zinc-200 dark:bg-zinc-700"
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                            selectedTask.status === "on_hold" ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
                     </div>
                   </div>
 
@@ -1600,26 +1901,7 @@ export function TaskDashboard({
                     </div>
                   </div>
 
-                  {/* Attribute: Story Points */}
-                  <div className="grid grid-cols-3 items-center gap-2">
-                    <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Story Points</span>
-                    <div className="col-span-2">
-                      {isEditingTaskDetails ? (
-                        <CustomSelect
-                          value={tempEstimate}
-                          onChange={(val) => setTempEstimate(val)}
-                          options={ESTIMATES.map((est) => ({
-                             value: est,
-                             label: est
-                          }))}
-                        />
-                      ) : (
-                        <span className="text-xs font-extrabold text-zinc-800 dark:text-zinc-100 bg-zinc-50 border border-zinc-200/50 dark:bg-zinc-900 dark:border-white/5 px-2.5 py-1 rounded-lg">
-                          {selectedTask.estimate || "—"}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+
 
                   {/* Attribute: Due Date */}
                   <div className="grid grid-cols-3 items-center gap-2">
@@ -1642,6 +1924,218 @@ export function TaskDashboard({
 
                 </div>
 
+                {/* Attachments */}
+                <div className="rounded-xl border border-zinc-200/80 bg-white p-4.5 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/50 space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-white/[0.03]">
+                    <div className="flex items-center gap-2">
+                      <PaperClipIcon className="h-4 w-4 text-zinc-400 dark:text-zinc-500" />
+                      <h5 className="text-[11px] font-extrabold uppercase tracking-wider text-zinc-505 dark:text-zinc-400">
+                        Attachments
+                      </h5>
+                      {(isEditingTaskDetails ? tempAttachments : urlsToAttachments(selectedTask.attachmentUrls)).length > 0 && (
+                        <span className="rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
+                          {(isEditingTaskDetails ? tempAttachments : urlsToAttachments(selectedTask.attachmentUrls)).length}
+                        </span>
+                      )}
+                    </div>
+                    {isEditingTaskDetails && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => detailAttachInputRef.current?.click()}
+                          className="flex items-center gap-1 rounded-lg border border-dashed border-zinc-300 px-2.5 py-1 text-[10px] font-semibold text-zinc-500 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-white/10 dark:hover:border-indigo-600/50 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-300 transition-all"
+                        >
+                          <PaperClipIcon className="h-3 w-3" />
+                          Add files
+                        </button>
+                        <input
+                          ref={detailAttachInputRef}
+                          type="file"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => {
+                            handleDetailFilesSelected(e.target.files);
+                            e.target.value = "";
+                          }}
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  {(() => {
+                    const list = isEditingTaskDetails
+                      ? tempAttachments
+                      : urlsToAttachments(selectedTask.attachmentUrls);
+
+                    if (list.length === 0) {
+                      return (
+                        <p className="text-xs text-zinc-450 dark:text-zinc-500 py-1">
+                          {isEditingTaskDetails
+                            ? "No attachments yet. Use “Add files” to upload."
+                            : "No attachments on this task."}
+                        </p>
+                      );
+                    }
+
+                    return (
+                      <div className="space-y-1.5">
+                        {list.map((att, idx) => (
+                          <div
+                            key={`${att.name}-${idx}`}
+                            className="flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50 px-3 py-2 dark:border-white/[0.06] dark:bg-zinc-900/60"
+                          >
+                            <PaperClipIcon className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                            <button
+                              type="button"
+                              onClick={() => openAttachment(att)}
+                              className="flex-1 truncate text-left text-[11px] font-semibold text-zinc-700 hover:text-[var(--app-primary)] dark:text-zinc-300 dark:hover:text-teal-400 transition-colors"
+                              title="Open or download"
+                            >
+                              {att.name}
+                            </button>
+                            <span className="shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">
+                              {formatAttachmentSize(att.size)}
+                            </span>
+                            {!isEditingTaskDetails && (
+                              <button
+                                type="button"
+                                onClick={() => openAttachment(att)}
+                                className="shrink-0 rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                                title="Download"
+                              >
+                                <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                            {isEditingTaskDetails && (
+                              <button
+                                type="button"
+                                onClick={() => setTempAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                                className="shrink-0 rounded p-0.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 transition-colors"
+                                title="Remove attachment"
+                              >
+                                <TrashIcon className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  {isEditingTaskDetails && tempAttachments.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => detailAttachInputRef.current?.click()}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-3 text-[11px] font-semibold text-zinc-400 hover:border-indigo-300 hover:bg-indigo-50/40 hover:text-indigo-500 dark:border-white/[0.06] dark:hover:bg-indigo-950/10 transition-all"
+                    >
+                      <PaperClipIcon className="h-4 w-4" />
+                      Click to attach files
+                    </button>
+                  )}
+                </div>
+                </>
+                ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                      Task notes
+                      {taskNotes.length > 0 && (
+                        <span className="ml-1.5 font-semibold text-zinc-500 dark:text-zinc-400">
+                          ({taskNotes.length})
+                        </span>
+                      )}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => openNotesModal()}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--app-primary)] px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-[var(--app-primary-hover)] transition-colors"
+                    >
+                      <PlusIcon className="h-3.5 w-3.5" />
+                      Add note
+                    </button>
+                  </div>
+
+                  {taskNotesLoading ? (
+                    <div className="flex justify-center py-12">
+                      <div className="h-7 w-7 animate-spin rounded-full border-2 border-teal-500 border-t-transparent" />
+                    </div>
+                  ) : taskNotes.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-zinc-200 bg-zinc-50/40 px-4 py-10 text-center dark:border-white/10 dark:bg-zinc-900/30">
+                      <DocumentTextIcon className="mx-auto h-8 w-8 text-zinc-300 dark:text-zinc-600" />
+                      <p className="mt-3 text-xs font-semibold text-zinc-600 dark:text-zinc-400">No notes yet</p>
+                      <p className="mt-1 text-[11px] text-zinc-450 dark:text-zinc-500">
+                        Add updates, blockers, or links — each note shows who wrote it and when.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {taskNotes.map((note) => {
+                        const initials = note.authorName
+                          .split(/\s+/)
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2);
+                        const edited = noteWasEdited(note);
+                        return (
+                          <article
+                            key={note.id}
+                            className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/80"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex min-w-0 items-start gap-2.5">
+                                <span
+                                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[10px] font-bold text-white shadow-sm"
+                                  style={{ backgroundColor: getNoteAuthorHsl(note.authorName) }}
+                                >
+                                  {initials}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-zinc-800 dark:text-zinc-100 truncate">
+                                    {note.authorName}
+                                  </p>
+                                  <p className="text-[10px] text-zinc-450 dark:text-zinc-500">
+                                    {formatNoteTimestamp(note.createdAt)}
+                                    {edited && (
+                                      <span className="ml-1 text-zinc-400 dark:text-zinc-500">· edited</span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex shrink-0 items-center gap-0.5">
+                                <button
+                                  type="button"
+                                  onClick={() => openNotesModal(note)}
+                                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                                  title="Edit note"
+                                >
+                                  <PencilIcon className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setNoteToDelete(note)}
+                                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 transition-colors"
+                                  title="Delete note"
+                                >
+                                  <TrashIcon className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                            <p className="mt-3 text-sm leading-relaxed text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap break-words">
+                              {note.content}
+                            </p>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-zinc-450 dark:text-zinc-500">
+                    Notes are saved with the task and visible to anyone with access to this workspace.
+                  </p>
+                </div>
+                )}
+                </div>
               </div>
 
               {/* Drawer Footer Actions */}
@@ -1679,6 +2173,120 @@ export function TaskDashboard({
         )}
       </AnimatePresence>
 
+      {/* Task notes modal */}
+      <AnimatePresence>
+        {showNotesModal && selectedTask && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !notesSaving && setShowNotesModal(false)}
+              className="fixed inset-0 z-[300] bg-zinc-950/30 backdrop-blur-sm dark:bg-black/60"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              className="fixed inset-0 z-[310] m-auto flex h-fit w-full max-w-lg flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418]"
+            >
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-white/5">
+                <div className="flex items-center gap-2">
+                  <DocumentTextIcon className="h-5 w-5 text-[var(--app-primary)]" />
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                      {editingNoteId ? "Edit note" : "Add note"}
+                    </h3>
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate max-w-[280px]">
+                      {selectedTask.title}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={notesSaving}
+                  onClick={() => setShowNotesModal(false)}
+                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 disabled:opacity-50"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+              <textarea
+                autoFocus
+                rows={12}
+                value={notesModalDraft}
+                onChange={(e) => setNotesModalDraft(e.target.value)}
+                placeholder="Meeting takeaways, blockers, links, reminders…"
+                disabled={notesSaving}
+                className="mt-4 w-full min-h-[240px] resize-y rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 text-sm leading-relaxed text-zinc-800 outline-none focus:border-[var(--app-primary)] focus:ring-2 focus:ring-[var(--app-primary-soft)] dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-200 disabled:opacity-60"
+              />
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={notesSaving}
+                  onClick={() => setShowNotesModal(false)}
+                  className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={notesSaving}
+                  onClick={handleSaveNotesModal}
+                  className="rounded-xl bg-[var(--app-primary)] px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-[var(--app-primary-hover)] disabled:opacity-50"
+                >
+                  {notesSaving ? "Saving…" : editingNoteId ? "Update note" : "Add note"}
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Delete note confirmation */}
+      <AnimatePresence>
+        {noteToDelete && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setNoteToDelete(null)}
+              className="fixed inset-0 z-[300] bg-zinc-950/30 backdrop-blur-sm dark:bg-black/60"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="fixed inset-0 z-[310] m-auto flex h-fit max-w-sm flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418]"
+            >
+              <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                Delete note?
+              </h3>
+              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                This note by {noteToDelete.authorName} will be permanently removed.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setNoteToDelete(null)}
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteNote(noteToDelete)}
+                  className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white hover:bg-rose-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Modern AddTaskModal component integrated */}
       <AddTaskModal
         key={addModalSession}
@@ -1686,6 +2294,7 @@ export function TaskDashboard({
         onClose={() => setAddOpen(false)}
         onCreate={handleAddTaskFromModal}
         assignees={assigneesList}
+        defaultStatus={addModalDefaultStatus as import("@/types/task").TaskStatus | null}
       />
 
       {/* Dynamic Filters Modal */}

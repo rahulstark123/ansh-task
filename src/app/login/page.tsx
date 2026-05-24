@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { BoltIcon, CheckCircleIcon, ClockIcon, ChatBubbleLeftRightIcon, SquaresPlusIcon } from "@heroicons/react/24/solid";
-import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { EyeIcon, EyeSlashIcon, ArrowPathIcon } from "@heroicons/react/24/outline";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
@@ -73,6 +73,40 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [showConnecting, setShowConnecting] = useState(false);
+
+  // Read error parameter from URL if redirected from auth callback with failure
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get("error");
+      if (err) {
+        setErrorMsg(err);
+      }
+    }
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    setErrorMsg("");
+    setShowConnecting(true);
+    try {
+      setTimeout(async () => {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
+        if (error) {
+          setErrorMsg(error.message);
+          setShowConnecting(false);
+        }
+      }, 1200);
+    } catch (err: any) {
+      setErrorMsg(err.message || "An error occurred during Google login");
+      setShowConnecting(false);
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -83,7 +117,7 @@ export default function LoginPage() {
 
   const slide = SLIDES[currentSlide];
   return (
-    <div className="flex min-h-screen bg-white">
+    <div className="flex min-h-screen bg-white light-theme-forced">
       
       {/* LEFT PANE - Marketing & Branding (Hidden on mobile) */}
       <div className="relative hidden w-full lg:flex lg:w-1/2 flex-col justify-between overflow-hidden bg-[#0a0a0a]">
@@ -239,7 +273,8 @@ export default function LoginPage() {
           <div className="mt-8">
             <button
               type="button"
-              className="flex w-full items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-sm font-semibold text-zinc-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-200"
+              onClick={handleGoogleLogin}
+              className="flex w-full items-center justify-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3.5 text-sm font-semibold text-zinc-700 shadow-[0_1px_2px_rgba(0,0,0,0.04)] transition-all hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-zinc-200 cursor-pointer"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -297,7 +332,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="alex@example.com"
-                    className="block w-full rounded-xl border border-zinc-200 px-4 py-3.5 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all placeholder:text-zinc-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                    className="block w-full rounded-xl border border-zinc-300 bg-white px-4 py-3.5 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all placeholder:text-zinc-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
                   />
                 </div>
               </div>
@@ -321,7 +356,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="password123"
-                    className="block w-full rounded-xl border border-zinc-200 pl-4 pr-10 py-3.5 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all placeholder:text-zinc-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                    className="block w-full rounded-xl border border-zinc-300 bg-white pl-4 pr-10 py-3.5 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all placeholder:text-zinc-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
                   />
                   <button
                     type="button"
@@ -375,6 +410,33 @@ export default function LoginPage() {
         </div>
       </div>
       
+      {/* Google Connecting Loader Modal */}
+      <AnimatePresence>
+        {showConnecting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.3 }}
+              className="w-full max-w-sm rounded-3xl border border-white/[0.08] bg-zinc-900/90 p-8 text-center shadow-2xl backdrop-blur-xl"
+            >
+              <div className="flex justify-center mb-6">
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-500/15 border border-teal-500/30 text-teal-400">
+                  <ArrowPathIcon className="h-6 w-6 animate-spin" />
+                </div>
+              </div>
+              <h3 className="font-heading text-base font-bold text-white mb-2">Connecting with Google</h3>
+              <p className="text-xs text-zinc-450">Securing connection to your account...</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

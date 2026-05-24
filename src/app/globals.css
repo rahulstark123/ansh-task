@@ -3,34 +3,42 @@
 @custom-variant dark (.dark &);
 
 :root {
-  /* Slightly warm paper + ink — less “clinical SaaS” */
-  --background: #eae7e1;
-  --foreground: #18181b;
+  /* Crisp white base — sharp and professional */
+  --background: #f5f5f7;
+  --foreground: #111114;
   --app-font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --app-canvas-tint: var(--background);
 
   --app-primary: #0d9488;
   --app-primary-hover: #0f7669;
   --app-primary-foreground: #ffffff;
-  --app-primary-soft: #ecfdf7;
-  --app-primary-soft-text: #115e59;
-  --app-primary-soft-border: #c4f0e8;
+  --app-primary-soft: #f0fdfa;
+  --app-primary-soft-text: #0f766e;
+  --app-primary-soft-border: #99f6e4;
   --app-primary-muted-icon: #0d9488;
   --app-focus-border: #2dd4bf;
-  --app-ring: rgba(13, 148, 136, 0.18);
-  --app-row-hover: rgba(13, 148, 136, 0.06);
+  --app-ring: rgba(13, 148, 136, 0.22);
+  --app-row-hover: rgba(13, 148, 136, 0.05);
   --app-gradient-from: #14b8a6;
   --app-gradient-to: #0f7669;
+
+  /* Sharper border colors */
+  --border-base: #e2e2e7;
+  --border-strong: #d1d1d8;
+  --border-subtle: #ebebef;
 }
 
 .dark {
   --background: #09090b;
   --foreground: #f4f4f5;
   --app-canvas-tint: transparent;
-  --app-primary-soft: rgba(20, 184, 166, 0.08);
-  --app-primary-soft-text: #99f6e4;
-  --app-primary-soft-border: rgba(255, 255, 255, 0.09);
-  --app-row-hover: rgba(255, 255, 255, 0.04);
+  --app-primary-soft: rgba(20, 184, 166, 0.10);
+  --app-primary-soft-text: #5eead4;
+  --app-primary-soft-border: rgba(255, 255, 255, 0.10);
+  --app-row-hover: rgba(255, 255, 255, 0.045);
+  --border-base: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.16);
+  --border-subtle: rgba(255,255,255,0.06);
 }
 
 @theme inline {
@@ -45,6 +53,10 @@ html {
   background: var(--background);
   min-height: 100%;
   scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
 }
 
 html,
@@ -58,24 +70,26 @@ body {
   color: var(--foreground);
   font-family: var(--app-font-family);
   text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .dark body {
   background:
-    radial-gradient(ellipse 120% 80% at 10% -10%, rgba(13, 148, 136, 0.12), transparent 42%),
-    radial-gradient(ellipse 90% 60% at 100% 100%, rgba(59, 130, 246, 0.05), transparent 40%),
+    radial-gradient(ellipse 120% 80% at 10% -10%, rgba(13, 148, 136, 0.14), transparent 42%),
+    radial-gradient(ellipse 90% 60% at 100% 100%, rgba(59, 130, 246, 0.06), transparent 40%),
     #09090b;
   background-attachment: fixed;
 }
 
-/* Main column: dynamic light tint gradient matching the selected primary theme color */
+/* Main column: clean, sharp light-mode with subtle tint */
 .app-main-column {
-  background-color: var(--background);
+  background-color: #f5f5f7;
   background-image: linear-gradient(
-    180deg,
-    var(--app-primary-soft) 0%,
-    rgba(234, 231, 225, 0.3) 50%,
-    var(--background) 100%
+    175deg,
+    #f0fdfa 0%,
+    #f5f5f7 30%,
+    #f5f5f7 100%
   );
   background-repeat: no-repeat;
 }
@@ -85,18 +99,19 @@ body {
   background-image: none;
 }
 
-/* Sidebar custom themed light-mode background gradient */
+/* Sidebar — sharp light-mode background */
 .app-sidebar {
-  background-color: #d5d2c9;
+  background-color: #e8e8ed;
   background-image: linear-gradient(
-    185deg,
-    var(--app-primary-soft) 0%,
-    rgba(213, 210, 201, 0.96) 100%
+    180deg,
+    #e4f7f5 0%,
+    #e8e8ed 35%,
+    #e8e8ed 100%
   );
 }
 
 .dark .app-sidebar {
-  background-color: rgba(9, 9, 11, 0.8) !important;
+  background-color: rgba(9, 9, 11, 0.92) !important;
   background-image: none !important;
 }
 
@@ -228,12 +243,32 @@ body {
 
 /* Brain Board canvas custom background and grid dots */
 .brain-board-canvas {
-  background-color: #f1ebd9; /* Rich warmer paper tone */
-  background-image: radial-gradient(circle at 1.5px 1.5px, rgba(24, 24, 27, 0.15) 1.5px, transparent 0);
+  background-color: #f8f8fb; /* Crisp off-white */
+  background-image: radial-gradient(circle at 1.5px 1.5px, rgba(24, 24, 27, 0.20) 1.5px, transparent 0);
+  background-size: 24px 24px;
 }
 
 .dark .brain-board-canvas {
   background-color: #09090b;
-  background-image: radial-gradient(circle at 1.5px 1.5px, rgba(255, 255, 255, 0.08) 1.5px, transparent 0);
+  background-image: radial-gradient(circle at 1.5px 1.5px, rgba(255, 255, 255, 0.10) 1.5px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Custom Autofill Styles Override to prevent browser default blue/gray background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important; /* Soft premium white background */
+  -webkit-text-fill-color: #18181b !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark :not(.light-theme-forced) input:-webkit-autofill,
+.dark :not(.light-theme-forced) input:-webkit-autofill:hover, 
+.dark :not(.light-theme-forced) input:-webkit-autofill:focus,
+.dark :not(.light-theme-forced) input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #18181b inset !important; /* Premium dark background */
+  -webkit-text-fill-color: #f4f4f5 !important;
 }
 

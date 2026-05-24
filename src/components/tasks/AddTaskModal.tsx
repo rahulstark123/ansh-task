@@ -11,9 +11,11 @@ import {
   FolderIcon,
   ChevronDownIcon,
   ExclamationCircleIcon,
+  PaperClipIcon,
+  TrashIcon,
 } from "@heroicons/react/24/outline";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, useMemo } from "react";
 
 import type { NewTaskPayload, TaskPriority, TaskStatus } from "@/types/task";
 import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
@@ -100,6 +102,12 @@ const STATUS_OPTIONS: {
     color: "text-rose-700 dark:text-rose-300",
   },
   {
+    value: "on_hold",
+    label: "On Hold",
+    dot: "bg-amber-500",
+    color: "text-amber-700 dark:text-amber-300",
+  },
+  {
     value: "done",
     label: "Done",
     dot: "bg-emerald-500",
@@ -116,7 +124,6 @@ const LABEL_OPTIONS = [
   "Meeting",
 ] as const;
 
-const ESTIMATE_OPTIONS = ["—", "1", "2", "3", "5", "8"] as const;
 
 /* ─── tiny styled dropdown ───────────────────────────────── */
 
@@ -234,6 +241,8 @@ type AddTaskModalProps = {
   assignees?: string[];
   /** Pre-selected project id (e.g. when opened from a project drawer) */
   defaultProjectId?: string | null;
+  /** Pre-selected status */
+  defaultStatus?: TaskStatus | null;
 };
 
 /* ─── main component ─────────────────────────────────────── */
@@ -244,6 +253,7 @@ export function AddTaskModal({
   onCreate,
   assignees,
   defaultProjectId,
+  defaultStatus: defaultStatusProp,
 }: AddTaskModalProps) {
   const titleId = useId();
 
@@ -254,6 +264,7 @@ export function AddTaskModal({
     labels: defaultLabels,
     customCategories,
     customLabels,
+    kanbanColumnOrder,
     fetchDefaults,
   } = useWorkspaceDefaultsStore();
 
@@ -267,7 +278,8 @@ export function AddTaskModal({
   const [dueDate, setDueDate] = useState("");
   const [labels, setLabels] = useState<string[]>([]);
   const [assignee, setAssignee] = useState<string>("Unassigned");
-  const [estimate, setEstimate] = useState<string>("—");
+  const [attachments, setAttachments] = useState<{ name: string; size: number; dataUrl: string }[]>([]);
+  const attachInputRef = useRef<HTMLInputElement>(null);
 
   // project
   const [projectId, setProjectId] = useState<string>(
@@ -306,10 +318,10 @@ export function AddTaskModal({
       setCategory(defaultCategory || "General");
       const pKey = PRIORITY_OPTIONS.find((p) => p.value === defaultPriority)?.key || "normal";
       setPriorityKey(pKey);
-      setStatus((defaultStatus as TaskStatus) || "todo");
+      setStatus(defaultStatusProp || (defaultStatus as TaskStatus) || "todo");
       setLabels(defaultLabels || []);
     }
-  }, [open, defaultPriority, defaultStatus, defaultCategory, defaultLabels]);
+  }, [open, defaultPriority, defaultStatus, defaultCategory, defaultLabels, defaultStatusProp]);
 
   // Sync defaultProjectId when it changes
   useEffect(() => {
@@ -368,8 +380,8 @@ export function AddTaskModal({
       dueLabel: computedDueLabel(),
       labels,
       assignee,
-      estimate: estimate === "—" ? undefined : estimate,
       projectId: projectId === "__none__" ? null : projectId,
+      attachmentUrls: attachments.map((a) => a.dataUrl),
     });
     // reset to defaults
     setTitle("");
@@ -377,18 +389,35 @@ export function AddTaskModal({
     setCategory(defaultCategory || "General");
     const pKey = PRIORITY_OPTIONS.find((p) => p.value === defaultPriority)?.key || "normal";
     setPriorityKey(pKey);
-    setStatus((defaultStatus as TaskStatus) || "todo");
+    setStatus(defaultStatusProp || (defaultStatus as TaskStatus) || "todo");
     setDueMode("none");
     setDueDate("");
     setLabels(defaultLabels || []);
     setAssignee("Unassigned");
-    setEstimate("—");
     setProjectId(defaultProjectId ?? "__none__");
+    setAttachments([]);
     onClose();
   }
 
+  const dynamicStatusOptions = useMemo(() => {
+    const order = kanbanColumnOrder && kanbanColumnOrder.length > 0
+      ? kanbanColumnOrder
+      : ["todo", "in_progress", "blocked", "done"];
+    return order.map((id, index) => {
+      if (id === "todo") return { value: "todo", label: "To Do", dot: "bg-zinc-400" };
+      if (id === "in_progress") return { value: "in_progress", label: "In Progress", dot: "bg-teal-500" };
+      if (id === "on_hold") return { value: "on_hold", label: "On Hold", dot: "bg-amber-500" };
+      if (id === "blocked") return { value: "blocked", label: "Blocked", dot: "bg-rose-500" };
+      if (id === "done") return { value: "done", label: "Done", dot: "bg-emerald-500" };
+
+      const label = id.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      const colors = ["bg-indigo-500", "bg-purple-500", "bg-amber-500", "bg-fuchsia-500", "bg-cyan-500"];
+      return { value: id, label, dot: colors[index % colors.length] };
+    });
+  }, [kanbanColumnOrder]);
+
   /* build dropdown option arrays */
-  const statusOptions: DropdownOption[] = STATUS_OPTIONS.map((s) => ({
+  const statusOptions: DropdownOption[] = dynamicStatusOptions.map((s) => ({
     value: s.value,
     label: s.label,
     dot: s.dot,
@@ -443,7 +472,7 @@ export function AddTaskModal({
     })),
   ];
 
-  const currentStatus = STATUS_OPTIONS.find((s) => s.value === status);
+  const currentStatus = dynamicStatusOptions.find((s) => s.value === status);
 
   return (
     <AnimatePresence>
@@ -564,6 +593,88 @@ export function AddTaskModal({
                     })}
                   </div>
                 </div>
+
+                {/* Attachments */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-zinc-400 dark:text-zinc-500">
+                      <PaperClipIcon className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Attachments</span>
+                      {attachments.length > 0 && (
+                        <span className="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-bold text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-300">
+                          {attachments.length}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => attachInputRef.current?.click()}
+                      className="flex items-center gap-1 rounded-lg border border-dashed border-zinc-300 px-2.5 py-1 text-[10px] font-semibold text-zinc-500 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-white/10 dark:hover:border-indigo-600/50 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-300 transition-all cursor-pointer"
+                    >
+                      <PaperClipIcon className="h-3 w-3" />
+                      Add files
+                    </button>
+                    <input
+                      ref={attachInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        files.forEach((file) => {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            setAttachments((prev) => [
+                              ...prev,
+                              { name: file.name, size: file.size, dataUrl: ev.target?.result as string },
+                            ]);
+                          };
+                          reader.readAsDataURL(file);
+                        });
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+
+                  {/* File chips */}
+                  {attachments.length > 0 && (
+                    <div className="space-y-1.5">
+                      {attachments.map((att, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50 px-3 py-2 dark:border-white/[0.06] dark:bg-zinc-900/60"
+                        >
+                          <PaperClipIcon className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                          <span className="flex-1 truncate text-[11px] font-semibold text-zinc-700 dark:text-zinc-300">{att.name}</span>
+                          <span className="shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">
+                            {att.size < 1024 * 1024
+                              ? `${(att.size / 1024).toFixed(1)} KB`
+                              : `${(att.size / (1024 * 1024)).toFixed(1)} MB`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                            className="shrink-0 rounded p-0.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                          >
+                            <TrashIcon className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Drop zone hint */}
+                  {attachments.length === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => attachInputRef.current?.click()}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-3 text-[11px] font-semibold text-zinc-400 hover:border-indigo-300 hover:bg-indigo-50/40 hover:text-indigo-500 dark:border-white/[0.06] dark:hover:border-indigo-700/50 dark:hover:bg-indigo-950/10 transition-all cursor-pointer"
+                    >
+                      <PaperClipIcon className="h-4 w-4" />
+                      Click to attach files
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Right: Attributes pane */}
@@ -663,32 +774,7 @@ export function AddTaskModal({
                   />
                 </div>
 
-                {/* Story Points */}
-                <div className="space-y-1.5">
-                  <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                    <ClockIcon className="h-3.5 w-3.5" />
-                    Story Points
-                  </label>
-                  <div className="flex flex-wrap gap-1">
-                    {ESTIMATE_OPTIONS.map((est) => {
-                      const active = estimate === est;
-                      return (
-                        <button
-                          key={est}
-                          type="button"
-                          onClick={() => setEstimate(est)}
-                          className={`flex h-8 w-8 items-center justify-center rounded-xl border text-xs font-bold transition-all ${
-                            active
-                              ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300"
-                              : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-zinc-400 dark:hover:border-zinc-600"
-                          }`}
-                        >
-                          {est}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+
 
                 {/* Due Date */}
                 <div className="space-y-1.5">
