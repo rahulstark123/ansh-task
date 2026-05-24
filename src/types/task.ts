@@ -24,6 +24,7 @@ export type Task = {
   category?: string;
   labels?: string[];
   assignee?: string;
+  assignees?: string[];
   status?: TaskStatus;
   estimate?: string;
   done: boolean;
@@ -38,7 +39,7 @@ export type NewTaskPayload = {
   status: TaskStatus;
   dueLabel: string;
   labels: string[];
-  assignee: string;
+  assignees: string[];
   estimate?: string;
   projectId?: string | null;
   attachmentUrls?: string[];

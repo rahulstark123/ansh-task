@@ -18,8 +18,8 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "ANSH Task",
-  description: "Premium task workspace — ANSH Task",
+  title: "ANSH Tasks",
+  description: "Premium task workspace — ANSH Tasks",
 };
 
 export default function RootLayout({

@@ -84,7 +84,7 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, x, y } = body;
+    const { id, x, y, title, body: noteBody, color } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -93,12 +93,16 @@ export async function PATCH(request: Request) {
       );
     }
 
+    const updateData: any = {};
+    if (x !== undefined) updateData.x = parseFloat(x);
+    if (y !== undefined) updateData.y = parseFloat(y);
+    if (title !== undefined) updateData.title = title;
+    if (noteBody !== undefined) updateData.body = noteBody;
+    if (color !== undefined) updateData.color = color;
+
     const updatedNote = await prisma.brainboardNote.update({
       where: { id },
-      data: {
-        x: parseFloat(x),
-        y: parseFloat(y),
-      },
+      data: updateData,
     });
 
     return NextResponse.json({
@@ -108,7 +112,7 @@ export async function PATCH(request: Request) {
   } catch (error: any) {
     console.error("Brainboard PATCH API Error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to update note position" },
+      { success: false, error: error.message || "Failed to update note" },
       { status: 500 }
     );
   }

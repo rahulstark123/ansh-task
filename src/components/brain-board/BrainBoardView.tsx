@@ -10,6 +10,8 @@ import {
   MinusIcon,
   XMarkIcon,
   CheckIcon,
+  TrashIcon,
+  PencilIcon,
 } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
 
@@ -67,6 +69,21 @@ export function BrainBoardView() {
   const [stickyTitle, setStickyTitle] = useState("");
   const [stickyBody, setStickyBody] = useState("");
   const [stickyColor, setStickyColor] = useState(COLOR_OPTIONS[0].value);
+
+  // Edit Sticky Note State
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+
+  // Delete Confirmation Dialog State
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+
+  // Close modal and reset fields helper
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingNote(null);
+    setStickyTitle("");
+    setStickyBody("");
+    setStickyColor(COLOR_OPTIONS[0].value);
+  };
 
   // Center scroll position on page load
   const centerCanvas = () => {
@@ -133,48 +150,71 @@ export function BrainBoardView() {
   const handleZoomIn = () => setScale((s) => Math.min(s + 0.1, 2));
   const handleZoomOut = () => setScale((s) => Math.max(s - 0.1, 0.5));
 
-  const handleCreateSticky = async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stickyTitle.trim() || !stickyBody.trim() || !userId) return;
 
-    // Default coordinates in the center of the screen viewport relative to current scroll
-    let x = 1500;
-    let y = 1000;
-    if (containerRef.current) {
-      const container = containerRef.current;
-      x = container.scrollLeft + container.clientWidth / 2 - 128; // offset half sticky width (128px)
-      y = container.scrollTop + container.clientHeight / 2 - 80;
-    }
+    if (editingNote) {
+      // Edit existing note
+      try {
+        const res = await fetch("/api/brain-board", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editingNote.id,
+            title: stickyTitle.trim(),
+            body: stickyBody.trim(),
+            color: stickyColor,
+          }),
+        });
 
-    const rotation = Math.random() * 6 - 3; // random rotation
-
-    try {
-      const res = await fetch("/api/brain-board", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: stickyTitle.trim(),
-          body: stickyBody.trim(),
-          color: stickyColor,
-          x,
-          y,
-          rotation,
-          workspaceId,
-          userId,
-        }),
-      });
-
-      const json = await res.json();
-      if (json.success && json.note) {
-        setNotes((prev) => [...prev, json.note]);
+        const json = await res.json();
+        if (json.success && json.note) {
+          setNotes((prev) =>
+            prev.map((n) => (n.id === editingNote.id ? json.note : n))
+          );
+        }
+      } catch (err) {
+        console.error("Error updating note:", err);
       }
-    } catch (err) {
-      console.error("Error creating note:", err);
+    } else {
+      // Create new note
+      let x = 1500;
+      let y = 1000;
+      if (containerRef.current) {
+        const container = containerRef.current;
+        x = container.scrollLeft + container.clientWidth / 2 - 128; // offset half sticky width (128px)
+        y = container.scrollTop + container.clientHeight / 2 - 80;
+      }
+
+      const rotation = Math.random() * 6 - 3; // random rotation
+
+      try {
+        const res = await fetch("/api/brain-board", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: stickyTitle.trim(),
+            body: stickyBody.trim(),
+            color: stickyColor,
+            x,
+            y,
+            rotation,
+            workspaceId,
+            userId,
+          }),
+        });
+
+        const json = await res.json();
+        if (json.success && json.note) {
+          setNotes((prev) => [...prev, json.note]);
+        }
+      } catch (err) {
+        console.error("Error creating note:", err);
+      }
     }
 
-    setStickyTitle("");
-    setStickyBody("");
-    setIsModalOpen(false);
+    handleCloseModal();
   };
 
   // Persistent drag end positioning
@@ -307,19 +347,35 @@ export function BrainBoardView() {
               className={`absolute flex w-64 flex-col rounded-xl border p-5 shadow-lg backdrop-blur-md cursor-grab transition-shadow hover:shadow-xl ${note.color}`}
             >
               <div className="mb-3 flex items-center justify-between border-b border-black/5 pb-2 dark:border-white/10">
-                <span className="text-[10px] font-black uppercase tracking-widest opacity-60 truncate max-w-[180px]">
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-60 truncate max-w-[140px]">
                   {note.title}
                 </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteNote(note.id);
-                  }}
-                  className="rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10 opacity-45 hover:opacity-100 transition-opacity"
-                  title="Delete Note"
-                >
-                  <XMarkIcon className="h-3.5 w-3.5" />
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingNote(note);
+                      setStickyTitle(note.title);
+                      setStickyBody(note.body);
+                      setStickyColor(note.color);
+                      setIsModalOpen(true);
+                    }}
+                    className="rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10 opacity-45 hover:opacity-100 transition-opacity"
+                    title="Edit Note"
+                  >
+                    <PencilIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNoteToDelete(note.id);
+                    }}
+                    className="rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10 opacity-45 hover:opacity-100 transition-opacity text-rose-650 dark:text-rose-400"
+                    title="Delete Note"
+                  >
+                    <TrashIcon className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
               <p className="text-xs font-semibold leading-relaxed break-words whitespace-pre-wrap">
                 {note.body}
@@ -402,7 +458,7 @@ export function BrainBoardView() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsModalOpen(false)}
+              onClick={handleCloseModal}
               className="fixed inset-0 z-50 bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
             />
 
@@ -417,18 +473,19 @@ export function BrainBoardView() {
                 <div className="flex items-center gap-2">
                   <SparklesIcon className="h-5 w-5 text-pink-500" />
                   <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
-                    Create Sticky Note
+                    {editingNote ? "Edit Sticky Note" : "Create Sticky Note"}
                   </h3>
                 </div>
                 <button
-                  onClick={() => setIsModalOpen(false)}
+                  type="button"
+                  onClick={handleCloseModal}
                   className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 >
                   <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateSticky} className="mt-4 space-y-4">
+              <form onSubmit={handleFormSubmit} className="mt-4 space-y-4">
                 {/* Title */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
@@ -491,7 +548,7 @@ export function BrainBoardView() {
                 <div className="flex gap-3 pt-4 border-t border-zinc-100 dark:border-white/5">
                   <button
                     type="button"
-                    onClick={() => setIsModalOpen(false)}
+                    onClick={handleCloseModal}
                     className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
                   >
                     Cancel
@@ -500,10 +557,67 @@ export function BrainBoardView() {
                     type="submit"
                     className="flex-1 rounded-xl bg-[var(--app-primary)] py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all"
                   >
-                    Place Sticky
+                    {editingNote ? "Save Changes" : "Place Sticky"}
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* DELETE CONFIRMATION DIALOG */}
+      <AnimatePresence>
+        {noteToDelete && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setNoteToDelete(null)}
+              className="fixed inset-0 z-50 bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
+            />
+
+            {/* Modal Dialog */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="fixed inset-0 z-50 m-auto flex h-fit w-full max-w-[380px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418]"
+            >
+              <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
+                <TrashIcon className="h-6 w-6 shrink-0" />
+                <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                  Delete Sticky Note
+                </h3>
+              </div>
+
+              <p className="mt-3 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                Are you sure you want to delete this sticky note? This action cannot be undone and the note will be permanently removed.
+              </p>
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNoteToDelete(null)}
+                  className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-xs font-bold text-zinc-650 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (noteToDelete) {
+                      await handleDeleteNote(noteToDelete);
+                      setNoteToDelete(null);
+                    }
+                  }}
+                  className="flex-1 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white shadow-md hover:bg-rose-700 active:scale-98 transition-all"
+                >
+                  Confirm Delete
+                </button>
+              </div>
             </motion.div>
           </>
         )}

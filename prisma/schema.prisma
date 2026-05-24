@@ -44,6 +44,8 @@ model Workspace {
   size         String?
   website      String?
   billingEmail String?
+  plan         String   @default("free") // "free" | "pro"
+  planExpiresAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -66,6 +68,8 @@ model Workspace {
   tickets     Ticket[]
   channels    Channel[]
   conversations Conversation[]
+  subscriptions Subscription[]
+  transactions  Transaction[]
 }
 
 model WorkspaceRole {
@@ -123,6 +127,7 @@ model Task {
   category    String?
   labels      String[] @default([])
   assignee    String?
+  assignees   String[] @default([])
   status      String   @default("todo") // "todo" | "in_progress" | "on_hold" | "blocked" | "done"
   estimate    String?
   done        Boolean  @default(false)
@@ -243,4 +248,38 @@ model ChannelMember {
   createdAt DateTime @default(now())
 
   @@unique([channelId, userId])
+}
+
+model Subscription {
+  id          String   @id @default(uuid())
+  status      String   @default("PENDING") // "PENDING" | "ACTIVE" | "CANCELLED" | "EXPIRED"
+  plan        String   @default("pro")
+  seatsCount  Int      @default(1)
+  amountPaisa Int
+  billingCycle String  @default("monthly") // "monthly" | "yearly"
+  startsAt    DateTime?
+  expiresAt   DateTime?
+  razorpayOrderId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+}
+
+model Transaction {
+  id              String   @id @default(uuid())
+  status          String   @default("CREATED") // "CREATED" | "SUCCESS" | "FAILED"
+  amountPaisa     Int
+  razorpayOrderId String
+  razorpayPaymentId String?
+  razorpaySignature String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspaceId     Int
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  subscriptionId  String
+  subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 }

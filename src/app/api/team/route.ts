@@ -96,6 +96,8 @@ export async function GET(request: Request) {
       const memberName = `${member.firstName || ""} ${member.lastName || ""}`.trim() || member.email.split("@")[0];
       const memberTasks = dbTasks.filter(
         (task) =>
+          task.assignees.some((a) => a.toLowerCase() === memberName.toLowerCase()) ||
+          task.assignees.some((a) => a.toLowerCase() === member.email.toLowerCase()) ||
           (task.assignee && task.assignee.toLowerCase() === memberName.toLowerCase()) ||
           (task.assignee && task.assignee.toLowerCase() === member.email.toLowerCase())
       );
@@ -106,6 +108,10 @@ export async function GET(request: Request) {
           title: t.title,
           project: t.project?.name || "General",
           projectId: t.projectId,
+          priority: t.priority,
+          category: t.category,
+          assignee: t.assignee,
+          assignees: t.assignees || [],
           status: t.status === "done"
             ? "Completed"
             : t.status === "in_progress"

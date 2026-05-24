@@ -68,6 +68,7 @@ export async function POST(request: Request) {
       due,
       labels,
       assignee,
+      assignees,
       estimate,
       projectId,
       workspaceId,
@@ -84,6 +85,9 @@ export async function POST(request: Request) {
 
     const wid = workspaceId ? parseInt(workspaceId, 10) : 1;
 
+    const resolvedAssignees = assignees || (assignee ? [assignee] : []);
+    const resolvedAssignee = resolvedAssignees.length > 0 ? resolvedAssignees[0] : null;
+
     const newTask = await prisma.task.create({
       data: {
         title: title.trim(),
@@ -94,7 +98,8 @@ export async function POST(request: Request) {
         status: status || "todo",
         due: due || "No date",
         labels: labels || [],
-        assignee: assignee || null,
+        assignee: resolvedAssignee,
+        assignees: resolvedAssignees,
         estimate: estimate || null,
         done: status === "done",
         attachmentUrls: attachmentUrls || [],
@@ -135,6 +140,7 @@ export async function PATCH(request: Request) {
       due,
       labels,
       assignee,
+      assignees,
       estimate,
       projectId,
       done,
@@ -160,7 +166,10 @@ export async function PATCH(request: Request) {
         status: status !== undefined ? status : undefined,
         due: due !== undefined ? due : undefined,
         labels: labels !== undefined ? labels : undefined,
-        assignee: assignee !== undefined ? assignee : undefined,
+        assignees: assignees !== undefined ? assignees : undefined,
+        assignee: assignees !== undefined
+          ? (assignees.length > 0 ? assignees[0] : null)
+          : (assignee !== undefined ? assignee : undefined),
         estimate: estimate !== undefined ? estimate : undefined,
         done: done !== undefined ? done : status !== undefined ? status === "done" : undefined,
         attachmentUrls: attachmentUrls !== undefined ? attachmentUrls : undefined,

@@ -17,6 +17,9 @@ import {
   SparklesIcon,
   ArrowLeftOnRectangleIcon,
   ArrowPathIcon,
+  BellIcon,
+  ChatBubbleLeftRightIcon,
+  TicketIcon,
 } from "@heroicons/react/24/outline";
 import { useAppearance } from "@/context/AppearanceContext";
 import { supabase } from "@/lib/supabase";
@@ -29,11 +32,306 @@ type SearchItem = {
   action: () => void;
 };
 
+type AppNotification = {
+  id: string;
+  type: "task" | "project" | "ticket" | "message";
+  title: string;
+  description: string;
+  time: string;
+  read: boolean;
+  link?: string;
+};
+
 export function AppTopBar() {
   const pathname = usePathname();
   const router = useRouter();
   const { setTheme, theme } = useTheme();
   const { setIsAppearanceOpen } = useAppearance();
+
+  const [notifications, setNotifications] = useState<AppNotification[]>([
+    {
+      id: "seed-1",
+      type: "task",
+      title: "Task Assigned",
+      description: "Aisha Khan assigned task 'Review onboarding flow' to you.",
+      time: "10m ago",
+      read: false,
+    },
+    {
+      id: "seed-2",
+      type: "project",
+      title: "Project Progress",
+      description: "Project 'ANSH Task — Core platform' reached 68% completion.",
+      time: "1h ago",
+      read: false,
+    },
+    {
+      id: "seed-3",
+      type: "ticket",
+      title: "New High Severity Ticket",
+      description: "Ticket #TCK-392 'Database load spike' submitted.",
+      time: "2h ago",
+      read: true,
+    },
+  ]);
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [workspaceMembers, setWorkspaceMembers] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [workspaceChannels, setWorkspaceChannels] = useState<{ id: string; name: string }[]>([]);
+
+  // Refs for tracking values inside realtime subscriptions
+  const workspaceMembersRef = useRef(workspaceMembers);
+  const workspaceChannelsRef = useRef(workspaceChannels);
+  const notificationsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    workspaceMembersRef.current = workspaceMembers;
+  }, [workspaceMembers]);
+
+  useEffect(() => {
+    workspaceChannelsRef.current = workspaceChannels;
+  }, [workspaceChannels]);
+
+  // Click outside to close notifications popover
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+        setIsNotificationOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Fetch workspace details and listen for real-time notifications
+  useEffect(() => {
+    let currentUserId: string | null = null;
+    let channel: any = null;
+
+    async function initializeRealtimeNotifications() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        currentUserId = user.id;
+
+        const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid");
+        const wid = onboardingWid ? parseInt(onboardingWid, 10) : 1;
+
+        // Fetch team members
+        const teamRes = await fetch(`/api/team?email=${encodeURIComponent(user.email || "")}&wid=${wid}`);
+        const teamJson = await teamRes.json();
+        let membersList: { id: string; name: string; email: string }[] = [];
+        if (teamJson.success && teamJson.members) {
+          membersList = teamJson.members.map((u: any) => ({
+            id: u.id,
+            name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email.split("@")[0],
+            email: u.email,
+          }));
+          setWorkspaceMembers(membersList);
+        }
+
+        // Fetch projects
+        try {
+          const projRes = await fetch(`/api/project?wid=${wid}&email=${encodeURIComponent(user.email || "")}`);
+          const projJson = await projRes.json();
+          if (projJson.success && projJson.projects) {
+            setDbProjects(projJson.projects);
+          }
+        } catch (err) {
+          console.error("Error fetching projects for search in TopBar:", err);
+        }
+
+        // Fetch tasks
+        try {
+          const taskRes = await fetch(`/api/task?wid=${wid}&email=${encodeURIComponent(user.email || "")}`);
+          const taskJson = await taskRes.json();
+          if (taskJson.success && taskJson.tasks) {
+            setDbTasks(taskJson.tasks);
+          }
+        } catch (err) {
+          console.error("Error fetching tasks for search in TopBar:", err);
+        }
+
+        // Fetch channels
+        const channelRes = await fetch(`/api/channel?wid=${wid}`);
+        const channelJson = await channelRes.json();
+        let channelsList: { id: string; name: string }[] = [];
+        if (channelJson.success && channelJson.channels) {
+          channelsList = channelJson.channels.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+          }));
+          setWorkspaceChannels(channelsList);
+        }
+
+        // Set up global supabase changes listener
+        channel = supabase
+          .channel("global-topbar-changes")
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "Message" },
+            async (payload) => {
+              const newMessage = payload.new as any;
+              if (newMessage.senderId === currentUserId) return;
+
+              // Find sender name
+              const sender = workspaceMembersRef.current.find((m) => m.id === newMessage.senderId);
+              const senderName = sender ? sender.name : "A teammate";
+
+              let description = "";
+              if (newMessage.channelId) {
+                const targetChan = workspaceChannelsRef.current.find((c) => c.id === newMessage.channelId);
+                const chanName = targetChan ? `#${targetChan.name}` : "a channel";
+                description = `${senderName} sent a message in ${chanName}: "${newMessage.content}"`;
+              } else {
+                description = `${senderName} sent you a direct message: "${newMessage.content}"`;
+              }
+
+              const newNotification: AppNotification = {
+                id: newMessage.id,
+                type: "message",
+                title: "New Message",
+                description,
+                time: "Just now",
+                read: false,
+                link: newMessage.channelId ? "/tasks/team" : "/tasks/team",
+              };
+
+              setNotifications((prev) => [newNotification, ...prev]);
+            }
+          )
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "Task" },
+            async (payload) => {
+              const eventType = payload.eventType;
+              const newTask = payload.new as any;
+              const oldTask = payload.old as any;
+              let title = "";
+              let description = "";
+
+              if (eventType === "INSERT") {
+                title = "Task Created";
+                description = `New task '${newTask.title}' was added.`;
+              } else if (eventType === "UPDATE") {
+                title = "Task Updated";
+                const statusChange = oldTask && oldTask.status !== newTask.status ? ` (Status: ${newTask.status})` : "";
+                description = `Task '${newTask.title}' was updated${statusChange}.`;
+              } else if (eventType === "DELETE") {
+                title = "Task Deleted";
+                description = `A task was removed from the workspace.`;
+              } else {
+                return;
+              }
+
+              const newNotification: AppNotification = {
+                id: newTask?.id || crypto.randomUUID(),
+                type: "task",
+                title,
+                description,
+                time: "Just now",
+                read: false,
+                link: "/tasks",
+              };
+
+              setNotifications((prev) => [newNotification, ...prev]);
+            }
+          )
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "Project" },
+            async (payload) => {
+              const eventType = payload.eventType;
+              const newProj = payload.new as any;
+              let title = "";
+              let description = "";
+
+              if (eventType === "INSERT") {
+                title = "Project Launched";
+                description = `New project '${newProj.name}' was created.`;
+              } else if (eventType === "UPDATE") {
+                title = "Project Updated";
+                description = `Project '${newProj.name}' was updated (Progress: ${newProj.progress}%).`;
+              } else {
+                return;
+              }
+
+              const newNotification: AppNotification = {
+                id: newProj.id,
+                type: "project",
+                title,
+                description,
+                time: "Just now",
+                read: false,
+                link: "/projects",
+              };
+
+              setNotifications((prev) => [newNotification, ...prev]);
+            }
+          )
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "Ticket" },
+            async (payload) => {
+              const eventType = payload.eventType;
+              const newTicket = payload.new as any;
+              let title = "";
+              let description = "";
+
+              if (eventType === "INSERT") {
+                title = "Ticket Submitted";
+                description = `Ticket #${newTicket.ticketId} '${newTicket.subject}' submitted (Severity: ${newTicket.priority}).`;
+              } else if (eventType === "UPDATE") {
+                title = "Ticket Updated";
+                description = `Ticket #${newTicket.ticketId} status changed to ${newTicket.status}.`;
+              } else {
+                return;
+              }
+
+              const newNotification: AppNotification = {
+                id: newTicket.id,
+                type: "ticket",
+                title,
+                description,
+                time: "Just now",
+                read: false,
+                link: "/support",
+              };
+
+              setNotifications((prev) => [newNotification, ...prev]);
+            }
+          )
+          .subscribe();
+
+      } catch (err) {
+        console.error("Error setting up realtime notifications in AppTopBar:", err);
+      }
+    }
+
+    initializeRealtimeNotifications();
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, []);
+
+  const getNotificationIcon = (type: AppNotification["type"]) => {
+    switch (type) {
+      case "message":
+        return <ChatBubbleLeftRightIcon className="h-4 w-4" />;
+      case "task":
+        return <ClipboardDocumentIcon className="h-4 w-4" />;
+      case "project":
+        return <FolderIcon className="h-4 w-4" />;
+      case "ticket":
+        return <TicketIcon className="h-4 w-4" />;
+      default:
+        return <BellIcon className="h-4 w-4" />;
+    }
+  };
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -42,6 +340,9 @@ export function AppTopBar() {
   const [isProfileCardOpen, setIsProfileCardOpen] = useState(false);
   const [userInfo, setUserInfo] = useState<{ name: string; email: string; avatar: string } | null>(null);
   const [userInitial, setUserInitial] = useState("A");
+
+  const [dbProjects, setDbProjects] = useState<any[]>([]);
+  const [dbTasks, setDbTasks] = useState<any[]>([]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -97,12 +398,54 @@ export function AppTopBar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Autofocus input when modal opens
+  // Autofocus input when modal opens and refresh search items
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
       setQuery("");
       setSelectedIndex(0);
+
+      async function refreshSearchItems() {
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid");
+          const wid = onboardingWid ? parseInt(onboardingWid, 10) : 1;
+
+          // Fetch team members, projects, and tasks in parallel
+          const [teamRes, projRes, taskRes] = await Promise.all([
+            fetch(`/api/team?email=${encodeURIComponent(user.email || "")}&wid=${wid}`),
+            fetch(`/api/project?wid=${wid}&email=${encodeURIComponent(user.email || "")}`),
+            fetch(`/api/task?wid=${wid}&email=${encodeURIComponent(user.email || "")}`),
+          ]);
+
+          const [teamJson, projJson, taskJson] = await Promise.all([
+            teamRes.json(),
+            projRes.json(),
+            taskRes.json(),
+          ]);
+
+          if (teamJson.success && teamJson.members) {
+            const membersList = teamJson.members.map((u: any) => ({
+              id: u.id,
+              name: `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email.split("@")[0],
+              email: u.email,
+            }));
+            setWorkspaceMembers(membersList);
+          }
+
+          if (projJson.success && projJson.projects) {
+            setDbProjects(projJson.projects);
+          }
+
+          if (taskJson.success && taskJson.tasks) {
+            setDbTasks(taskJson.tasks);
+          }
+        } catch (err) {
+          console.error("Error refreshing search items in AppTopBar:", err);
+        }
+      }
+      refreshSearchItems();
     }
   }, [isOpen]);
 
@@ -117,28 +460,32 @@ export function AppTopBar() {
     { id: "p-teams", type: "page", title: "Go to Teams Management", subtitle: "Add and manage team members", action: () => { router.push("/management/teams"); setIsOpen(false); } },
     { id: "p-settings", type: "page", title: "Go to Settings", subtitle: "Workspace configuration drawer", action: () => { router.push("/settings"); setIsOpen(false); } },
     
-    // Core Projects
-    { id: "pr-1", type: "project", title: "Project: ANSH Task — Core platform", subtitle: "Engineering · 68% complete", action: () => { router.push("/projects"); setIsOpen(false); } },
-    { id: "pr-2", type: "project", title: "Project: Enterprise rollout & SSO", subtitle: "Security · 41% complete", action: () => { router.push("/projects"); setIsOpen(false); } },
-    { id: "pr-3", type: "project", title: "Project: Brain board beta", subtitle: "Product · 22% complete", action: () => { router.push("/projects"); setIsOpen(false); } },
-    { id: "pr-4", type: "project", title: "Project: Billing System Migration", subtitle: "Operations · 5% complete", action: () => { router.push("/projects"); setIsOpen(false); } },
-    { id: "pr-5", type: "project", title: "Project: Mobile App Re-architecture", subtitle: "Engineering · 89% complete", action: () => { router.push("/projects"); setIsOpen(false); } },
+    // Core Projects (Dynamic from DB)
+    ...dbProjects.map((p) => ({
+      id: `db-pr-${p.id}`,
+      type: "project" as const,
+      title: `Project: ${p.name}`,
+      subtitle: `${p.category || "General"} · ${p.progress || 0}% complete`,
+      action: () => { router.push("/projects"); setIsOpen(false); }
+    })),
 
-    // Core Tasks
-    { id: "t-1", type: "task", title: "Task: Review product brief with design team", subtitle: "High Priority · Product", action: () => { router.push("/tasks"); setIsOpen(false); } },
-    { id: "t-2", type: "task", title: "Task: Draft weekly update for stakeholders", subtitle: "Medium Priority · Operations", action: () => { router.push("/tasks"); setIsOpen(false); } },
-    { id: "t-3", type: "task", title: "Task: Organize ANSH Task backlog labels", subtitle: "Completed · Engineering", action: () => { router.push("/tasks"); setIsOpen(false); } },
-    { id: "t-4", type: "task", title: "Task: Bug: Session timeout on refresh", subtitle: "High Priority · Engineering", action: () => { router.push("/tasks"); setIsOpen(false); } },
-    { id: "t-5", type: "task", title: "Task: Create interactive landing page mockup", subtitle: "High Priority · Design", action: () => { router.push("/tasks"); setIsOpen(false); } },
-    { id: "t-6", type: "task", title: "Task: Migrate database seeding scripts", subtitle: "Normal Priority · Engineering", action: () => { router.push("/tasks"); setIsOpen(false); } },
+    // Core Tasks (Dynamic from DB)
+    ...dbTasks.map((t) => ({
+      id: `db-t-${t.id}`,
+      type: "task" as const,
+      title: `Task: ${t.title}`,
+      subtitle: `${t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : "Normal"} Priority · ${t.category || "General"} · ${t.status || "Todo"}`,
+      action: () => { router.push("/tasks"); setIsOpen(false); }
+    })),
 
-    // Team Members
-    { id: "m-1", type: "member", title: "Member: Aisha Khan", subtitle: "Workspace Admin · Lead Engineer", action: () => { router.push("/management/teams"); setIsOpen(false); } },
-    { id: "m-2", type: "member", title: "Member: Leo Park", subtitle: "Lead Designer", action: () => { router.push("/management/teams"); setIsOpen(false); } },
-    { id: "m-3", type: "member", title: "Member: Sam Rivera", subtitle: "Product Manager", action: () => { router.push("/management/teams"); setIsOpen(false); } },
-    { id: "m-4", type: "member", title: "Member: Marcus Vance", subtitle: "Operations Manager", action: () => { router.push("/management/teams"); setIsOpen(false); } },
-    { id: "m-5", type: "member", title: "Member: Priya Sharma", subtitle: "QA Engineer", action: () => { router.push("/management/teams"); setIsOpen(false); } },
-    { id: "m-6", type: "member", title: "Member: Yuki Tanaka", subtitle: "Frontend Dev", action: () => { router.push("/management/teams"); setIsOpen(false); } },
+    // Team Members (Dynamic from DB)
+    ...workspaceMembers.map((m) => ({
+      id: `db-m-${m.id}`,
+      type: "member" as const,
+      title: `Member: ${m.name}`,
+      subtitle: m.email,
+      action: () => { router.push("/management/teams"); setIsOpen(false); }
+    })),
 
     // Quick Actions
     { id: "a-theme", type: "action", title: "Customize Theme & Accents", subtitle: "Open workspace appearance controls", action: () => { setIsAppearanceOpen(true); setIsOpen(false); } },
@@ -220,7 +567,132 @@ export function AppTopBar() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-4.5">
+          {/* Notification Bell Menu */}
+          <div className="relative" ref={notificationsRef}>
+            <button
+              onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+              className={`relative flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white/90 text-zinc-550 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-all hover:bg-zinc-50 dark:border-white/[0.08] dark:bg-zinc-900/50 dark:text-zinc-400 dark:hover:bg-zinc-800/80 cursor-pointer outline-none ${
+                isNotificationOpen ? "ring-2 ring-teal-500/20 border-teal-500/50 text-teal-600 dark:text-teal-400" : ""
+              }`}
+              title="Notifications"
+            >
+              <BellIcon className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-teal-500 px-1 text-[9px] font-black text-white ring-2 ring-white dark:bg-teal-500 dark:ring-zinc-950 animate-pulse">
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isNotificationOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute right-0 mt-2.5 w-80 z-50 rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-white/10 dark:bg-[#121418] flex flex-col text-left overflow-hidden"
+                >
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-100 dark:border-white/[0.04] bg-zinc-50/50 dark:bg-zinc-900/10">
+                    <h3 className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
+                      Notifications
+                    </h3>
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={() => {
+                          setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+                        }}
+                        className="text-[10px] font-extrabold text-teal-600 hover:text-teal-700 dark:text-teal-405 dark:hover:text-teal-300 transition-colors cursor-pointer"
+                      >
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Body / List */}
+                  <div className="max-h-[300px] overflow-y-auto divide-y divide-zinc-100 dark:divide-white/[0.04] scrollbar-thin">
+                    {notifications.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-50 text-zinc-400 dark:bg-zinc-900/60 dark:text-zinc-500 mb-2">
+                          <BellIcon className="h-5 w-5" />
+                        </div>
+                        <p className="text-[11px] font-bold text-zinc-700 dark:text-zinc-350">
+                          All caught up!
+                        </p>
+                        <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-0.5">
+                          You have no new notifications.
+                        </p>
+                      </div>
+                    ) : (
+                      notifications.map((n) => (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            // Mark as read
+                            setNotifications((prev) => prev.map((item) => item.id === n.id ? { ...item, read: true } : item));
+                            if (n.link) {
+                              router.push(n.link);
+                              setIsNotificationOpen(false);
+                            }
+                          }}
+                          className={`flex items-start gap-3 p-3.5 hover:bg-zinc-50/80 dark:hover:bg-white/[0.01] transition-all cursor-pointer ${
+                            !n.read ? "bg-teal-50/15 dark:bg-teal-500/[0.01]" : ""
+                          }`}
+                        >
+                          {/* Notification icon */}
+                          <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border shadow-sm ${
+                            !n.read 
+                              ? "bg-teal-50 border-teal-100 text-teal-600 dark:bg-teal-950/20 dark:border-teal-900/30 dark:text-teal-400" 
+                              : "bg-zinc-50 border-zinc-100 text-zinc-400 dark:bg-zinc-900 dark:border-white/5 dark:text-zinc-500"
+                          }`}>
+                            {getNotificationIcon(n.type)}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-1.5">
+                              <p className={`text-[11px] font-bold truncate ${
+                                !n.read ? "text-zinc-900 dark:text-zinc-100" : "text-zinc-600 dark:text-zinc-400"
+                              }`}>
+                                {n.title}
+                              </p>
+                              <span className="text-[9px] font-medium text-zinc-400 dark:text-zinc-500 shrink-0">
+                                {n.time}
+                              </span>
+                            </div>
+                            <p className="text-[10px] leading-normal text-zinc-500 dark:text-zinc-400 mt-0.5 break-words font-medium">
+                              {n.description}
+                            </p>
+                          </div>
+
+                          {/* Unread indicator dot */}
+                          {!n.read && (
+                            <span className="h-1.5 w-1.5 rounded-full bg-teal-500 shrink-0 mt-1.5" />
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Footer */}
+                  {notifications.length > 0 && (
+                    <div className="flex items-center justify-center border-t border-zinc-100 dark:border-white/[0.04] py-2.5 bg-zinc-50/50 dark:bg-zinc-900/10">
+                      <button
+                        onClick={() => {
+                          setNotifications([]);
+                        }}
+                        className="text-[10px] font-bold text-zinc-500 hover:text-zinc-650 dark:text-zinc-450 dark:hover:text-zinc-300 transition-colors cursor-pointer"
+                      >
+                        Clear all notifications
+                      </button>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {/* Profile Popover Menu */}
           <div 
             className="relative" 

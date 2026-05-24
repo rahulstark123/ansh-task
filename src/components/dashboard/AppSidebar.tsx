@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { CheckCircleIcon, ChevronLeftIcon, ChevronRightIcon, SwatchIcon } from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon, SwatchIcon } from "@heroicons/react/24/outline";
 import { useEffect, useState } from "react";
 import { useAppearance } from "@/context/AppearanceContext";
 import { isNavActive, NAV_SECTIONS } from "@/config/navigation";
@@ -28,17 +28,21 @@ export function AppSidebar() {
         <Link
           href="/dashboard"
           className={`flex items-center transition-colors hover:bg-white/60 dark:hover:bg-white/[0.04] ${
-            isSidebarCollapsed ? "h-12 w-12 justify-center rounded-xl" : "gap-3 overflow-hidden rounded-[13px] p-1.5"
+            isSidebarCollapsed ? "h-12 w-12 justify-center rounded-xl" : "gap-1.5 overflow-hidden rounded-[13px] p-1"
           }`}
-          title={isSidebarCollapsed ? "ANSH Task Workspace" : undefined}
+          title={isSidebarCollapsed ? "ANSH Tasks Workspace" : undefined}
         >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-gradient-to-br from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] text-white shadow-md shadow-teal-900/10 ring-1 ring-black/5 dark:shadow-none dark:ring-white/10">
-            <CheckCircleIcon className="h-5 w-5" />
-          </div>
+          <img 
+            src="/logoAnshapps.png" 
+            alt="ANSH Logo" 
+            className={`shrink-0 object-contain transition-all duration-200 ${
+              isSidebarCollapsed ? "h-9 w-9" : "h-13 w-13"
+            }`} 
+          />
           {!isSidebarCollapsed && (
             <div className="min-w-0">
               <span className="block truncate font-heading text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-                ANSH Task
+                ANSH Tasks
               </span>
               <span className="block text-[11px] font-normal leading-tight text-zinc-500 dark:text-zinc-400">
                 Workspace

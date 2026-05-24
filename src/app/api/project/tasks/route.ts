@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, projectId, workspaceId, priority, status, assignee, due, description, category, labels, estimate } = body;
+    const { title, projectId, workspaceId, priority, status, assignee, assignees, due, description, category, labels, estimate } = body;
 
     if (!title || !workspaceId) {
       return NextResponse.json(
@@ -45,6 +45,9 @@ export async function POST(request: Request) {
       );
     }
 
+    const resolvedAssignees = assignees || (assignee ? [assignee] : []);
+    const resolvedAssignee = resolvedAssignees.length > 0 ? resolvedAssignees[0] : "Unassigned";
+
     const newTask = await prisma.task.create({
       data: {
         title,
@@ -52,7 +55,8 @@ export async function POST(request: Request) {
         workspaceId: parseInt(workspaceId, 10),
         priority: priority || "medium",
         status: status || "todo",
-        assignee: assignee || "Unassigned",
+        assignee: resolvedAssignee,
+        assignees: resolvedAssignees,
         due: due || "No date",
         done: status === "done",
         description: description || null,

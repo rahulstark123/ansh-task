@@ -22,6 +22,8 @@ import {
   ArrowDownTrayIcon,
   DocumentTextIcon,
   ClipboardDocumentListIcon,
+  EllipsisVerticalIcon,
+  EyeIcon,
 } from "@heroicons/react/24/outline";
 import { CheckCircleIcon as CheckCircleSolid } from "@heroicons/react/24/solid";
 import { motion, AnimatePresence } from "framer-motion";
@@ -127,6 +129,7 @@ function mapApiTask(t: any): Task {
     category: t.category ?? undefined,
     labels: t.labels ?? [],
     assignee: t.assignee ?? undefined,
+    assignees: t.assignees ?? [],
     status: (t.status as Task["status"]) ?? "todo",
     estimate: t.estimate ?? undefined,
     done: t.done ?? false,
@@ -294,6 +297,106 @@ function CustomSelect({ value, onChange, options, placeholder = "Select...", cla
   );
 }
 
+function CustomMultiSelect({
+  value,
+  onChange,
+  options,
+  placeholder = "Select…",
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  options: SelectOption[];
+  placeholder?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function clickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", clickOutside);
+    return () => document.removeEventListener("mousedown", clickOutside);
+  }, []);
+
+  const handleToggle = (optVal: string) => {
+    if (optVal === "Unassigned") {
+      onChange([]);
+      return;
+    }
+    const newValue = value.includes(optVal)
+      ? value.filter((v) => v !== optVal)
+      : [...value.filter((v) => v !== "Unassigned"), optVal];
+    onChange(newValue);
+  };
+
+  const displayLabel =
+    value.length === 0
+      ? "Unassigned"
+      : value.length === 1
+      ? value[0]
+      : `${value.length} assignees`;
+
+  return (
+    <div ref={ref} className="relative w-full">
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-755 shadow-sm outline-none cursor-pointer transition-all hover:bg-stone-50/60 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-455/20 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+      >
+        <div className="flex items-center gap-2 truncate">
+          <span className="truncate">{displayLabel}</span>
+        </div>
+        <ChevronDownIcon className={`h-3.5 w-3.5 text-zinc-450 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+      </button>
+
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.12 }}
+            className="absolute left-0 right-0 z-40 mt-1 max-h-60 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-[#121418] scrollbar-thin min-w-[160px]"
+          >
+            {options.map((opt) => {
+              const isSelected =
+                opt.value === "Unassigned"
+                  ? value.length === 0
+                  : value.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleToggle(opt.value)}
+                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-left transition-colors cursor-pointer ${
+                    isSelected
+                      ? "bg-indigo-50 text-indigo-650 dark:bg-indigo-950/40 dark:text-indigo-300"
+                      : "text-zinc-655 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/40"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    {opt.colorDot && (
+                      <span className={`h-2 w-2 rounded-full ${opt.colorDot}`} />
+                    )}
+                    {opt.icon && (
+                      <span className="text-zinc-450 dark:text-zinc-500 shrink-0">{opt.icon}</span>
+                    )}
+                    <span className="truncate">{opt.label}</span>
+                  </div>
+                  {isSelected && <CheckIcon className="h-3.5 w-3.5 stroke-[2.5]" />}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 type TaskDashboardProps = {
   eyebrow?: string;
   heading: string;
@@ -409,6 +512,7 @@ export function TaskDashboard({
   const [tempStatus, setTempStatus] = useState<TaskStatus>("todo");
   const [tempPriority, setTempPriority] = useState<TaskPriority>("medium");
   const [tempAssignee, setTempAssignee] = useState("Unassigned");
+  const [tempAssignees, setTempAssignees] = useState<string[]>([]);
   const [tempCategory, setTempCategory] = useState("General");
 
   const [tempDue, setTempDue] = useState("No date");
@@ -429,6 +533,7 @@ export function TaskDashboard({
       setTempStatus(selectedTask.status || "todo");
       setTempPriority(selectedTask.priority || "medium");
       setTempAssignee(selectedTask.assignee || "Unassigned");
+      setTempAssignees(selectedTask.assignees || []);
       setTempCategory(selectedTask.category || "General");
 
       setTempDue(selectedTask.due || "No date");
@@ -495,7 +600,7 @@ export function TaskDashboard({
   // Filter tasks relative to the selected workspace type (My tasks, All tasks, etc.)
   const moduleTasks = useMemo(() => {
     if (taskModule === "my") {
-      return tasks.filter((t) => t.assignee === "Me");
+      return tasks.filter((t) => t.assignee === "Me" || (t.assignees && t.assignees.includes("Me")));
     }
     return tasks;
   }, [tasks, taskModule]);
@@ -508,7 +613,11 @@ export function TaskDashboard({
         (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchesPriority = filterPriority === "All" ? true : task.priority === filterPriority.toLowerCase();
-      const matchesAssignee = filterAssignees.length === 0 ? true : filterAssignees.includes(task.assignee || "Unassigned");
+      const matchesAssignee = filterAssignees.length === 0
+        ? true
+        : (task.assignees && task.assignees.length > 0
+            ? task.assignees.some((a) => filterAssignees.includes(a))
+            : filterAssignees.includes(task.assignee || "Unassigned"));
       const matchesCategory = filterCategories.length === 0 ? true : (task.category && filterCategories.includes(task.category));
       const matchesLabel = filterLabels.length === 0 ? true : (task.labels && task.labels.some((l) => filterLabels.includes(l)));
 
@@ -661,7 +770,8 @@ export function TaskDashboard({
       description: tempDescription.trim(),
       status: tempStatus,
       priority: tempPriority,
-      assignee: tempAssignee,
+      assignee: tempAssignees.length > 0 ? tempAssignees[0] : "Unassigned",
+      assignees: tempAssignees,
       category: tempCategory,
 
       due: tempDue,
@@ -679,6 +789,7 @@ export function TaskDashboard({
       status: updates.status,
       priority: updates.priority,
       assignee: updates.assignee,
+      assignees: updates.assignees,
       category: updates.category,
       due: updates.due,
       done: updates.status === "done",
@@ -696,6 +807,7 @@ export function TaskDashboard({
     setTempStatus(selectedTask.status || "todo");
     setTempPriority(selectedTask.priority || "medium");
     setTempAssignee(selectedTask.assignee || "Unassigned");
+    setTempAssignees(selectedTask.assignees || []);
     setTempCategory(selectedTask.category || "General");
 
     setTempDue(selectedTask.due || "No date");
@@ -848,7 +960,8 @@ export function TaskDashboard({
       priority: payload.priority,
       category: payload.category,
       labels: payload.labels.length ? payload.labels : undefined,
-      assignee: payload.assignee,
+      assignee: payload.assignees && payload.assignees.length > 0 ? payload.assignees[0] : "Unassigned",
+      assignees: payload.assignees || [],
       status: payload.status,
       done: payload.status === "done",
       attachmentUrls: payload.attachmentUrls || [],
@@ -867,7 +980,8 @@ export function TaskDashboard({
           status: payload.status,
           due: payload.dueLabel,
           labels: payload.labels,
-          assignee: payload.assignee,
+          assignee: payload.assignees && payload.assignees.length > 0 ? payload.assignees[0] : "Unassigned",
+          assignees: payload.assignees || [],
           projectId: payload.projectId,
           attachmentUrls: payload.attachmentUrls || [],
           workspaceId: wid,
@@ -1325,8 +1439,23 @@ export function TaskDashboard({
                               )}
                             </div>
 
-                            {/* Assignee Avatar */}
-                            {getAvatar(task.assignee || "Unassigned")}
+                            {/* Assignee Avatar / Avatars Group */}
+                            {task.assignees && task.assignees.length > 0 ? (
+                              <div className="flex -space-x-1.5 overflow-hidden">
+                                {task.assignees.slice(0, 3).map((a) => (
+                                  <div key={a} className="scale-[0.85] origin-center ring-1 ring-white dark:ring-zinc-900 rounded-full shrink-0">
+                                    {getAvatar(a)}
+                                  </div>
+                                ))}
+                                {task.assignees.length > 3 && (
+                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-[8px] font-bold text-zinc-650 dark:bg-zinc-800 dark:text-zinc-450 ring-1 ring-white dark:ring-zinc-900 shrink-0">
+                                    +{task.assignees.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              getAvatar(task.assignee || "Unassigned")
+                            )}
                           </div>
 
                         </div>
@@ -1398,7 +1527,6 @@ export function TaskDashboard({
               })}
             </motion.div>
           ) : (
-            
             /* ========================================================
                TABLE VIEW (Dynamic Inline Spreadsheet Grid)
                ======================================================== */
@@ -1415,12 +1543,13 @@ export function TaskDashboard({
                   <thead>
                     <tr className="border-b border-zinc-200/80 dark:border-white/[0.06] bg-stone-50/50 dark:bg-zinc-900/40 text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 h-10">
                       <th className="w-[4%] text-center pl-3">Done</th>
-                      <th className="w-[35%] px-4">Task Name</th>
+                      <th className="w-[33%] px-4">Task Name</th>
                       <th className="w-[11%] px-3">Status</th>
                       <th className="w-[11%] px-3">Priority</th>
                       <th className="w-[13%] px-3">Assignee</th>
-                      <th className="w-[13%] px-3">Category</th>
-                      <th className="w-[13%] px-3">Due Date</th>
+                      <th className="w-[11%] px-3">Category</th>
+                      <th className="w-[12%] px-3">Due Date</th>
+                      <th className="w-[5%] text-center pr-3">Actions</th>
                     </tr>
                   </thead>
                   
@@ -1459,7 +1588,7 @@ export function TaskDashboard({
                             <button
                               type="button"
                               onClick={() => setSelectedTask(task)}
-                              className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-all ml-1"
+                              className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-750 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-all ml-1"
                               title="Edit task details"
                             >
                               <PencilIcon className="h-3.5 w-3.5" />
@@ -1472,7 +1601,7 @@ export function TaskDashboard({
                           <button
                             type="button"
                             onClick={() => setActiveDropdown(activeDropdown?.taskId === task.id && activeDropdown?.field === "status" ? null : { taskId: task.id, field: "status" })}
-                            className="inline-flex items-center gap-1 text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full border border-zinc-200/80 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 dark:border-white/[0.08] dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full border border-zinc-200/80 bg-zinc-50 hover:bg-zinc-100 text-zinc-705 dark:border-white/[0.08] dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                           >
                             <span>{COLUMNS.find(c => c.id === task.status)?.label || "To Do"}</span>
                             <ChevronDownIcon className="h-3 w-3 opacity-60" />
@@ -1487,7 +1616,7 @@ export function TaskDashboard({
                                     handleStatusChange(task.id, col.id);
                                     setActiveDropdown(null);
                                   }}
-                                  className="flex w-full items-center px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                  className="flex w-full items-center px-3 py-1.5 text-xs text-zinc-705 hover:bg-stone-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                                 >
                                   {col.label}
                                 </button>
@@ -1516,7 +1645,7 @@ export function TaskDashboard({
                                     handlePriorityChange(task.id, pri);
                                     setActiveDropdown(null);
                                   }}
-                                  className="flex w-full items-center px-3 py-1.5 text-xs capitalize text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                  className="flex w-full items-center px-3 py-1.5 text-xs capitalize text-zinc-705 hover:bg-stone-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                                 >
                                   {pri}
                                 </button>
@@ -1532,25 +1661,64 @@ export function TaskDashboard({
                             onClick={() => setActiveDropdown(activeDropdown?.taskId === task.id && activeDropdown?.field === "assignee" ? null : { taskId: task.id, field: "assignee" })}
                             className="flex items-center gap-1.5 hover:bg-stone-100 p-1 rounded-lg transition-colors text-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
                           >
-                            {getAvatar(task.assignee || "Unassigned")}
-                            <span className="truncate text-xs font-medium max-w-[70px]">{task.assignee || "Unassigned"}</span>
+                            {task.assignees && task.assignees.length > 0 ? (
+                              <div className="flex -space-x-1.5 overflow-hidden mr-1 shrink-0">
+                                {task.assignees.slice(0, 2).map((a) => (
+                                  <div key={a} className="ring-1 ring-white dark:ring-zinc-900 rounded-full">
+                                    {getAvatar(a)}
+                                  </div>
+                                ))}
+                                {task.assignees.length > 2 && (
+                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-[8px] font-black text-zinc-650 dark:bg-zinc-800 dark:text-zinc-450 ring-1 ring-white dark:ring-zinc-900 shrink-0">
+                                    +{task.assignees.length - 2}
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="mr-1 shrink-0">{getAvatar(task.assignee || "Unassigned")}</div>
+                            )}
+                            <span className="truncate text-xs font-medium max-w-[70px]">
+                              {task.assignees && task.assignees.length > 0 ? task.assignees[0] : (task.assignee || "Unassigned")}
+                            </span>
                             <ChevronDownIcon className="h-3 w-3 opacity-40 shrink-0" />
                           </button>
                           {activeDropdown?.taskId === task.id && activeDropdown?.field === "assignee" && (
                             <div className="absolute left-3 top-10 z-30 w-44 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
-                              {ASSIGNEES.map((assignee) => (
-                                <button
-                                  key={assignee}
-                                  type="button"
-                                  onClick={() => {
-                                    handleAssigneeChange(task.id, assignee);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className="flex w-full items-center px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                                >
-                                  {assignee}
-                                </button>
-                              ))}
+                              {assigneesList.map((assignee) => {
+                                const isSelected = task.assignees ? task.assignees.includes(assignee) : task.assignee === assignee;
+                                return (
+                                  <button
+                                    key={assignee}
+                                    type="button"
+                                    onClick={() => {
+                                      let newAssignees: string[];
+                                      if (assignee === "Unassigned") {
+                                        newAssignees = [];
+                                      } else {
+                                        const currentAssignees = task.assignees || (task.assignee ? [task.assignee] : []);
+                                        if (currentAssignees.includes(assignee)) {
+                                          newAssignees = currentAssignees.filter(a => a !== assignee);
+                                        } else {
+                                          newAssignees = [...currentAssignees.filter(a => a !== "Unassigned"), assignee];
+                                        }
+                                      }
+                                      setTasks((prev) => prev.map((t) => t.id === task.id ? {
+                                        ...t,
+                                        assignees: newAssignees,
+                                        assignee: newAssignees.length > 0 ? newAssignees[0] : "Unassigned"
+                                      } : t));
+                                      patchTask(task.id, {
+                                        assignees: newAssignees,
+                                        assignee: newAssignees.length > 0 ? newAssignees[0] : "Unassigned"
+                                      });
+                                    }}
+                                    className="flex w-full items-center justify-between px-3 py-1.5 text-xs text-zinc-705 hover:bg-stone-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                  >
+                                    <span className="truncate">{assignee}</span>
+                                    {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[2.5]" />}
+                                  </button>
+                                );
+                              })}
                             </div>
                           )}
                         </td>
@@ -1560,7 +1728,7 @@ export function TaskDashboard({
                           <button
                             type="button"
                             onClick={() => setActiveDropdown(activeDropdown?.taskId === task.id && activeDropdown?.field === "category" ? null : { taskId: task.id, field: "category" })}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-zinc-505 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
                           >
                             <span>{task.category || "General"}</span>
                             <ChevronDownIcon className="h-3 w-3 opacity-40" />
@@ -1585,15 +1753,67 @@ export function TaskDashboard({
                         </td>
 
                         {/* 8. Due date */}
-                        <td className="px-3 text-xs text-zinc-500 dark:text-zinc-400 truncate">
+                        <td className="px-3 text-xs text-zinc-550 dark:text-zinc-400 truncate">
                           {task.due}
+                        </td>
+
+                        {/* 9. Actions Column (3-dots) */}
+                        <td className="px-3 text-center relative pr-3" ref={activeDropdown?.taskId === task.id && activeDropdown?.field === "actions" ? dropdownRef : null}>
+                          <button
+                            type="button"
+                            onClick={() => setActiveDropdown(activeDropdown?.taskId === task.id && activeDropdown?.field === "actions" ? null : { taskId: task.id, field: "actions" })}
+                            className="p-1.5 rounded-lg text-zinc-400 hover:bg-stone-100 hover:text-zinc-750 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                            title="Task Actions"
+                          >
+                            <EllipsisVerticalIcon className="h-4.5 w-4.5 mx-auto" />
+                          </button>
+                          {activeDropdown?.taskId === task.id && activeDropdown?.field === "actions" && (
+                            <div className="absolute right-3 top-10 z-30 w-32 rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900 text-left">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTask(task);
+                                  setIsEditingTaskDetails(false);
+                                  setActiveDropdown(null);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-705 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                              >
+                                <EyeIcon className="h-4 w-4 text-zinc-400" />
+                                Preview
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedTask(task);
+                                  setIsEditingTaskDetails(true);
+                                  setActiveDropdown(null);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-705 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                              >
+                                <PencilIcon className="h-4 w-4 text-zinc-400" />
+                                Edit
+                              </button>
+                              <div className="my-1 border-t border-zinc-100 dark:border-white/5" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTaskToDelete(task);
+                                  setActiveDropdown(null);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-rose-650 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                              >
+                                <TrashIcon className="h-4 w-4 text-rose-500" />
+                                Delete
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
 
                     {filteredTasks.length === 0 && (
                       <tr>
-                        <td colSpan={7} className="text-center py-16 text-zinc-400 dark:text-zinc-500">
+                        <td colSpan={8} className="text-center py-16 text-zinc-400 dark:text-zinc-500">
                           No tasks match the search or filter query.
                         </td>
                       </tr>
@@ -1885,9 +2105,9 @@ export function TaskDashboard({
                     <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Assignee</span>
                     <div className="col-span-2">
                       {isEditingTaskDetails ? (
-                        <CustomSelect
-                          value={tempAssignee}
-                          onChange={(val) => setTempAssignee(val)}
+                        <CustomMultiSelect
+                          value={tempAssignees}
+                          onChange={(val) => setTempAssignees(val)}
                           options={assigneesList.map((a) => {
                             const initials = a === "Me" ? "ME" : a === "Unassigned" ? "UN" : a.trim().split(/\s+/).map(n => n[0]).join("").toUpperCase().slice(0, 2);
                             return {
@@ -1903,8 +2123,30 @@ export function TaskDashboard({
                         />
                       ) : (
                         <div className="flex items-center gap-2">
-                          {getAvatar(selectedTask.assignee || "Unassigned")}
-                          <span className="text-xs font-bold text-zinc-750 dark:text-zinc-300">{selectedTask.assignee || "Unassigned"}</span>
+                          {selectedTask.assignees && selectedTask.assignees.length > 0 ? (
+                            <div className="flex items-center gap-2">
+                              <div className="flex -space-x-1.5 overflow-hidden">
+                                {selectedTask.assignees.slice(0, 3).map((a) => (
+                                  <div key={a} className="ring-2 ring-white dark:ring-zinc-900 rounded-full">
+                                    {getAvatar(a)}
+                                  </div>
+                                ))}
+                                {selectedTask.assignees.length > 3 && (
+                                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-black text-zinc-650 dark:bg-zinc-800 dark:text-zinc-450 ring-2 ring-white dark:ring-zinc-900 shrink-0">
+                                    +{selectedTask.assignees.length - 3}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-zinc-750 dark:text-zinc-300 truncate max-w-[150px]" title={selectedTask.assignees.join(", ")}>
+                                {selectedTask.assignees.join(", ")}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              {getAvatar(selectedTask.assignee || "Unassigned")}
+                              <span className="text-xs font-bold text-zinc-750 dark:text-zinc-300">{selectedTask.assignee || "Unassigned"}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

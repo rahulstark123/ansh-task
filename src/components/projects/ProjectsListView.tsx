@@ -435,7 +435,8 @@ export function ProjectsListView() {
           workspaceId: activeWorkspaceId,
           priority: payload.priority,
           status: payload.status,
-          assignee: payload.assignee,
+          assignee: payload.assignees.length > 0 ? payload.assignees[0] : "Unassigned",
+          assignees: payload.assignees,
           due: payload.dueLabel,
           labels: payload.labels,
           estimate: payload.estimate,
@@ -478,7 +479,7 @@ export function ProjectsListView() {
   const [status, setStatus] = useState<Project["status"]>("Discovery");
   const [health, setHealth] = useState<Project["health"]>("good");
   const [estimatedHours, setEstimatedHours] = useState("80");
-  const [selectedMembers, setSelectedMembers] = useState<string[]>(["A"]);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 
   const [availableUsers, setAvailableUsers] = useState<{ name: string; initial: string }[]>(AVAILABLE_USERS);
   const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
@@ -672,7 +673,7 @@ export function ProjectsListView() {
         setStatus("Discovery");
         setHealth("good");
         setEstimatedHours("80");
-        setSelectedMembers([availableUsers[0]?.initial || "A"]);
+        setSelectedMembers([]);
         setIsTeamDropdownOpen(false);
         setIsAddModalOpen(false);
       } else {
@@ -703,9 +704,9 @@ export function ProjectsListView() {
     }
   };
 
-  const toggleMemberSelection = (initial: string) => {
+  const toggleMemberSelection = (name: string) => {
     setSelectedMembers((prev) =>
-      prev.includes(initial) ? prev.filter((m) => m !== initial) : [...prev, initial]
+      prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name]
     );
   };
 
@@ -920,14 +921,19 @@ export function ProjectsListView() {
                 
                 <div className="mt-5 flex items-center justify-between border-t border-zinc-100 pt-4 dark:border-white/[0.06]">
                   <div className="flex -space-x-1.5">
-                    {p.members.map((m, idx) => (
-                      <div
-                        key={idx}
-                        className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-zinc-200 text-[9px] font-bold text-zinc-700 dark:border-zinc-900 dark:bg-zinc-700 dark:text-zinc-200 shadow-sm"
-                      >
-                        {m}
-                      </div>
-                    ))}
+                    {p.members.map((m, idx) => {
+                      const user = availableUsers.find((u) => u.name === m);
+                      const initial = user ? user.initial : (m[0]?.toUpperCase() || "");
+                      return (
+                        <div
+                          key={idx}
+                          className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-zinc-200 text-[9px] font-bold text-zinc-700 dark:border-zinc-900 dark:bg-zinc-700 dark:text-zinc-200 shadow-sm"
+                          title={m}
+                        >
+                          {initial}
+                        </div>
+                      );
+                    })}
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500">
                     <ClockIcon className="h-3.5 w-3.5" />
@@ -996,14 +1002,19 @@ export function ProjectsListView() {
                       </td>
                       <td className="px-5 py-3 text-right">
                         <div className="flex justify-end -space-x-1.5">
-                          {p.members.map((m, idx) => (
-                            <div
-                              key={idx}
-                              className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-zinc-200 text-[9px] font-bold text-zinc-700 dark:border-zinc-900 dark:bg-zinc-700 dark:text-zinc-200"
-                            >
-                              {m}
-                            </div>
-                          ))}
+                          {p.members.map((m, idx) => {
+                            const user = availableUsers.find((u) => u.name === m);
+                            const initial = user ? user.initial : (m[0]?.toUpperCase() || "");
+                            return (
+                              <div
+                                key={idx}
+                                className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-zinc-200 text-[9px] font-bold text-zinc-700 dark:border-zinc-900 dark:bg-zinc-700 dark:text-zinc-200"
+                                title={m}
+                              >
+                                {initial}
+                              </div>
+                            );
+                          })}
                         </div>
                       </td>
                     </tr>
@@ -1359,32 +1370,36 @@ export function ProjectsListView() {
                         Project Team contributors
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {(isEditing ? tempMembers : selectedProject.members).map((m, idx) => (
-                          <div
-                            key={idx}
-                            onClick={() => {
-                              if (!isEditing) return;
-                              setTempMembers((prev) => prev.filter((x) => x !== m));
-                            }}
-                            className={`flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600 transition-colors shadow-sm ${
-                              isEditing 
-                                ? "cursor-pointer hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-350" 
-                                : "cursor-default"
-                            } dark:bg-indigo-950/30 dark:text-indigo-300`}
-                            title={isEditing ? "Click to remove from project" : undefined}
-                          >
-                            {m}
-                          </div>
-                        ))}
+                        {(isEditing ? tempMembers : selectedProject.members).map((m, idx) => {
+                          const user = availableUsers.find((u) => u.name === m);
+                          const initial = user ? user.initial : (m[0]?.toUpperCase() || "");
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => {
+                                if (!isEditing) return;
+                                setTempMembers((prev) => prev.filter((x) => x !== m));
+                              }}
+                              className={`flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600 transition-colors shadow-sm ${
+                                isEditing 
+                                  ? "cursor-pointer hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-350" 
+                                  : "cursor-default"
+                              } dark:bg-indigo-950/30 dark:text-indigo-300`}
+                              title={isEditing ? `Click to remove ${m} from project` : m}
+                            >
+                              {initial}
+                            </div>
+                          );
+                        })}
                         
                         {/* Quick drop contributors */}
                         {isEditing && availableUsers.map((user) => {
-                          if (tempMembers.includes(user.initial)) return null;
+                          if (tempMembers.includes(user.name)) return null;
                           return (
                             <button
-                              key={user.initial}
+                              key={user.name}
                               type="button"
-                              onClick={() => setTempMembers((prev) => [...prev, user.initial])}
+                              onClick={() => setTempMembers((prev) => [...prev, user.name])}
                               className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed border-zinc-300 text-zinc-400 hover:border-indigo-500 hover:bg-indigo-50/50 hover:text-indigo-600 dark:border-zinc-700 dark:hover:bg-zinc-800/50 text-[10px] font-bold"
                               title={`Add ${user.name}`}
                             >
@@ -1512,7 +1527,23 @@ export function ProjectsListView() {
                               )}
 
                               <div className="flex items-center gap-2 ml-auto">
-                                {assigneeInitials ? (
+                                {task.assignees && task.assignees.length > 0 ? (
+                                  <div className="flex -space-x-1 overflow-hidden">
+                                    {task.assignees.slice(0, 3).map((a: string) => {
+                                      const initials = a === "Unassigned" ? "??" : a.trim().split(/\s+/).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+                                      return (
+                                        <div key={a} className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[7px] font-black text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 ring-1 ring-white dark:ring-zinc-900 shrink-0" title={a}>
+                                          {initials}
+                                        </div>
+                                      );
+                                    })}
+                                    {task.assignees.length > 3 && (
+                                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-[7px] font-bold text-zinc-650 dark:bg-zinc-800 dark:text-zinc-450 ring-1 ring-white dark:ring-zinc-900 shrink-0">
+                                        +{task.assignees.length - 3}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : assigneeInitials ? (
                                   <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[8px] font-black text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300" title={task.assignee}>
                                     {assigneeInitials}
                                   </div>
@@ -1778,23 +1809,23 @@ export function ProjectsListView() {
                   <button
                     type="button"
                     onClick={() => setIsTeamDropdownOpen((prev) => !prev)}
-                    className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                  >
-                    <div className="flex flex-wrap gap-1.5 max-w-[90%] text-left">
+                    className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800">
+                      <div className="flex flex-wrap gap-1.5 max-w-[90%] text-left">
                       {selectedMembers.length === 0 ? (
                         <span className="text-zinc-400">Select team members...</span>
                       ) : (
-                        selectedMembers.map((initial) => {
-                          const user = availableUsers.find((u) => u.initial === initial);
+                        selectedMembers.map((name) => {
+                          const user = availableUsers.find((u) => u.name === name);
+                          const initial = user ? user.initial : (name[0]?.toUpperCase() || "");
                           return (
                             <span
-                              key={initial}
+                              key={name}
                               className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-500/20 dark:text-indigo-200"
                             >
                               <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-200/50 text-[7px] font-black text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
                                 {initial}
                               </span>
-                              {user ? user.name : initial}
+                              {name}
                             </span>
                           );
                         })
@@ -1802,7 +1833,7 @@ export function ProjectsListView() {
                     </div>
                     <ChevronDownIcon className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200 ${isTeamDropdownOpen ? "rotate-180" : ""}`} />
                   </button>
-
+ 
                   <AnimatePresence>
                     {isTeamDropdownOpen && (
                       <>
@@ -1818,12 +1849,12 @@ export function ProjectsListView() {
                           className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
                         >
                           {availableUsers.map((user) => {
-                            const isSelected = selectedMembers.includes(user.initial);
+                            const isSelected = selectedMembers.includes(user.name);
                             return (
                               <button
                                 key={user.name}
                                 type="button"
-                                onClick={() => toggleMemberSelection(user.initial)}
+                                onClick={() => toggleMemberSelection(user.name)}
                                 className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-semibold text-left transition-colors ${
                                   isSelected
                                     ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"

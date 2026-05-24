@@ -102,6 +102,34 @@ export function TeamSpaceView() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; name: string; initials: string; email: string } | null>(null);
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  // Refs for tracking values inside global realtime subscription
+  const activeChatRef = useRef<ChatTarget | null>(null);
+  const currentUserRef = useRef<{ id: string; name: string; initials: string; email: string } | null>(null);
+  const workspaceMembersRef = useRef<{ id: string; name: string; email: string; jobTitle?: string }[]>([]);
+
+  useEffect(() => {
+    activeChatRef.current = activeChat;
+  }, [activeChat]);
+
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
+  useEffect(() => {
+    workspaceMembersRef.current = workspaceMembers;
+  }, [workspaceMembers]);
+
+  // Clear unread counts for active chat
+  useEffect(() => {
+    if (activeChat?.id) {
+      setUnreadCounts((prev) => {
+        if (!prev[activeChat.id]) return prev;
+        return { ...prev, [activeChat.id]: 0 };
+      });
+    }
+  }, [activeChat?.id]);
 
   // Custom states for resolved workspace and side details drawer
   const [resolvedWorkspaceId, setResolvedWorkspaceId] = useState<number>(1);
@@ -350,11 +378,11 @@ export function TeamSpaceView() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, activeChat?.id]);
 
-  // Listen for real-time messages via Supabase
+  // Listen for real-time messages via Supabase globally
   useEffect(() => {
-    if (!activeChat?.id || !currentUser) return;
+    if (!currentUser?.id) return;
 
-    const channelName = `realtime-messages-${activeChat.id}`;
+    const channelName = "global-realtime-messages";
     
     const channel = supabase
       .channel(channelName)
@@ -367,36 +395,21 @@ export function TeamSpaceView() {
         },
         async (payload) => {
           const newMessage = payload.new;
+          const currUser = currentUserRef.current;
+          const actChat = activeChatRef.current;
+          const members = workspaceMembersRef.current;
 
-          // Check if this new message belongs to our currently active chat thread
-          if (activeChat.type === "channel" && newMessage.channelId === activeChat.id) {
-            // Avoid adding duplicates (e.g. messages we sent ourselves)
-            if (newMessage.senderId === currentUser.id) return;
-            
-            // Find sender details
-            const sender = workspaceMembers.find(m => m.id === newMessage.senderId);
-            const senderName = sender ? sender.name : "Teammate";
-            const initials = senderName.split(/\s+/).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
-            const timeString = new Date(newMessage.createdAt || new Date()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-            
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === newMessage.id)) return prev;
-              return [
-                ...prev,
-                {
-                  id: newMessage.id,
-                  user: senderName,
-                  initials,
-                  avatarColor: "",
-                  time: timeString,
-                  content: newMessage.content,
-                }
-              ];
-            });
-          } else if (activeChat.type === "dm") {
-            // For DMs, the sender must be the teammate we are chatting with
-            if (newMessage.senderId === activeChat.id && !newMessage.channelId) {
-              const senderName = activeChat.name;
+          if (!currUser) return;
+
+          // Avoid adding duplicates (e.g. messages we sent ourselves)
+          if (newMessage.senderId === currUser.id) return;
+
+          if (newMessage.channelId) {
+            // Check if this new message belongs to our currently active chat thread
+            if (actChat?.type === "channel" && newMessage.channelId === actChat.id) {
+              // Find sender details
+              const sender = members.find(m => m.id === newMessage.senderId);
+              const senderName = sender ? sender.name : "Teammate";
               const initials = senderName.split(/\s+/).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
               const timeString = new Date(newMessage.createdAt || new Date()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
               
@@ -414,6 +427,40 @@ export function TeamSpaceView() {
                   }
                 ];
               });
+            } else {
+              // Increment unread count for this channel
+              setUnreadCounts((prev) => ({
+                ...prev,
+                [newMessage.channelId]: (prev[newMessage.channelId] || 0) + 1,
+              }));
+            }
+          } else if (newMessage.conversationId) {
+            // For DMs, check if the sender is the teammate we are chatting with
+            if (actChat?.type === "dm" && newMessage.senderId === actChat.id) {
+              const senderName = actChat.name;
+              const initials = senderName.split(/\s+/).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+              const timeString = new Date(newMessage.createdAt || new Date()).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+              
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === newMessage.id)) return prev;
+                return [
+                  ...prev,
+                  {
+                    id: newMessage.id,
+                    user: senderName,
+                    initials,
+                    avatarColor: "",
+                    time: timeString,
+                    content: newMessage.content,
+                  }
+                ];
+              });
+            } else {
+              // Increment unread count for this DM sender
+              setUnreadCounts((prev) => ({
+                ...prev,
+                [newMessage.senderId]: (prev[newMessage.senderId] || 0) + 1,
+              }));
             }
           }
         }
@@ -423,7 +470,7 @@ export function TeamSpaceView() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [activeChat?.id, activeChat?.type, workspaceMembers, currentUser]);
+  }, [currentUser?.id]);
 
   async function handleSendMessage() {
     if (!draft.trim() || !currentUser || !activeChat) return;
@@ -833,7 +880,12 @@ export function TeamSpaceView() {
                       ) : (
                         <HashtagIcon className={`h-3.5 w-3.5 shrink-0 ${isActive ? "opacity-80" : "opacity-60"}`} />
                       )}
-                      <span className="truncate pr-6">{channel.name}</span>
+                      <span className="truncate">{channel.name}</span>
+                      {(unreadCounts[channel.id] || 0) > 0 && (
+                        <span className="ml-auto mr-5 shrink-0 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-teal-500 px-1 text-[10px] font-bold text-white dark:bg-teal-600">
+                          {unreadCounts[channel.id]}
+                        </span>
+                      )}
                     </button>
 
                     {/* Options Menu Trigger */}
@@ -942,6 +994,11 @@ export function TeamSpaceView() {
                         <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full border border-white bg-emerald-500 dark:border-[#1a1d21]" />
                       </span>
                       <span className="truncate">{dm.name}</span>
+                      {(unreadCounts[dm.id] || 0) > 0 && (
+                        <span className="ml-auto shrink-0 flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-teal-500 px-1 text-[10px] font-bold text-white dark:bg-teal-600">
+                          {unreadCounts[dm.id]}
+                        </span>
+                      )}
                     </button>
                   );
                 })

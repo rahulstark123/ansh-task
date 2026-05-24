@@ -27,6 +27,7 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
 import "react-phone-input-2/lib/style.css";
 import PhoneInput from "react-phone-input-2";
+import { AddTaskModal } from "@/components/tasks/AddTaskModal";
 
 type TaskMock = {
   id?: string;
@@ -40,6 +41,7 @@ type TaskMock = {
   estimate?: string | null;
   due?: string;
   assignee?: string | null;
+  assignees?: string[];
   status: "In Progress" | "Completed" | "Todo" | "Blocked";
   progress: number;
 };
@@ -394,13 +396,6 @@ export function TeamsManagementView() {
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
   
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskDesc, setNewTaskDesc] = useState("");
-  const [newTaskProjectId, setNewTaskProjectId] = useState("");
-  const [newTaskPriority, setNewTaskPriority] = useState("medium");
-  const [newTaskCategory, setNewTaskCategory] = useState("General");
-  const [newTaskLabels, setNewTaskLabels] = useState("");
-  const [newTaskDue, setNewTaskDue] = useState("");
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
 
@@ -426,6 +421,16 @@ export function TeamsManagementView() {
   const [editReportsTo, setEditReportsTo] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [showEditPassword, setShowEditPassword] = useState(false);
+
+  // Add Member Dropdown states
+  const [isAddRoleOpen, setIsAddRoleOpen] = useState(false);
+  const [isAddDeptOpen, setIsAddDeptOpen] = useState(false);
+  const [isAddReportsOpen, setIsAddReportsOpen] = useState(false);
+
+  // Edit Member Dropdown states
+  const [isEditRoleOpen, setIsEditRoleOpen] = useState(false);
+  const [isEditDeptOpen, setIsEditDeptOpen] = useState(false);
+  const [isEditReportsOpen, setIsEditReportsOpen] = useState(false);
 
   // Roles State
   const [availableRoles, setAvailableRoles] = useState<string[]>([
@@ -627,6 +632,59 @@ export function TeamsManagementView() {
     } catch (err) {
       showToast("An error occurred while removing team member.", "error");
       console.error("Error deleting member:", err);
+    }
+  };
+
+  const handleCreateTask = async (payload: import("@/types/task").NewTaskPayload) => {
+    if (!selectedMember) return;
+    setIsAddingTask(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const email = user?.email || "";
+      const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid") || "";
+
+      const res = await fetch("/api/project/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: payload.title.trim(),
+          projectId: payload.projectId || null,
+          workspaceId: activeWorkspaceId,
+          priority: payload.priority,
+          status: payload.status || "todo",
+          assignee: payload.assignees.length > 0 ? payload.assignees[0] : "Unassigned",
+          assignees: payload.assignees,
+          due: payload.dueLabel || "No date",
+          description: payload.description.trim() || null,
+          category: payload.category.trim() || "General",
+          labels: payload.labels || [],
+          attachmentUrls: payload.attachmentUrls || [],
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast("Task created and assigned successfully!", "success");
+        setIsTaskModalOpen(false);
+        
+        // Re-fetch team to get updated tasks list
+        const latestRes = await fetch(`/api/team?email=${encodeURIComponent(email)}` + (onboardingWid ? `&wid=${onboardingWid}` : ""));
+        const latestJson = await latestRes.json();
+        if (latestJson.success) {
+          const updatedMembers = latestJson.members.map(mapDbUserToMember);
+          setMembers(updatedMembers);
+          const updatedSelected = updatedMembers.find((m: any) => m.id === selectedMember.id);
+          if (updatedSelected) {
+            setSelectedMember(updatedSelected);
+          }
+        }
+      } else {
+        showToast(json.error || "Failed to add task", "error");
+      }
+    } catch (err) {
+      console.error("Error adding member task:", err);
+      showToast("Error adding task.", "error");
+    } finally {
+      setIsAddingTask(false);
     }
   };
 
@@ -1129,13 +1187,32 @@ export function TeamsManagementView() {
                                 )}
                               </div>
 
-                              {/* Assignee Avatar */}
-                              <div 
-                                className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold tracking-wider ring-1 ring-black/5 dark:ring-white/10 ${getAvatarBgColor(task.assignee || selectedMember.name)} text-white`}
-                                title={task.assignee || selectedMember.name}
-                              >
-                                {getAvatarInitials(task.assignee || selectedMember.name)}
-                              </div>
+                              {/* Assignee Avatar / Avatars Group */}
+                              {task.assignees && task.assignees.length > 0 ? (
+                                <div className="flex -space-x-1.5 overflow-hidden">
+                                  {task.assignees.slice(0, 3).map((a) => (
+                                    <div 
+                                      key={a}
+                                      className={`flex h-5 w-5 items-center justify-center rounded-full text-[8px] font-bold tracking-wider ring-1 ring-white dark:ring-zinc-900 ${getAvatarBgColor(a)} text-white shrink-0`}
+                                      title={a}
+                                    >
+                                      {getAvatarInitials(a)}
+                                    </div>
+                                  ))}
+                                  {task.assignees.length > 3 && (
+                                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-[8px] font-bold text-zinc-650 dark:bg-zinc-800 dark:text-zinc-450 ring-1 ring-white dark:ring-zinc-900 shrink-0">
+                                      +{task.assignees.length - 3}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div 
+                                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold tracking-wider ring-1 ring-black/5 dark:ring-white/10 ${getAvatarBgColor(task.assignee || selectedMember.name)} text-white`}
+                                  title={task.assignee || selectedMember.name}
+                                >
+                                  {getAvatarInitials(task.assignee || selectedMember.name)}
+                                </div>
+                              )}
                             </div>
                           </div>
                         ))
@@ -1338,18 +1415,50 @@ export function TeamsManagementView() {
                     ) : (
                       <>
                         <div className="relative flex-1">
-                          <select
-                            value={role}
-                            onChange={(e) => setRole(e.target.value)}
-                            className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-4 pr-10 py-3 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                          <button
+                            type="button"
+                            onClick={() => setIsAddRoleOpen(!isAddRoleOpen)}
+                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                           >
-                            {availableRoles.map((r) => (
-                              <option key={r} value={r}>
-                                {r}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-zinc-400" />
+                            <span>{role}</span>
+                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isAddRoleOpen ? "rotate-180" : ""}`} />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isAddRoleOpen && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setIsAddRoleOpen(false)} />
+                                <motion.div
+                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                                >
+                                  {availableRoles.map((r) => {
+                                    const isSelected = role === r;
+                                    return (
+                                      <button
+                                        key={r}
+                                        type="button"
+                                        onClick={() => {
+                                          setRole(r);
+                                          setIsAddRoleOpen(false);
+                                        }}
+                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                          isSelected
+                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                        }`}
+                                      >
+                                        <span>{r}</span>
+                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                      </button>
+                                    );
+                                  })}
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
                         </div>
                         
                         <button
@@ -1405,18 +1514,50 @@ export function TeamsManagementView() {
                     ) : (
                       <>
                         <div className="relative flex-1">
-                          <select
-                            value={dept}
-                            onChange={(e) => setDept(e.target.value)}
-                            className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-4 pr-10 py-3 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                          <button
+                            type="button"
+                            onClick={() => setIsAddDeptOpen(!isAddDeptOpen)}
+                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                           >
-                            {availableDepts.map((d) => (
-                              <option key={d} value={d}>
-                                {d}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-zinc-400" />
+                            <span>{dept}</span>
+                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isAddDeptOpen ? "rotate-180" : ""}`} />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isAddDeptOpen && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setIsAddDeptOpen(false)} />
+                                <motion.div
+                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                                >
+                                  {availableDepts.map((d) => {
+                                    const isSelected = dept === d;
+                                    return (
+                                      <button
+                                        key={d}
+                                        type="button"
+                                        onClick={() => {
+                                          setDept(d);
+                                          setIsAddDeptOpen(false);
+                                        }}
+                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                          isSelected
+                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                        }`}
+                                      >
+                                        <span>{d}</span>
+                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                      </button>
+                                    );
+                                  })}
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
                         </div>
                         
                         <button
@@ -1438,19 +1579,68 @@ export function TeamsManagementView() {
                     Reports To
                   </label>
                   <div className="relative mt-2">
-                    <select
-                      value={reportsTo}
-                      onChange={(e) => setReportsTo(e.target.value)}
-                      className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-4 pr-10 py-3 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/55 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  <div className="relative mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddReportsOpen(!isAddReportsOpen)}
+                      className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/55 dark:text-zinc-300 dark:hover:bg-zinc-800"
                     >
-                      <option value="None">None (Direct / Exec)</option>
-                      {members.map((m) => (
-                        <option key={m.id} value={m.name}>
-                          {m.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-zinc-400" />
+                      <span>{reportsTo === "None" ? "None (Direct / Exec)" : reportsTo}</span>
+                      <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isAddReportsOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    
+                    <AnimatePresence>
+                      {isAddReportsOpen && (
+                        <>
+                          <div className="fixed inset-0 z-30" onClick={() => setIsAddReportsOpen(false)} />
+                          <motion.div
+                            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                            className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReportsTo("None");
+                                setIsAddReportsOpen(false);
+                              }}
+                              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                reportsTo === "None"
+                                  ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                  : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                              }`}
+                            >
+                              <span>None (Direct / Exec)</span>
+                              {reportsTo === "None" && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                            </button>
+                            
+                            {members.map((m) => {
+                              const isSelected = reportsTo === m.name;
+                              return (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setReportsTo(m.name);
+                                    setIsAddReportsOpen(false);
+                                  }}
+                                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                    isSelected
+                                      ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                      : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                  }`}
+                                >
+                                  <span>{m.name}</span>
+                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                </button>
+                              );
+                            })}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
                   </div>
                 </div>
 
@@ -1640,18 +1830,50 @@ export function TeamsManagementView() {
                     ) : (
                       <>
                         <div className="relative flex-1">
-                          <select
-                            value={editRole}
-                            onChange={(e) => setEditRole(e.target.value)}
-                            className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-4 pr-10 py-3 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                          <button
+                            type="button"
+                            onClick={() => setIsEditRoleOpen(!isEditRoleOpen)}
+                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                           >
-                            {availableRoles.map((r) => (
-                              <option key={r} value={r}>
-                                {r}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-zinc-400" />
+                            <span>{editRole}</span>
+                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isEditRoleOpen ? "rotate-180" : ""}`} />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isEditRoleOpen && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setIsEditRoleOpen(false)} />
+                                <motion.div
+                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                                >
+                                  {availableRoles.map((r) => {
+                                    const isSelected = editRole === r;
+                                    return (
+                                      <button
+                                        key={r}
+                                        type="button"
+                                        onClick={() => {
+                                          setEditRole(r);
+                                          setIsEditRoleOpen(false);
+                                        }}
+                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                          isSelected
+                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                        }`}
+                                      >
+                                        <span>{r}</span>
+                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                      </button>
+                                    );
+                                  })}
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
                         </div>
                         
                         <button
@@ -1707,18 +1929,50 @@ export function TeamsManagementView() {
                     ) : (
                       <>
                         <div className="relative flex-1">
-                          <select
-                            value={editDept}
-                            onChange={(e) => setEditDept(e.target.value)}
-                            className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-4 pr-10 py-3 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                          <button
+                            type="button"
+                            onClick={() => setIsEditDeptOpen(!isEditDeptOpen)}
+                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                           >
-                            {availableDepts.map((d) => (
-                              <option key={d} value={d}>
-                                {d}
-                              </option>
-                            ))}
-                          </select>
-                          <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-zinc-400" />
+                            <span>{editDept}</span>
+                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isEditDeptOpen ? "rotate-180" : ""}`} />
+                          </button>
+                          
+                          <AnimatePresence>
+                            {isEditDeptOpen && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setIsEditDeptOpen(false)} />
+                                <motion.div
+                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                                >
+                                  {availableDepts.map((d) => {
+                                    const isSelected = editDept === d;
+                                    return (
+                                      <button
+                                        key={d}
+                                        type="button"
+                                        onClick={() => {
+                                          setEditDept(d);
+                                          setIsEditDeptOpen(false);
+                                        }}
+                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                          isSelected
+                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                        }`}
+                                      >
+                                        <span>{d}</span>
+                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                      </button>
+                                    );
+                                  })}
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
                         </div>
                         
                         <button
@@ -1740,21 +1994,70 @@ export function TeamsManagementView() {
                     Reports To
                   </label>
                   <div className="relative mt-2">
-                    <select
-                      value={editReportsTo}
-                      onChange={(e) => setEditReportsTo(e.target.value)}
-                      className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-white pl-4 pr-10 py-3 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/55 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  <div className="relative mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditReportsOpen(!isEditReportsOpen)}
+                      className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/55 dark:text-zinc-300 dark:hover:bg-zinc-800"
                     >
-                      <option value="None">None (Direct / Exec)</option>
-                      {members
-                        .filter((m) => m.id !== editingMember.id)
-                        .map((m) => (
-                          <option key={m.id} value={m.name}>
-                            {m.name}
-                          </option>
-                        ))}
-                    </select>
-                    <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-zinc-400" />
+                      <span>{editReportsTo === "None" ? "None (Direct / Exec)" : editReportsTo}</span>
+                      <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isEditReportsOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    
+                    <AnimatePresence>
+                      {isEditReportsOpen && (
+                        <>
+                          <div className="fixed inset-0 z-30" onClick={() => setIsEditReportsOpen(false)} />
+                          <motion.div
+                            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                            className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditReportsTo("None");
+                                setIsEditReportsOpen(false);
+                              }}
+                              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                editReportsTo === "None"
+                                  ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                  : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                              }`}
+                            >
+                              <span>None (Direct / Exec)</span>
+                              {editReportsTo === "None" && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                            </button>
+                            
+                            {members
+                              .filter((m) => m.id !== editingMember.id)
+                              .map((m) => {
+                                const isSelected = editReportsTo === m.name;
+                                return (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setEditReportsTo(m.name);
+                                      setIsEditReportsOpen(false);
+                                    }}
+                                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                      isSelected
+                                        ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                        : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                    }`}
+                                  >
+                                    <span>{m.name}</span>
+                                    {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                  </button>
+                                );
+                              })}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
+                  </div>
                   </div>
                 </div>
 
@@ -1841,286 +2144,13 @@ export function TeamsManagementView() {
         )}
       </AnimatePresence>
 
-      {/* ADD TASK TO MEMBER MODAL */}
-      <AnimatePresence>
-        {isTaskModalOpen && selectedMember && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setIsTaskModalOpen(false);
-                // Reset form values
-                setNewTaskTitle("");
-                setNewTaskDesc("");
-                setNewTaskProjectId("");
-                setNewTaskPriority("medium");
-                setNewTaskCategory("General");
-                setNewTaskLabels("");
-                setNewTaskDue("");
-              }}
-              className="fixed inset-0 z-50 bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
-            />
-
-            {/* Modal Dialog */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="fixed inset-0 z-50 m-auto flex h-fit w-full max-w-[480px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418]"
-            >
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-white/5 shrink-0">
-                <div className="flex items-center gap-2">
-                  <ClipboardDocumentCheckIcon className="h-5 w-5 text-teal-500" />
-                  <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
-                    Add Task for {selectedMember.name}
-                  </h3>
-                </div>
-                <button
-                  onClick={() => {
-                    setIsTaskModalOpen(false);
-                    // Reset form values
-                    setNewTaskTitle("");
-                    setNewTaskDesc("");
-                    setNewTaskProjectId("");
-                    setNewTaskPriority("medium");
-                    setNewTaskCategory("General");
-                    setNewTaskLabels("");
-                    setNewTaskDue("");
-                  }}
-                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
-              </div>
-
-              <form
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  if (!newTaskTitle.trim() || !selectedMember) return;
-                  setIsAddingTask(true);
-                  try {
-                    const { data: { user } } = await supabase.auth.getUser();
-                    const email = user?.email || "";
-                    const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid") || "";
-
-                    const res = await fetch("/api/project/tasks", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        title: newTaskTitle.trim(),
-                        projectId: newTaskProjectId || null,
-                        workspaceId: activeWorkspaceId,
-                        priority: newTaskPriority,
-                        status: "todo",
-                        assignee: selectedMember.name,
-                        due: newTaskDue || "No date",
-                        description: newTaskDesc.trim() || null,
-                        category: newTaskCategory.trim() || "General",
-                        labels: newTaskLabels.trim() ? newTaskLabels.split(",").map(s => s.trim()).filter(Boolean) : [],
-                      }),
-                    });
-                    const json = await res.json();
-                    if (json.success) {
-                      showToast(`Task created and assigned successfully!`, "success");
-                      // Reset values
-                      setNewTaskTitle("");
-                      setNewTaskDesc("");
-                      setNewTaskProjectId("");
-                      setNewTaskPriority("medium");
-                      setNewTaskCategory("General");
-                      setNewTaskLabels("");
-                      setNewTaskDue("");
-                      setIsTaskModalOpen(false);
-                      
-                      // Re-fetch team to get the updated tasks list
-                      const latestRes = await fetch(`/api/team?email=${encodeURIComponent(email)}` + (onboardingWid ? `&wid=${onboardingWid}` : ""));
-                      const latestJson = await latestRes.json();
-                      if (latestJson.success) {
-                        const updatedMembers = latestJson.members.map(mapDbUserToMember);
-                        setMembers(updatedMembers);
-                        const updatedSelected = updatedMembers.find((m: any) => m.id === selectedMember.id);
-                        if (updatedSelected) {
-                          setSelectedMember(updatedSelected);
-                        }
-                      }
-                    } else {
-                      showToast(json.error || "Failed to add task", "error");
-                    }
-                  } catch (err) {
-                    console.error("Error adding member task:", err);
-                    showToast("Error adding task.", "error");
-                  } finally {
-                    setIsAddingTask(false);
-                  }
-                }}
-                className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-1 scrollbar-thin"
-              >
-                {/* Title */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
-                    Task Title *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={80}
-                    value={newTaskTitle}
-                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                    placeholder="e.g. Review product specifications"
-                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                    disabled={isAddingTask}
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    rows={3}
-                    maxLength={300}
-                    value={newTaskDesc}
-                    onChange={(e) => setNewTaskDesc(e.target.value)}
-                    placeholder="Provide details about this task..."
-                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 resize-none leading-relaxed"
-                    disabled={isAddingTask}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Project Selector */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
-                      Linked Project
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={newTaskProjectId}
-                        onChange={(e) => setNewTaskProjectId(e.target.value)}
-                        className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-zinc-50 pl-3.5 pr-10 py-2.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                        disabled={isAddingTask}
-                      >
-                        <option value="">No Project</option>
-                        {projects.map((proj) => (
-                          <option key={proj.id} value={proj.id}>
-                            {proj.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                    </div>
-                  </div>
-
-                  {/* Priority */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
-                      Task Priority
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={newTaskPriority}
-                        onChange={(e) => setNewTaskPriority(e.target.value)}
-                        className="w-full cursor-pointer appearance-none rounded-xl border border-zinc-200 bg-zinc-50 pl-3.5 pr-10 py-2.5 text-xs font-semibold text-zinc-700 outline-none hover:bg-zinc-100 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                        disabled={isAddingTask}
-                      >
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
-                      </select>
-                      <ChevronDownIcon className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Category */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
-                      Category
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={30}
-                      value={newTaskCategory}
-                      onChange={(e) => setNewTaskCategory(e.target.value)}
-                      placeholder="e.g. Engineering"
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                      disabled={isAddingTask}
-                    />
-                  </div>
-
-
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Due Date */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
-                      Due Date Label
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={30}
-                      value={newTaskDue}
-                      onChange={(e) => setNewTaskDue(e.target.value)}
-                      placeholder="e.g. Tomorrow"
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                      disabled={isAddingTask}
-                    />
-                  </div>
-
-                  {/* Labels */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
-                      Labels (comma-separated)
-                    </label>
-                    <input
-                      type="text"
-                      value={newTaskLabels}
-                      onChange={(e) => setNewTaskLabels(e.target.value)}
-                      placeholder="e.g. Bug, Design"
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-xs font-semibold text-zinc-800 outline-none transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-                      disabled={isAddingTask}
-                    />
-                  </div>
-                </div>
-
-                {/* Form Buttons */}
-                <div className="flex gap-3 pt-4 border-t border-zinc-100 dark:border-white/5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsTaskModalOpen(false);
-                      // Reset form values
-                      setNewTaskTitle("");
-                      setNewTaskDesc("");
-                      setNewTaskProjectId("");
-                      setNewTaskPriority("medium");
-                      setNewTaskCategory("General");
-                      setNewTaskLabels("");
-                      setNewTaskDue("");
-                    }}
-                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-650 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isAddingTask || !newTaskTitle.trim()}
-                    className="flex-1 rounded-xl bg-teal-500 py-3 text-xs font-bold text-white shadow-md hover:bg-teal-650 active:scale-98 transition-all disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    {isAddingTask ? "Creating..." : "Create Task"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <AddTaskModal
+        open={isTaskModalOpen}
+        onClose={() => setIsTaskModalOpen(false)}
+        onCreate={handleCreateTask}
+        assignees={members.map((m) => m.name)}
+        defaultAssignee={selectedMember?.name}
+      />
 
     </div>
   );

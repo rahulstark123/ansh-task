@@ -232,6 +232,112 @@ function StyledDropdown({
   );
 }
 
+function StyledMultiDropdown({
+  value,
+  onChange,
+  options,
+  placeholder = "Select…",
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  options: DropdownOption[];
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleToggle = (optValue: string) => {
+    if (optValue === "Unassigned") {
+      onChange([]);
+      return;
+    }
+    const newValue = value.includes(optValue)
+      ? value.filter((v) => v !== optValue)
+      : [...value.filter((v) => v !== "Unassigned"), optValue];
+    onChange(newValue);
+  };
+
+  const displayLabel =
+    value.length === 0
+      ? "Unassigned"
+      : value.length === 1
+      ? value[0]
+      : `${value.length} assignees`;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((p) => !p)}
+        className="flex h-9 w-full items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-700 outline-none transition-all hover:border-zinc-300 hover:bg-zinc-50 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:border-white/20 dark:hover:bg-zinc-900"
+      >
+        <div className="flex items-center gap-2 truncate">
+          <UserIcon className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
+          <span className="truncate">{displayLabel}</span>
+        </div>
+        <ChevronDownIcon
+          className={`h-3.5 w-3.5 shrink-0 text-zinc-400 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -4, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -4, scale: 0.97 }}
+            transition={{ duration: 0.11 }}
+            className="absolute left-0 right-0 z-50 mt-1 max-h-52 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1 shadow-xl scrollbar-thin dark:border-white/10 dark:bg-zinc-900"
+          >
+            {options.map((opt) => {
+              const isSelected =
+                opt.value === "Unassigned"
+                  ? value.length === 0
+                  : value.includes(opt.value);
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleToggle(opt.value)}
+                  className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                    isSelected
+                      ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300"
+                      : "text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800/60"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    {opt.dot && (
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-full ${opt.dot}`}
+                      />
+                    )}
+                    {opt.icon && (
+                      <span className="shrink-0 text-zinc-450">{opt.icon}</span>
+                    )}
+                    <span className="truncate">{opt.label}</span>
+                  </div>
+                  {isSelected && (
+                    <CheckIcon className="h-3.5 w-3.5 shrink-0 stroke-[2.5] text-indigo-500" />
+                  )}
+                </button>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /* ─── types ──────────────────────────────────────────────── */
 
 type AddTaskModalProps = {
@@ -243,6 +349,9 @@ type AddTaskModalProps = {
   defaultProjectId?: string | null;
   /** Pre-selected status */
   defaultStatus?: TaskStatus | null;
+  /** Pre-selected assignee */
+  defaultAssignee?: string | null;
+  defaultAssignees?: string[];
 };
 
 /* ─── main component ─────────────────────────────────────── */
@@ -254,6 +363,8 @@ export function AddTaskModal({
   assignees,
   defaultProjectId,
   defaultStatus: defaultStatusProp,
+  defaultAssignee,
+  defaultAssignees,
 }: AddTaskModalProps) {
   const titleId = useId();
 
@@ -277,7 +388,9 @@ export function AddTaskModal({
   const [dueMode, setDueMode] = useState<"none" | "date">("none");
   const [dueDate, setDueDate] = useState("");
   const [labels, setLabels] = useState<string[]>([]);
-  const [assignee, setAssignee] = useState<string>("Unassigned");
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>(
+    defaultAssignees ?? (defaultAssignee ? [defaultAssignee] : [])
+  );
   const [attachments, setAttachments] = useState<{ name: string; size: number; dataUrl: string }[]>([]);
   const attachInputRef = useRef<HTMLInputElement>(null);
 
@@ -320,8 +433,9 @@ export function AddTaskModal({
       setPriorityKey(pKey);
       setStatus(defaultStatusProp || (defaultStatus as TaskStatus) || "todo");
       setLabels(defaultLabels || []);
+      setSelectedAssignees(defaultAssignees ?? (defaultAssignee ? [defaultAssignee] : []));
     }
-  }, [open, defaultPriority, defaultStatus, defaultCategory, defaultLabels, defaultStatusProp]);
+  }, [open, defaultPriority, defaultStatus, defaultCategory, defaultLabels, defaultStatusProp, defaultAssignee, defaultAssignees]);
 
   // Sync defaultProjectId when it changes
   useEffect(() => {
@@ -379,7 +493,7 @@ export function AddTaskModal({
       status,
       dueLabel: computedDueLabel(),
       labels,
-      assignee,
+      assignees: selectedAssignees,
       projectId: projectId === "__none__" ? null : projectId,
       attachmentUrls: attachments.map((a) => a.dataUrl),
     });
@@ -393,7 +507,7 @@ export function AddTaskModal({
     setDueMode("none");
     setDueDate("");
     setLabels(defaultLabels || []);
-    setAssignee("Unassigned");
+    setSelectedAssignees(defaultAssignees ?? (defaultAssignee ? [defaultAssignee] : []));
     setProjectId(defaultProjectId ?? "__none__");
     setAttachments([]);
     onClose();
@@ -753,9 +867,9 @@ export function AddTaskModal({
                     <UserIcon className="h-3.5 w-3.5" />
                     Assignee
                   </label>
-                  <StyledDropdown
-                    value={assignee}
-                    onChange={setAssignee}
+                  <StyledMultiDropdown
+                    value={selectedAssignees}
+                    onChange={setSelectedAssignees}
                     options={assigneeOptions}
                     placeholder="Unassigned"
                   />
