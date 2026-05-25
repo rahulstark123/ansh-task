@@ -4,6 +4,19 @@ import { supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
+const FIXED_TEAM_ROLES = ["Admin", "Editor", "Observer"] as const;
+
+function normalizeRole(role: unknown): "admin" | "editor" | "observer" {
+  const value = typeof role === "string" ? role.trim().toLowerCase() : "";
+  if (value === "admin") return "admin";
+  if (value === "observer") return "observer";
+  return "editor";
+}
+
+function toRoleLabel(role: "admin" | "editor" | "observer") {
+  return role === "admin" ? "Admin" : role === "observer" ? "Observer" : "Editor";
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -55,11 +68,13 @@ export async function GET(request: Request) {
       }),
     ]);
 
-    const defaultRoles = ["Admin", "Manager", "Team Member", "Observer"];
+    const defaultRoles = [...FIXED_TEAM_ROLES];
     const defaultDepts = ["Engineering", "Product", "Design", "Sales", "Marketing"];
 
     // Optimistically check if defaults are missing to avoid unnecessary DB writes
-    const missingRoles = defaultRoles.filter((r) => !dbRoles.some((role) => role.name === r));
+    const missingRoles = defaultRoles.filter(
+      (r) => !dbRoles.some((role) => role.name.toLowerCase() === r.toLowerCase())
+    );
     const missingDepts = defaultDepts.filter((d) => !dbDepts.some((dept) => dept.name === d));
 
     if (missingRoles.length > 0 || missingDepts.length > 0) {
@@ -133,7 +148,9 @@ export async function GET(request: Request) {
     return NextResponse.json({
       success: true,
       members: membersWithTasks,
-      roles: dbRoles.map((r) => r.name),
+      roles: FIXED_TEAM_ROLES.filter((fixedRole) =>
+        dbRoles.some((r) => r.name.toLowerCase() === fixedRole.toLowerCase())
+      ),
       departments: dbDepts.map((d) => d.name),
       workspaceId,
     });
@@ -149,17 +166,19 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email, role, dept, reportsTo, password, phone, workspaceId } = body;
-
+    const { name, email, role, designation, dept, reportsTo, password, phone, workspaceId } = body;
+    const safeRole = normalizeRole(role);
+    const safeRoleLabel = toRoleLabel(safeRole);
+ 
     if (!email || !name) {
       return NextResponse.json(
         { success: false, error: "Name and Email are required fields" },
         { status: 400 }
       );
     }
-
+ 
     const wid = workspaceId ? parseInt(workspaceId, 10) : 1;
-
+ 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { email },
@@ -170,16 +189,14 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
+ 
     // Upsert role and department in parallel to save a DB roundtrip
     await Promise.all([
-      role
-        ? prisma.workspaceRole.upsert({
-            where: { workspaceId_name: { workspaceId: wid, name: role } },
-            create: { workspaceId: wid, name: role },
-            update: {},
-          })
-        : Promise.resolve(),
+      prisma.workspaceRole.upsert({
+        where: { workspaceId_name: { workspaceId: wid, name: safeRoleLabel } },
+        create: { workspaceId: wid, name: safeRoleLabel },
+        update: {},
+      }),
       dept
         ? prisma.workspaceDepartment.upsert({
             where: { workspaceId_name: { workspaceId: wid, name: dept } },
@@ -188,11 +205,11 @@ export async function POST(request: Request) {
           })
         : Promise.resolve(),
     ]);
-
+ 
     const nameParts = name.trim().split(/\s+/);
     const firstName = nameParts[0] || "";
     const lastName = nameParts.slice(1).join(" ") || "";
-
+ 
     let supabaseUserId: string | undefined = undefined;
     if (password) {
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -215,7 +232,7 @@ export async function POST(request: Request) {
         supabaseUserId = authData.user.id;
       }
     }
-
+ 
     const newUser = await prisma.user.create({
       data: {
         id: supabaseUserId || undefined,
@@ -224,13 +241,15 @@ export async function POST(request: Request) {
         phone: phone || null,
         firstName,
         lastName,
-        jobTitle: role || "Member",
+        jobTitle: designation || "Member",
+        designation: designation || "Member",
+        role: safeRole,
         department: dept || "Engineering",
         reportsTo: reportsTo || "None",
         workspaceId: wid,
       },
     });
-
+ 
     return NextResponse.json({
       success: true,
       message: "Team member added successfully",
@@ -244,27 +263,29 @@ export async function POST(request: Request) {
     );
   }
 }
-
+ 
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, name, email, role, dept, reportsTo, password, phone, workspaceId } = body;
-
+    const { id, name, email, role, designation, dept, reportsTo, password, phone, workspaceId } = body;
+    const safeRole = role !== undefined ? normalizeRole(role) : undefined;
+    const safeRoleLabel = safeRole ? toRoleLabel(safeRole) : null;
+ 
     if (!id) {
       return NextResponse.json(
         { success: false, error: "Member ID is required for update" },
         { status: 400 }
       );
     }
-
+ 
     const wid = workspaceId ? parseInt(workspaceId, 10) : 1;
-
+ 
     // Upsert role and department in parallel to save a DB roundtrip
     await Promise.all([
-      role
+      safeRoleLabel
         ? prisma.workspaceRole.upsert({
-            where: { workspaceId_name: { workspaceId: wid, name: role } },
-            create: { workspaceId: wid, name: role },
+            where: { workspaceId_name: { workspaceId: wid, name: safeRoleLabel } },
+            create: { workspaceId: wid, name: safeRoleLabel },
             update: {},
           })
         : Promise.resolve(),
@@ -276,25 +297,27 @@ export async function PATCH(request: Request) {
           })
         : Promise.resolve(),
     ]);
-
+ 
     const nameParts = name ? name.trim().split(/\s+/) : [];
     const firstName = nameParts[0] || undefined;
     const lastName = nameParts.length > 1 ? nameParts.slice(1).join(" ") : undefined;
-
+ 
     const updatedUser = await prisma.user.update({
       where: { id },
       data: {
         email: email || undefined,
         firstName,
         lastName,
-        jobTitle: role || undefined,
+        jobTitle: designation !== undefined ? designation : undefined,
+        designation: designation !== undefined ? designation : undefined,
+        role: safeRole,
         department: dept || undefined,
         reportsTo: reportsTo || undefined,
         password: password || undefined,
         phone: phone !== undefined ? phone : undefined,
       },
     });
-
+ 
     return NextResponse.json({
       success: true,
       message: "Team member updated successfully",

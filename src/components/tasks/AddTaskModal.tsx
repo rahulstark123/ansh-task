@@ -13,6 +13,7 @@ import {
   ExclamationCircleIcon,
   PaperClipIcon,
   TrashIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useRef, useState, useMemo } from "react";
@@ -391,6 +392,8 @@ export function AddTaskModal({
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>(
     defaultAssignees ?? (defaultAssignee ? [defaultAssignee] : [])
   );
+  const [designation, setDesignation] = useState<string>('');
+  const [role, setRole] = useState<string>('');
   const [attachments, setAttachments] = useState<{ name: string; size: number; dataUrl: string }[]>([]);
   const attachInputRef = useRef<HTMLInputElement>(null);
 
@@ -494,6 +497,8 @@ export function AddTaskModal({
       dueLabel: computedDueLabel(),
       labels,
       assignees: selectedAssignees,
+      designation,
+      role,
       projectId: projectId === "__none__" ? null : projectId,
       attachmentUrls: attachments.map((a) => a.dataUrl),
     });

@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       });
 
       // Seed default workspace roles
-      const defaultRoles = ["Admin", "Manager", "Team Member", "Observer"];
+      const defaultRoles = ["Admin", "Editor", "Observer"];
       await tx.workspaceRole.createMany({
         data: defaultRoles.map((r) => ({ name: r, workspaceId: createdWorkspace.id })),
         skipDuplicates: true,
@@ -58,6 +58,8 @@ export async function POST(request: Request) {
           firstName: user.firstName,
           lastName: user.lastName,
           jobTitle: user.jobTitle,
+          designation: user.jobTitle,
+          role: "owner",
           department: user.department,
           avatar: user.avatar,
           workspaceId: createdWorkspace.id,

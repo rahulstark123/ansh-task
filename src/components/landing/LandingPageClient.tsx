@@ -79,10 +79,12 @@ export function LandingPageClient() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-20">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-md shadow-teal-900/10 group-hover:scale-105 transition-transform duration-200">
-              <CheckCircleIcon className="h-6 w-6" />
-            </div>
+          <Link href="/" className="flex items-center gap-0.5 group">
+            <img 
+              src="/logoAnshapps.png" 
+              alt="ANSH Logo" 
+              className="h-10 w-10 shrink-0 object-contain group-hover:scale-105 transition-transform duration-200 -mr-1.5" 
+            />
             <span className="font-heading text-xl font-bold tracking-tight bg-gradient-to-r from-zinc-900 to-zinc-700 bg-clip-text text-transparent dark:from-zinc-50 dark:to-zinc-300">
               ANSH Task
             </span>
@@ -751,14 +753,15 @@ export function LandingPageClient() {
       <section className="bg-zinc-50 dark:bg-zinc-950 pt-16 pb-8 overflow-hidden relative z-10 border-t border-zinc-200/60 dark:border-zinc-800/40">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center gap-4 text-center">
           {/* Handled by placeholder logo */}
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
+          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
             <span>Handled by</span>
-            <div className="inline-flex items-center gap-1.5 rounded-lg bg-teal-500/10 text-teal-700 dark:text-teal-400 text-[10px] font-bold px-2.5 py-1 border border-teal-500/20 tracking-normal normal-case">
-              <SparklesIcon className="h-3.5 w-3.5" />
-              <span>[Logo Placeholder]</span>
-            </div>
+            <img 
+              src="/logoAnshapps.png" 
+              alt="ANSH Logo" 
+              className="h-8 w-8 shrink-0 object-contain -ml-1" 
+            />
           </div>
-          <h2 className="font-heading text-[10vw] sm:text-[12vw] font-black tracking-tighter leading-none select-none bg-gradient-to-r from-[#00c6ff] via-[#7000ff] to-[#e040fb] bg-clip-text text-transparent">
+          <h2 className="font-heading text-[10vw] sm:text-[12vw] font-black tracking-tighter leading-none select-none bg-gradient-to-r from-[#00c6ff] via-[#7000ff] to-[#e040fb] bg-clip-text text-transparent pr-4">
             Ansh Apps
           </h2>
         </div>
@@ -771,10 +774,12 @@ export function LandingPageClient() {
 
             {/* Brand */}
             <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-teal-600 text-white">
-                  <CheckCircleIcon className="h-5 w-5" />
-                </div>
+              <div className="flex items-center gap-0.5">
+                <img 
+                  src="/logoAnshapps.png" 
+                  alt="ANSH Logo" 
+                  className="h-8 w-8 shrink-0 object-contain -mr-1" 
+                />
                 <span className="font-heading text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
                   ANSH Task
                 </span>

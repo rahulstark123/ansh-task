@@ -12,7 +12,7 @@ export default function SettingsLayout({
   const isDefaultsPage = pathname?.startsWith("/settings/defaults");
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-8 px-6 py-10 lg:flex-row lg:px-10">
+    <div className="mx-auto flex max-w-[1600px] w-full flex-col gap-8 px-6 py-10 lg:flex-row lg:px-10">
       {!isDefaultsPage && <SettingsSideNav />}
       <div className="min-w-0 flex-1">{children}</div>
     </div>

@@ -6,6 +6,8 @@ import {
   FunnelIcon,
   XMarkIcon,
   ChevronDownIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   TrashIcon,
   TagIcon,
   CalendarIcon,
@@ -428,8 +430,84 @@ export function TaskDashboard({
     labels: defaultLabels,
     customCategories,
     customLabels,
+    kanbanColumnOrder,
     fetchDefaults,
+    updateDefaults,
   } = useWorkspaceDefaultsStore();
+
+  const currentColumnOrder = kanbanColumnOrder && kanbanColumnOrder.length > 0
+    ? kanbanColumnOrder
+    : ["todo", "in_progress", "on_hold", "blocked", "done"];
+
+  // Helper function to resolve column properties dynamically
+  function getColumnDetails(statusId: string, index: number) {
+    const staticCol = COLUMNS.find(c => c.id === statusId);
+    if (staticCol) return staticCol;
+
+    // Custom status formatting
+    const label = statusId
+      .replace(/[_-]/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+    // Cycle colors/styles for custom columns
+    const bgColors = [
+      "bg-indigo-50/40 dark:bg-indigo-950/10",
+      "bg-purple-50/40 dark:bg-purple-950/10",
+      "bg-fuchsia-50/40 dark:bg-fuchsia-950/10",
+      "bg-cyan-50/40 dark:bg-cyan-950/10",
+    ];
+    const borderColors = [
+      "border-indigo-100",
+      "border-purple-100",
+      "border-fuchsia-100",
+      "border-cyan-100",
+    ];
+    const darkBorderColors = [
+      "dark:border-indigo-900/20",
+      "dark:border-purple-900/20",
+      "dark:border-fuchsia-900/20",
+      "dark:border-cyan-900/20",
+    ];
+    const dotColors = [
+      "bg-indigo-500",
+      "bg-purple-500",
+      "bg-fuchsia-500",
+      "bg-cyan-500",
+    ];
+
+    const styleIndex = index % bgColors.length;
+
+    return {
+      id: statusId,
+      label,
+      bg: bgColors[styleIndex],
+      dot: dotColors[styleIndex],
+      border: borderColors[styleIndex],
+      darkBorder: darkBorderColors[styleIndex],
+    };
+  }
+
+  const dynamicColumns = currentColumnOrder.map((statusId, idx) => getColumnDetails(statusId, idx));
+
+  async function moveColumn(colId: string, direction: "left" | "right") {
+    const fromIndex = currentColumnOrder.indexOf(colId);
+    if (fromIndex === -1) return;
+    const toIndex = direction === "left" ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= currentColumnOrder.length) return;
+
+    const newOrder = [...currentColumnOrder];
+    newOrder[fromIndex] = newOrder[toIndex];
+    newOrder[toIndex] = colId;
+
+    const wid = getWid();
+    
+    // Optimistically update the store state so it changes instantly
+    useWorkspaceDefaultsStore.setState({ kanbanColumnOrder: newOrder });
+
+    // Save defaults to backend
+    await updateDefaults(wid, { kanbanColumnOrder: newOrder });
+    showToast("Column order updated", "success" as any);
+  }
 
   // ── Fetch Defaults on mount ────────────────────────────────
   useEffect(() => {
@@ -1318,7 +1396,7 @@ export function TaskDashboard({
               transition={{ duration: 0.2 }}
               className="flex h-full w-full overflow-x-auto p-6 items-start gap-4 scrollbar-thin select-none"
             >
-              {COLUMNS.map((col) => {
+              {dynamicColumns.map((col) => {
                 const columnTasks = filteredTasks.filter((t) => t.status === col.id);
                 const isOver = dragOverColumn === col.id;
 
@@ -1345,18 +1423,40 @@ export function TaskDashboard({
                           {columnTasks.length}
                         </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setAddModalDefaultStatus(col.id);
-                          setAddModalSession((s) => s + 1);
-                          setAddOpen(true);
-                        }}
-                        className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
-                        title={`Add task to ${col.label}`}
-                      >
-                        <PlusIcon className="h-4 w-4" />
-                      </button>
+                      <div className="flex items-center gap-0.5">
+                        {currentColumnOrder.indexOf(col.id) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => moveColumn(col.id, "left")}
+                            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                            title="Move column left"
+                          >
+                            <ChevronLeftIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                        {currentColumnOrder.indexOf(col.id) < currentColumnOrder.length - 1 && (
+                          <button
+                            type="button"
+                            onClick={() => moveColumn(col.id, "right")}
+                            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                            title="Move column right"
+                          >
+                            <ChevronRightIcon className="h-4 w-4" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddModalDefaultStatus(col.id);
+                            setAddModalSession((s) => s + 1);
+                            setAddOpen(true);
+                          }}
+                          className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                          title={`Add task to ${col.label}`}
+                        >
+                          <PlusIcon className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Lane Cards Scroll Zone */}
@@ -1603,12 +1703,12 @@ export function TaskDashboard({
                             onClick={() => setActiveDropdown(activeDropdown?.taskId === task.id && activeDropdown?.field === "status" ? null : { taskId: task.id, field: "status" })}
                             className="inline-flex items-center gap-1 text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full border border-zinc-200/80 bg-zinc-50 hover:bg-zinc-100 text-zinc-705 dark:border-white/[0.08] dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                           >
-                            <span>{COLUMNS.find(c => c.id === task.status)?.label || "To Do"}</span>
+                            <span>{dynamicColumns.find(c => c.id === task.status)?.label || "To Do"}</span>
                             <ChevronDownIcon className="h-3 w-3 opacity-60" />
                           </button>
                           {activeDropdown?.taskId === task.id && activeDropdown?.field === "status" && (
                             <div className="absolute left-3 top-10 z-30 w-36 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
-                              {COLUMNS.map((col) => (
+                              {dynamicColumns.map((col) => (
                                 <button
                                   key={col.id}
                                   type="button"

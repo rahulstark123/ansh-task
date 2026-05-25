@@ -40,6 +40,8 @@ export type NewTaskPayload = {
   dueLabel: string;
   labels: string[];
   assignees: string[];
+  designation?: string;
+  role?: string;
   estimate?: string;
   projectId?: string | null;
   attachmentUrls?: string[];

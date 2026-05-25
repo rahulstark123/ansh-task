@@ -22,6 +22,7 @@ import {
   ChevronDownIcon,
   MagnifyingGlassIcon,
   ExclamationTriangleIcon,
+  InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
@@ -57,12 +58,16 @@ type Member = {
   email: string;
   phone: string;
   role: string;
+  designation?: string;
   dept: string;
   reportsTo: string;
   joinedDate: string;
   tasks: TaskMock[];
   activities: ActivityMock[];
 };
+
+const FIXED_TEAM_ROLES = ["Admin", "Editor", "Observer"] as const;
+const DEFAULT_DESIGNATIONS = ["Senior Engineer", "Product Manager", "Team Lead", "Member"] as const;
 
 const INITIAL_MEMBERS: Member[] = [
   {
@@ -312,12 +317,21 @@ const INITIAL_MEMBERS: Member[] = [
 ];
 
 const mapDbUserToMember = (user: any): Member => {
+  const normalizedRole = (user.role || "").toString().toLowerCase();
+  const roleLabel =
+    normalizedRole === "admin"
+      ? "Admin"
+      : normalizedRole === "observer"
+      ? "Observer"
+      : "Editor";
+
   return {
     id: user.id,
     name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email.split("@")[0],
     email: user.email,
     phone: user.phone || "+1 (555) 000-0000",
-    role: user.jobTitle || "Member",
+    role: roleLabel,
+    designation: user.designation || user.jobTitle || "Member",
     dept: user.department || "Engineering",
     reportsTo: user.reportsTo || "None",
     joinedDate: new Date(user.createdAt).toLocaleDateString("en-US", {
@@ -406,7 +420,8 @@ export function TeamsManagementView() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState<string | undefined>("");
-  const [role, setRole] = useState("Member");
+  const [role, setRole] = useState("Editor");
+  const [designation, setDesignation] = useState("");
   const [dept, setDept] = useState("Engineering");
   const [reportsTo, setReportsTo] = useState("None");
   const [password, setPassword] = useState("");
@@ -417,6 +432,7 @@ export function TeamsManagementView() {
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState<string | undefined>("");
   const [editRole, setEditRole] = useState("");
+  const [editDesignation, setEditDesignation] = useState("");
   const [editDept, setEditDept] = useState("");
   const [editReportsTo, setEditReportsTo] = useState("");
   const [editPassword, setEditPassword] = useState("");
@@ -432,15 +448,15 @@ export function TeamsManagementView() {
   const [isEditDeptOpen, setIsEditDeptOpen] = useState(false);
   const [isEditReportsOpen, setIsEditReportsOpen] = useState(false);
 
-  // Roles State
-  const [availableRoles, setAvailableRoles] = useState<string[]>([
-    "Admin",
-    "Manager",
-    "Team Member",
-    "Observer",
-  ]);
-  const [isCreatingRole, setIsCreatingRole] = useState(false);
-  const [newRoleName, setNewRoleName] = useState("");
+  // Roles State (Strictly 3 fixed team roles)
+  const [availableRoles, setAvailableRoles] = useState<string[]>([...FIXED_TEAM_ROLES]);
+
+  // Designation State
+  const [availableDesignations, setAvailableDesignations] = useState<string[]>([...DEFAULT_DESIGNATIONS]);
+  const [isAddDesignationOpen, setIsAddDesignationOpen] = useState(false);
+  const [isEditDesignationOpen, setIsEditDesignationOpen] = useState(false);
+  const [isCreatingDesignation, setIsCreatingDesignation] = useState(false);
+  const [newDesignationName, setNewDesignationName] = useState("");
 
   // Departments State
   const [availableDepts, setAvailableDepts] = useState<string[]>([
@@ -489,10 +505,21 @@ export function TeamsManagementView() {
       if (json.success) {
         setMembers(json.members.map(mapDbUserToMember));
         if (json.roles && json.roles.length > 0) {
-          setAvailableRoles(json.roles);
+          const validRoles = FIXED_TEAM_ROLES.filter((fixedRole) =>
+            json.roles.some((r: string) => r.toLowerCase() === fixedRole.toLowerCase())
+          );
+          setAvailableRoles(validRoles.length > 0 ? [...validRoles] : [...FIXED_TEAM_ROLES]);
         }
         if (json.departments && json.departments.length > 0) {
           setAvailableDepts(json.departments);
+        }
+        const designationsFromMembers = json.members
+          .map((m: any) => (m.designation || m.jobTitle || "").trim())
+          .filter((d: string) => d.length > 0);
+        if (designationsFromMembers.length > 0) {
+          setAvailableDesignations((prev) =>
+            Array.from(new Set([...prev, ...designationsFromMembers]))
+          );
         }
         setActiveWorkspaceId(json.workspaceId);
 
@@ -536,6 +563,7 @@ export function TeamsManagementView() {
           email: email.trim(),
           phone: phone || "",
           role,
+          designation: designation || "",
           dept,
           reportsTo,
           password,
@@ -549,7 +577,8 @@ export function TeamsManagementView() {
         setName("");
         setEmail("");
         setPhone("");
-        setRole("Member");
+        setRole("Editor");
+        setDesignation("");
         setDept("Engineering");
         setReportsTo("None");
         setPassword("");
@@ -569,6 +598,7 @@ export function TeamsManagementView() {
     setEditEmail(member.email);
     setEditPhone(member.phone);
     setEditRole(member.role);
+    setEditDesignation(member.designation || "");
     setEditDept(member.dept);
     setEditReportsTo(member.reportsTo);
     setEditPassword("");
@@ -593,6 +623,7 @@ export function TeamsManagementView() {
           email: editEmail,
           phone: editPhone || "",
           role: editRole,
+          designation: editDesignation,
           dept: editDept,
           reportsTo: editReportsTo,
           password: editPassword || undefined,
@@ -688,19 +719,19 @@ export function TeamsManagementView() {
     }
   };
 
-  const handleCreateRole = () => {
-    const trimmed = newRoleName.trim();
+  const handleCreateDesignation = () => {
+    const trimmed = newDesignationName.trim();
     if (!trimmed) return;
-    if (!availableRoles.includes(trimmed)) {
-      setAvailableRoles((prev) => [...prev, trimmed]);
+    if (!availableDesignations.includes(trimmed)) {
+      setAvailableDesignations((prev) => [...prev, trimmed]);
     }
     if (editingMember) {
-      setEditRole(trimmed);
+      setEditDesignation(trimmed);
     } else {
-      setRole(trimmed);
+      setDesignation(trimmed);
     }
-    setNewRoleName("");
-    setIsCreatingRole(false);
+    setNewDesignationName("");
+    setIsCreatingDesignation(false);
   };
 
   const handleCreateDept = () => {
@@ -1265,7 +1296,9 @@ export function TeamsManagementView() {
               exit={{ opacity: 0 }}
               onClick={() => {
                 setIsAddModalOpen(false);
-                setIsCreatingRole(false);
+                setIsCreatingDesignation(false);
+                setNewDesignationName("");
+                setIsAddDesignationOpen(false);
               }}
               className="fixed inset-0 z-50 bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
             />
@@ -1287,7 +1320,9 @@ export function TeamsManagementView() {
                 <button
                   onClick={() => {
                     setIsAddModalOpen(false);
-                    setIsCreatingRole(false);
+                    setIsCreatingDesignation(false);
+                    setNewDesignationName("");
+                    setIsAddDesignationOpen(false);
                   }}
                   className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 >
@@ -1347,6 +1382,105 @@ export function TeamsManagementView() {
                   </div>
                 </div>
 
+                {/* Designation Row with custom creation option */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                    Designation
+                  </label>
+
+                  <div className="mt-2 flex items-center gap-2">
+                    {isCreatingDesignation ? (
+                      <div className="flex flex-1 items-center gap-2">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={newDesignationName}
+                          onChange={(e) => setNewDesignationName(e.target.value)}
+                          placeholder="Type new designation..."
+                          className="flex-1 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCreateDesignation}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--app-primary)] text-white shadow-sm hover:brightness-110 active:scale-95"
+                          title="Save Custom Designation"
+                        >
+                          <CheckIcon className="h-4.5 w-4.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCreatingDesignation(false);
+                            setNewDesignationName("");
+                          }}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400"
+                          title="Cancel"
+                        >
+                          <XMarkIcon className="h-4.5 w-4.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative flex-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsAddDesignationOpen(!isAddDesignationOpen)}
+                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                          >
+                            <span>{designation || "Select designation"}</span>
+                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isAddDesignationOpen ? "rotate-180" : ""}`} />
+                          </button>
+
+                          <AnimatePresence>
+                            {isAddDesignationOpen && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setIsAddDesignationOpen(false)} />
+                                <motion.div
+                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                                >
+                                  {availableDesignations.map((d) => {
+                                    const isSelected = designation === d;
+                                    return (
+                                      <button
+                                        key={d}
+                                        type="button"
+                                        onClick={() => {
+                                          setDesignation(d);
+                                          setIsAddDesignationOpen(false);
+                                        }}
+                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                          isSelected
+                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                        }`}
+                                      >
+                                        <span>{d}</span>
+                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                      </button>
+                                    );
+                                  })}
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsCreatingDesignation(true)}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                          title="Create custom designation"
+                        >
+                          <PlusIcon className="h-4.5 w-4.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+                  
                 {/* Password Field */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
@@ -1375,102 +1509,56 @@ export function TeamsManagementView() {
                   </div>
                 </div>
 
-                {/* Role row with custom creation option */}
+                {/* Role row (fixed roles only) */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                     Role
                   </label>
-                  
-                  <div className="mt-2 flex items-center gap-2">
-                    {isCreatingRole ? (
-                      <div className="flex flex-1 items-center gap-2">
-                        <input
-                          type="text"
-                          autoFocus
-                          value={newRoleName}
-                          onChange={(e) => setNewRoleName(e.target.value)}
-                          placeholder="Type new role..."
-                          className="flex-1 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleCreateRole}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--app-primary)] text-white shadow-sm hover:brightness-110 active:scale-95"
-                          title="Save Custom Role"
-                        >
-                          <CheckIcon className="h-4.5 w-4.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsCreatingRole(false);
-                            setNewRoleName("");
-                          }}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400"
-                          title="Cancel"
-                        >
-                          <XMarkIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative flex-1">
-                          <button
-                            type="button"
-                            onClick={() => setIsAddRoleOpen(!isAddRoleOpen)}
-                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  <div className="relative mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsAddRoleOpen(!isAddRoleOpen)}
+                      className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                      <span>{role}</span>
+                      <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isAddRoleOpen ? "rotate-180" : ""}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {isAddRoleOpen && (
+                        <>
+                          <div className="fixed inset-0 z-30" onClick={() => setIsAddRoleOpen(false)} />
+                          <motion.div
+                            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                            className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
                           >
-                            <span>{role}</span>
-                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isAddRoleOpen ? "rotate-180" : ""}`} />
-                          </button>
-                          
-                          <AnimatePresence>
-                            {isAddRoleOpen && (
-                              <>
-                                <div className="fixed inset-0 z-30" onClick={() => setIsAddRoleOpen(false)} />
-                                <motion.div
-                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                            {availableRoles.map((r) => {
+                              const isSelected = role === r;
+                              return (
+                                <button
+                                  key={r}
+                                  type="button"
+                                  onClick={() => {
+                                    setRole(r);
+                                    setIsAddRoleOpen(false);
+                                  }}
+                                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                    isSelected
+                                      ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                      : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                  }`}
                                 >
-                                  {availableRoles.map((r) => {
-                                    const isSelected = role === r;
-                                    return (
-                                      <button
-                                        key={r}
-                                        type="button"
-                                        onClick={() => {
-                                          setRole(r);
-                                          setIsAddRoleOpen(false);
-                                        }}
-                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
-                                          isSelected
-                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                        }`}
-                                      >
-                                        <span>{r}</span>
-                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
-                                      </button>
-                                    );
-                                  })}
-                                </motion.div>
-                              </>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                        
-                        <button
-                          type="button"
-                          onClick={() => setIsCreatingRole(true)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                          title="Create custom role"
-                        >
-                          <PlusIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </>
-                    )}
+                                  <span>{r}</span>
+                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                </button>
+                              );
+                            })}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
 
@@ -1650,7 +1738,9 @@ export function TeamsManagementView() {
                     type="button"
                     onClick={() => {
                       setIsAddModalOpen(false);
-                      setIsCreatingRole(false);
+                      setIsCreatingDesignation(false);
+                      setNewDesignationName("");
+                      setIsAddDesignationOpen(false);
                       setIsCreatingDept(false);
                     }}
                     className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
@@ -1681,7 +1771,9 @@ export function TeamsManagementView() {
               exit={{ opacity: 0 }}
               onClick={() => {
                 setEditingMember(null);
-                setIsCreatingRole(false);
+                setIsCreatingDesignation(false);
+                setNewDesignationName("");
+                setIsEditDesignationOpen(false);
               }}
               className="fixed inset-0 z-50 bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
             />
@@ -1703,7 +1795,9 @@ export function TeamsManagementView() {
                 <button
                   onClick={() => {
                     setEditingMember(null);
-                    setIsCreatingRole(false);
+                    setIsCreatingDesignation(false);
+                    setNewDesignationName("");
+                    setIsEditDesignationOpen(false);
                   }}
                   className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 >
@@ -1763,6 +1857,105 @@ export function TeamsManagementView() {
                   </div>
                 </div>
 
+                {/* Designation Row with custom creation option */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                    Designation
+                  </label>
+
+                  <div className="mt-2 flex items-center gap-2">
+                    {isCreatingDesignation ? (
+                      <div className="flex flex-1 items-center gap-2">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={newDesignationName}
+                          onChange={(e) => setNewDesignationName(e.target.value)}
+                          placeholder="Type new designation..."
+                          className="flex-1 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCreateDesignation}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--app-primary)] text-white shadow-sm hover:brightness-110 active:scale-95"
+                          title="Save Custom Designation"
+                        >
+                          <CheckIcon className="h-4.5 w-4.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsCreatingDesignation(false);
+                            setNewDesignationName("");
+                          }}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400"
+                          title="Cancel"
+                        >
+                          <XMarkIcon className="h-4.5 w-4.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="relative flex-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsEditDesignationOpen(!isEditDesignationOpen)}
+                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                          >
+                            <span>{editDesignation || "Select designation"}</span>
+                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isEditDesignationOpen ? "rotate-180" : ""}`} />
+                          </button>
+
+                          <AnimatePresence>
+                            {isEditDesignationOpen && (
+                              <>
+                                <div className="fixed inset-0 z-30" onClick={() => setIsEditDesignationOpen(false)} />
+                                <motion.div
+                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                                >
+                                  {availableDesignations.map((d) => {
+                                    const isSelected = editDesignation === d;
+                                    return (
+                                      <button
+                                        key={d}
+                                        type="button"
+                                        onClick={() => {
+                                          setEditDesignation(d);
+                                          setIsEditDesignationOpen(false);
+                                        }}
+                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                          isSelected
+                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                        }`}
+                                      >
+                                        <span>{d}</span>
+                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                      </button>
+                                    );
+                                  })}
+                                </motion.div>
+                              </>
+                            )}
+                          </AnimatePresence>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsCreatingDesignation(true)}
+                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                          title="Create custom designation"
+                        >
+                          <PlusIcon className="h-4.5 w-4.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
                 {/* Password Field (Optional) */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
@@ -1790,102 +1983,56 @@ export function TeamsManagementView() {
                   </div>
                 </div>
 
-                {/* Role row with custom creation option */}
+                {/* Role row (fixed roles only) */}
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
                     Role
                   </label>
-                  
-                  <div className="mt-2 flex items-center gap-2">
-                    {isCreatingRole ? (
-                      <div className="flex flex-1 items-center gap-2">
-                        <input
-                          type="text"
-                          autoFocus
-                          value={newRoleName}
-                          onChange={(e) => setNewRoleName(e.target.value)}
-                          placeholder="Type new role..."
-                          className="flex-1 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleCreateRole}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--app-primary)] text-white shadow-sm hover:brightness-110 active:scale-95"
-                          title="Save Custom Role"
-                        >
-                          <CheckIcon className="h-4.5 w-4.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsCreatingRole(false);
-                            setNewRoleName("");
-                          }}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400"
-                          title="Cancel"
-                        >
-                          <XMarkIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative flex-1">
-                          <button
-                            type="button"
-                            onClick={() => setIsEditRoleOpen(!isEditRoleOpen)}
-                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  <div className="relative mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditRoleOpen(!isEditRoleOpen)}
+                      className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                      <span>{editRole}</span>
+                      <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isEditRoleOpen ? "rotate-180" : ""}`} />
+                    </button>
+
+                    <AnimatePresence>
+                      {isEditRoleOpen && (
+                        <>
+                          <div className="fixed inset-0 z-30" onClick={() => setIsEditRoleOpen(false)} />
+                          <motion.div
+                            initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                            className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
                           >
-                            <span>{editRole}</span>
-                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isEditRoleOpen ? "rotate-180" : ""}`} />
-                          </button>
-                          
-                          <AnimatePresence>
-                            {isEditRoleOpen && (
-                              <>
-                                <div className="fixed inset-0 z-30" onClick={() => setIsEditRoleOpen(false)} />
-                                <motion.div
-                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                            {availableRoles.map((r) => {
+                              const isSelected = editRole === r;
+                              return (
+                                <button
+                                  key={r}
+                                  type="button"
+                                  onClick={() => {
+                                    setEditRole(r);
+                                    setIsEditRoleOpen(false);
+                                  }}
+                                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                    isSelected
+                                      ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                      : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                  }`}
                                 >
-                                  {availableRoles.map((r) => {
-                                    const isSelected = editRole === r;
-                                    return (
-                                      <button
-                                        key={r}
-                                        type="button"
-                                        onClick={() => {
-                                          setEditRole(r);
-                                          setIsEditRoleOpen(false);
-                                        }}
-                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
-                                          isSelected
-                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                        }`}
-                                      >
-                                        <span>{r}</span>
-                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
-                                      </button>
-                                    );
-                                  })}
-                                </motion.div>
-                              </>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                        
-                        <button
-                          type="button"
-                          onClick={() => setIsCreatingRole(true)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                          title="Create custom role"
-                        >
-                          <PlusIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </>
-                    )}
+                                  <span>{r}</span>
+                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                </button>
+                              );
+                            })}
+                          </motion.div>
+                        </>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </div>
 
@@ -2067,7 +2214,9 @@ export function TeamsManagementView() {
                     type="button"
                     onClick={() => {
                       setEditingMember(null);
-                      setIsCreatingRole(false);
+                      setIsCreatingDesignation(false);
+                      setNewDesignationName("");
+                      setIsEditDesignationOpen(false);
                       setIsCreatingDept(false);
                     }}
                     className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"

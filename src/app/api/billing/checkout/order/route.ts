@@ -7,20 +7,28 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    // 1. Auth — get current user
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const body = await request.json().catch(() => ({}));
 
-    if (!user?.email) {
+    // 1. Auth — get current user via JWT or body.email
+    const authHeader = request.headers.get("Authorization");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null;
+
+    let user = null;
+    if (token) {
+      const { data } = await supabase.auth.getUser(token);
+      user = data?.user;
+    }
+
+    const email = body.email || user?.email;
+
+    if (!email) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    // 2. Resolve workspace from session / body
-    const body = await request.json().catch(() => ({}));
+    // 2. Resolve workspace from body
     const wid: number =
       body.workspaceId ??
       (parseInt(body.wid ?? "0", 10) || 1);
@@ -47,12 +55,17 @@ export async function POST(request: Request) {
     });
     const seats = Math.max(seatsCount, 1);
 
-    // 5. Compute amount (yearly = monthly × 12 × 0.83 ≈ 17% off)
-    const monthlyPaisa = cfg.proPlanAmountPaisa; // per seat per month
-    const amountPaisa =
-      billingCycle === "yearly"
-        ? Math.round(monthlyPaisa * seats * 12 * 0.83)
-        : monthlyPaisa * seats;
+    // 5. Compute amount (prefer client-provided dynamic amount, fallback to calculation)
+    let amountPaisa = body.amountPaisa ?? body.amount;
+    if (!amountPaisa || typeof amountPaisa !== "number" || amountPaisa <= 0) {
+      const monthlyPaisa = cfg.proPlanAmountPaisa ?? 39900; // per seat per month (default ₹399)
+      const subtotal =
+        billingCycle === "yearly"
+          ? Math.round(monthlyPaisa * seats * 12 * 0.83)
+          : monthlyPaisa * seats;
+      const gst = Math.round(subtotal * 0.18);
+      amountPaisa = subtotal + gst;
+    }
 
     // 6. Create Razorpay order
     const rzp = getRazorpayInstance();

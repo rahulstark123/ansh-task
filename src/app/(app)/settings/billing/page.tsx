@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/lib/supabase";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckIcon,
@@ -161,14 +162,28 @@ export default function BillingSettingsPage() {
         throw new Error("Could not load payment gateway. Check your internet connection.");
       }
 
+      // Fetch current session for authentication token and email
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      const email = session?.user?.email;
+
+      if (!email) {
+        throw new Error("You must be logged in to proceed with payment.");
+      }
+
       // Step 1: Create Razorpay order on server
       const orderRes = await fetch("/api/billing/checkout/order", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(accessToken ? { "Authorization": `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({
           workspaceId: parseInt(wid, 10),
           billingCycle: billing,
           seats: checkoutUsers,
+          amountPaisa: grandTotalPaisa,
+          email,
         }),
       });
       const orderJson = await orderRes.json();

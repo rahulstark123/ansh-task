@@ -3,7 +3,7 @@ import Razorpay from "razorpay";
 export type RazorpayConfig = {
   keyId: string;
   keySecret: string;
-  proPlanAmountPaisa: number; // per-workspace flat monthly amount
+  proPlanAmountPaisa?: number; // per-workspace flat monthly amount (optional, defaults to dynamic input)
 };
 
 let _instance: Razorpay | null = null;
@@ -19,20 +19,20 @@ export function getRazorpayConfig(): RazorpayConfig | null {
     process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim() ||
     "";
   const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim() || "";
-  const amountRaw =
-    process.env.RAZORPAY_PRO_PLAN_AMOUNT_PAISA?.trim() || "39900";
-  const proPlanAmountPaisa = Number(amountRaw);
+  const amountRaw = process.env.RAZORPAY_PRO_PLAN_AMOUNT_PAISA?.trim();
+  const proPlanAmountPaisa = amountRaw ? Number(amountRaw) : undefined;
 
-  if (
-    !keyId ||
-    !keySecret ||
-    !Number.isFinite(proPlanAmountPaisa) ||
-    proPlanAmountPaisa <= 0
-  ) {
+  if (!keyId || !keySecret) {
     return null;
   }
 
-  return { keyId, keySecret, proPlanAmountPaisa: Math.trunc(proPlanAmountPaisa) };
+  return {
+    keyId,
+    keySecret,
+    proPlanAmountPaisa: proPlanAmountPaisa && Number.isFinite(proPlanAmountPaisa) && proPlanAmountPaisa > 0
+      ? Math.trunc(proPlanAmountPaisa)
+      : undefined,
+  };
 }
 
 /**
@@ -44,7 +44,7 @@ export function getRazorpayInstance(): Razorpay {
   const cfg = getRazorpayConfig();
   if (!cfg) {
     throw new Error(
-      "Razorpay is not configured. Set RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, and RAZORPAY_PRO_PLAN_AMOUNT_PAISA in .env"
+      "Razorpay is not configured. Set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env"
     );
   }
   _instance = new Razorpay({ key_id: cfg.keyId, key_secret: cfg.keySecret });

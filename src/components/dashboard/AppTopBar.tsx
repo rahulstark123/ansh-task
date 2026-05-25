@@ -74,6 +74,25 @@ export function AppTopBar() {
       read: true,
     },
   ]);
+  const [plan, setPlan] = useState<"free" | "pro" | null>(null);
+
+  // Fetch plan status on mount and pathname changes
+  useEffect(() => {
+    async function fetchPlan() {
+      try {
+        const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid");
+        const wid = onboardingWid ? parseInt(onboardingWid, 10) : 1;
+        const res = await fetch(`/api/billing/status?wid=${wid}`);
+        const json = await res.json();
+        if (json.success) {
+          setPlan(json.plan as "free" | "pro");
+        }
+      } catch (err) {
+        console.error("Error fetching plan in AppTopBar:", err);
+      }
+    }
+    fetchPlan();
+  }, [pathname]);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [workspaceMembers, setWorkspaceMembers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [workspaceChannels, setWorkspaceChannels] = useState<{ id: string; name: string }[]>([]);
@@ -568,6 +587,30 @@ export function AppTopBar() {
         </div>
 
         <div className="flex items-center gap-4.5">
+          {/* Plan Status Badge */}
+          {plan && (
+            <Link
+              href="/settings/billing"
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer ${
+                plan === "pro"
+                  ? "bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-white shadow-md shadow-teal-500/10 hover:brightness-110"
+                  : "border border-zinc-200 bg-zinc-50/50 text-zinc-550 hover:bg-zinc-100 hover:text-zinc-700 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-400 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-300"
+              }`}
+            >
+              {plan === "pro" ? (
+                <>
+                  <SparklesIcon className="h-3 w-3 animate-pulse text-teal-200" />
+                  PRO
+                </>
+              ) : (
+                <>
+                  <span className="h-1.5 w-1.5 rounded-full bg-zinc-450 dark:bg-zinc-500" />
+                  Free
+                </>
+              )}
+            </Link>
+          )}
+
           {/* Notification Bell Menu */}
           <div className="relative" ref={notificationsRef}>
             <button

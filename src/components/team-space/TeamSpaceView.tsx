@@ -21,6 +21,13 @@ import { CheckCircleIcon } from "@heroicons/react/24/solid";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { useTheme } from "next-themes";
+import dynamic from "next/dynamic";
+
+const EmojiPicker = dynamic(
+  () => import("emoji-picker-react").then((mod) => mod.default),
+  { ssr: false }
+);
 
 const getAvatarHsl = (name: string) => {
   let hash = 0;
@@ -98,6 +105,10 @@ export function TeamSpaceView() {
   const [showMentionMenu, setShowMentionMenu] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
   const [mentionTriggerIdx, setMentionTriggerIdx] = useState(-1);
+  const [attachments, setAttachments] = useState<{ name: string; size: number; dataUrl: string }[]>([]);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { theme } = useTheme();
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -473,10 +484,16 @@ export function TeamSpaceView() {
   }, [currentUser?.id]);
 
   async function handleSendMessage() {
-    if (!draft.trim() || !currentUser || !activeChat) return;
+    if ((!draft.trim() && attachments.length === 0) || !currentUser || !activeChat) return;
     
-    const draftText = draft.trim();
+    let draftText = draft.trim();
+    if (attachments.length > 0) {
+      const links = attachments.map(att => `[${att.name}](${att.dataUrl})`).join(" ");
+      draftText = draftText ? `${draftText}\n\n${links}` : links;
+    }
+    
     setDraft("");
+    setAttachments([]);
 
     // Optimistic UI update
     const tempId = crypto.randomUUID();
@@ -588,6 +605,22 @@ export function TeamSpaceView() {
       textarea.focus();
       textarea.setSelectionRange(start + emoji.length, start + emoji.length);
     }, 50);
+  };
+
+  // File Attachment handler
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setAttachments((prev) => [
+          ...prev,
+          { name: file.name, size: file.size, dataUrl: ev.target?.result as string },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
   };
 
   // Autocomplete Mentions
@@ -802,6 +835,11 @@ export function TeamSpaceView() {
       const regex = new RegExp(`@${escapedName}\\b`, 'g');
       safe = safe.replace(regex, `<span class="bg-teal-500/15 text-teal-600 dark:text-teal-300 font-bold px-1.5 py-0.5 rounded">@${currentUser.name}</span>`);
     }
+
+    // Attachment markdown links: [filename](url)
+    safe = safe.replace(/\[(.*?)\]\((.*?)\)/g, (match, filename, url) => {
+      return `<a href="${url}" download="${filename}" target="_blank" class="inline-flex items-center gap-1.5 bg-zinc-150 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-teal-600 dark:text-teal-400 font-semibold px-3 py-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 mt-2 mr-2 text-xs break-all transition-colors cursor-pointer"><svg class="h-4 w-4 text-teal-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg><span>${filename}</span></a>`;
+    });
 
     return <span dangerouslySetInnerHTML={{ __html: safe }} />;
   }
@@ -1165,20 +1203,17 @@ export function TeamSpaceView() {
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute left-6 bottom-24 z-40 rounded-2xl border border-zinc-200 bg-white p-2.5 shadow-2xl dark:border-white/10 dark:bg-[#121418] w-48"
+                  className="absolute left-6 bottom-24 z-40 rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#121418] w-[350px] overflow-hidden"
                 >
-                  <div className="grid grid-cols-4 gap-1.5">
-                    {["😀", "😂", "🔥", "👍", "🎉", "🚀", "💡", "💯"].map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => insertEmoji(emoji)}
-                        className="flex h-9 w-9 items-center justify-center rounded-xl text-lg hover:bg-zinc-55 dark:hover:bg-zinc-800/80 transition-colors cursor-pointer"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
+                  <EmojiPicker
+                    onEmojiClick={(emojiData) => {
+                      insertEmoji(emojiData.emoji);
+                    }}
+                    theme={(theme === "dark" ? "dark" : theme === "light" ? "light" : "auto") as any}
+                    skinTonesDisabled
+                    width="100%"
+                    height={320}
+                  />
                 </motion.div>
               </>
             )}
@@ -1227,9 +1262,7 @@ export function TeamSpaceView() {
                 </motion.div>
               </>
             )}
-          </AnimatePresence>
-
-          <div className="rounded-xl border border-zinc-300 bg-white shadow-sm focus-within:border-[var(--app-primary)] focus-within:ring-1 focus-within:ring-[var(--app-primary)] dark:border-zinc-700 dark:bg-[#222529] dark:focus-within:border-teal-500 dark:focus-within:ring-teal-500 transition-all overflow-hidden flex flex-col">
+          </AnimatePresence>          <div className="rounded-xl border border-zinc-300 bg-white shadow-sm focus-within:border-[var(--app-primary)] focus-within:ring-1 focus-within:ring-[var(--app-primary)] dark:border-zinc-700 dark:bg-[#222529] dark:focus-within:border-teal-500 dark:focus-within:ring-teal-500 transition-all overflow-hidden flex flex-col">
             
             {/* Toolbar Top */}
             <div className="flex items-center gap-1 bg-zinc-50/55 px-2 py-1.5 border-b border-zinc-100 dark:bg-[#1a1d21]/50 dark:border-zinc-800/50">
@@ -1250,10 +1283,50 @@ export function TeamSpaceView() {
                 <span className="font-serif italic text-sm px-1.5">I</span>
               </button>
               <div className="h-4 w-[1px] bg-zinc-300 dark:bg-zinc-700 mx-1" />
-              <button className="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-250 transition-colors cursor-pointer" title="Attach file">
+              <button 
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-250 transition-colors cursor-pointer" 
+                title="Attach files"
+              >
                 <PaperClipIcon className="h-4 w-4" />
               </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileChange}
+              />
             </div>
+
+            {/* Attachments List */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 px-3 pt-2 bg-stone-50/20 dark:bg-[#1a1d21]/20 border-b border-zinc-100/50 dark:border-zinc-800/50 pb-2">
+                {attachments.map((att, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2 py-1 dark:border-zinc-700 dark:bg-zinc-850 text-[11px] font-semibold text-zinc-700 dark:text-zinc-300"
+                  >
+                    <PaperClipIcon className="h-3.5 w-3.5 text-teal-500 shrink-0" />
+                    <span className="truncate max-w-[120px]">{att.name}</span>
+                    <span className="text-[9px] text-zinc-400 font-normal shrink-0">
+                      ({att.size < 1024 * 1024
+                        ? `${(att.size / 1024).toFixed(1)} KB`
+                        : `${(att.size / (1024 * 1024)).toFixed(1)} MB`})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                      className="text-zinc-400 hover:text-rose-500 cursor-pointer p-0.5 rounded"
+                      title="Remove attachment"
+                    >
+                      <XMarkIcon className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Input Area */}
             <textarea
@@ -1291,7 +1364,7 @@ export function TeamSpaceView() {
               <button
                 type="button"
                 onClick={handleSendMessage}
-                disabled={!draft.trim()}
+                disabled={!draft.trim() && attachments.length === 0}
                 className="flex items-center justify-center rounded-lg bg-[var(--app-primary)] p-1.5 text-white transition-all hover:bg-[var(--app-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer"
               >
                 <PaperAirplaneIcon className="h-4 w-4 -translate-y-[0.5px] translate-x-[0.5px]" />
