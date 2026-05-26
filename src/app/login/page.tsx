@@ -133,8 +133,32 @@ export default function LoginPage() {
                   setLoading(false);
                   return;
                 }
-                
-                router.push("/dashboard");
+
+                const signedInEmail = data.user?.email || email;
+                const profileRes = await fetch(`/api/profile?email=${encodeURIComponent(signedInEmail)}`);
+                const profileJson = await profileRes.json();
+
+                if (profileJson?.success && profileJson?.user?.workspaceId) {
+                  sessionStorage.setItem("ansh_onboarding_wid", String(profileJson.user.workspaceId));
+                  sessionStorage.setItem(
+                    "ansh_user_role",
+                    String(profileJson.user.role || "editor").toLowerCase()
+                  );
+                  router.push("/dashboard");
+                  return;
+                }
+
+                sessionStorage.removeItem("ansh_onboarding_wid");
+                sessionStorage.removeItem("ansh_user_role");
+                sessionStorage.setItem(
+                  "ansh_onboarding_name",
+                  data.user?.user_metadata?.full_name || signedInEmail.split("@")[0]
+                );
+                sessionStorage.setItem("ansh_onboarding_email", signedInEmail);
+                if (data.user?.id) {
+                  sessionStorage.setItem("ansh_onboarding_uid", data.user.id);
+                }
+                router.push("/onboarding");
               } catch (err: any) {
                 setErrorMsg(err.message || "An unexpected error occurred during login");
                 setLoading(false);

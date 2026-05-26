@@ -38,7 +38,6 @@ export function PermissionDeniedModal() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[110] bg-zinc-950/45 backdrop-blur-sm"
-            onClick={() => setOpen(false)}
           />
 
           <motion.div

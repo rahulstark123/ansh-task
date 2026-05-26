@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 import {
   UserIcon,
   BriefcaseIcon,
@@ -21,6 +22,7 @@ import {
 type Step = "profile" | "workspace" | "project" | "tasks" | "completing";
 
 export default function OnboardingPage() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("profile");
   const [loading, setLoading] = useState(false);
   const [dbResult, setDbResult] = useState<any>(null);
@@ -128,6 +130,20 @@ export default function OnboardingPage() {
       });
       const result = await response.json();
       setDbResult(result);
+
+      if (result?.success && typeof window !== "undefined") {
+        const createdWorkspaceId = result?.data?.workspace?.id;
+        const createdUserRole = result?.data?.user?.role;
+
+        if (createdWorkspaceId) {
+          sessionStorage.setItem("ansh_onboarding_wid", String(createdWorkspaceId));
+        }
+        if (createdUserRole) {
+          sessionStorage.setItem("ansh_user_role", String(createdUserRole).toLowerCase());
+        } else {
+          sessionStorage.setItem("ansh_user_role", "owner");
+        }
+      }
       
       // Keep loader spinning for 3.5 seconds to make the UI transition extremely premium and clear
       setTimeout(() => {
@@ -679,7 +695,7 @@ export default function OnboardingPage() {
                     
                     <div className="pt-4">
                       <button
-                        onClick={() => window.location.href = "/dashboard"}
+                        onClick={() => router.push("/dashboard")}
                         className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-zinc-950 px-8 text-xs font-bold text-white shadow-md hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
                       >
                         Enter Workspace

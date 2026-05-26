@@ -24,11 +24,12 @@ import { supabase } from "@/lib/supabase";
 import {
   AppRole,
   DEFAULT_PERMISSION_MATRIX,
-  PERMISSION_STORAGE_KEY,
   PermissionMatrix,
+  getPermissionStorageKey,
   parsePermissionMatrix,
   sanitizePermissionMatrix,
 } from "@/lib/permissions";
+import { resolveWorkspaceIdFromSession } from "@/lib/plans";
 
 type RoleType = AppRole;
 
@@ -149,9 +150,12 @@ const MODULES: PermissionModule[] = [
 
 const DEFAULT_PRESETS = DEFAULT_PERMISSION_MATRIX;
 
-function syncLocalPermissions(nextPermissions: PermissionMatrix) {
+function syncLocalPermissions(workspaceId: number, nextPermissions: PermissionMatrix) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(PERMISSION_STORAGE_KEY, JSON.stringify(nextPermissions));
+  window.localStorage.setItem(
+    getPermissionStorageKey(workspaceId),
+    JSON.stringify(nextPermissions)
+  );
 }
 
 export default function PermissionsSettingsPage() {
@@ -161,6 +165,7 @@ export default function PermissionsSettingsPage() {
   const [showToast, setShowToast] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [workspaceId] = useState(() => resolveWorkspaceIdFromSession());
 
   useEffect(() => {
     let active = true;
@@ -168,7 +173,7 @@ export default function PermissionsSettingsPage() {
     async function loadPermissions() {
       try {
         const saved = typeof window !== "undefined"
-          ? window.localStorage.getItem(PERMISSION_STORAGE_KEY)
+          ? window.localStorage.getItem(getPermissionStorageKey(workspaceId))
           : null;
         if (saved) {
           setRolePermissions(parsePermissionMatrix(saved));
@@ -181,7 +186,12 @@ export default function PermissionsSettingsPage() {
         const {
           data: { user },
         } = await supabase.auth.getUser();
-        const query = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
+        const searchParams = new URLSearchParams();
+        searchParams.set("wid", String(workspaceId));
+        if (user?.email) {
+          searchParams.set("email", user.email);
+        }
+        const query = `?${searchParams.toString()}`;
         const res = await fetch(`/api/permissions${query}`, { cache: "no-store" });
         const json = await res.json();
 
@@ -193,7 +203,7 @@ export default function PermissionsSettingsPage() {
         if (!active) return;
 
         setRolePermissions(nextPermissions);
-        syncLocalPermissions(nextPermissions);
+        syncLocalPermissions(workspaceId, nextPermissions);
       } catch (err) {
         console.error("Error loading permissions from API:", err);
       } finally {
@@ -207,7 +217,7 @@ export default function PermissionsSettingsPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [workspaceId]);
 
   // Filter permission items dynamically based on search query
   const filteredModules = useMemo(() => {
@@ -233,7 +243,7 @@ export default function PermissionsSettingsPage() {
     errorMessage: string
   ) => {
     setRolePermissions(nextPermissions);
-    syncLocalPermissions(nextPermissions);
+    syncLocalPermissions(workspaceId, nextPermissions);
     setIsSaving(true);
 
     try {
@@ -246,6 +256,7 @@ export default function PermissionsSettingsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          workspaceId,
           email: user?.email ?? null,
           matrix: nextPermissions,
         }),
@@ -258,12 +269,12 @@ export default function PermissionsSettingsPage() {
 
       const persistedPermissions = sanitizePermissionMatrix(json.matrix);
       setRolePermissions(persistedPermissions);
-      syncLocalPermissions(persistedPermissions);
+      syncLocalPermissions(workspaceId, persistedPermissions);
       triggerToast(successMessage);
     } catch (err) {
       console.error("Error saving permissions:", err);
       setRolePermissions(previousPermissions);
-      syncLocalPermissions(previousPermissions);
+      syncLocalPermissions(workspaceId, previousPermissions);
       triggerToast(errorMessage);
     } finally {
       setIsSaving(false);

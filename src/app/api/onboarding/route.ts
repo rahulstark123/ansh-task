@@ -1,5 +1,7 @@
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_PERMISSION_MATRIX } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,13 @@ export async function POST(request: Request) {
         }
       });
 
+      await tx.workspacePermissionSettings.create({
+        data: {
+          workspaceId: createdWorkspace.id,
+          matrix: DEFAULT_PERMISSION_MATRIX as Prisma.InputJsonValue,
+        },
+      });
+
       // Seed default workspace roles
       const defaultRoles = ["Admin", "Editor", "Observer"];
       await tx.workspaceRole.createMany({
@@ -50,11 +59,13 @@ export async function POST(request: Request) {
         skipDuplicates: true,
       });
 
-      // 2. Create User
-      const createdUser = await tx.user.create({
-        data: {
+      // 2. Ensure the workspace creator becomes the owner of the new workspace
+      const ownerEmail = user.email || "ansh@example.com";
+      const createdUser = await tx.user.upsert({
+        where: { email: ownerEmail },
+        create: {
           id: user.id || undefined,
-          email: user.email || "ansh@example.com",
+          email: ownerEmail,
           firstName: user.firstName,
           lastName: user.lastName,
           jobTitle: user.jobTitle,
@@ -63,7 +74,17 @@ export async function POST(request: Request) {
           department: user.department,
           avatar: user.avatar,
           workspaceId: createdWorkspace.id,
-        }
+        },
+        update: {
+          firstName: user.firstName,
+          lastName: user.lastName,
+          jobTitle: user.jobTitle,
+          designation: user.jobTitle,
+          role: "owner",
+          department: user.department,
+          avatar: user.avatar,
+          workspaceId: createdWorkspace.id,
+        },
       });
 
       // 3. Create Project

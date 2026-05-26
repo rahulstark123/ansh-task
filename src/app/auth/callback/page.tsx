@@ -45,6 +45,7 @@ export default function AuthCallbackPage() {
         const json = await res.json();
 
         if (json.success && json.user && json.user.workspaceId) {
+          sessionStorage.setItem("ansh_onboarding_wid", String(json.user.workspaceId));
           sessionStorage.setItem("ansh_user_role", (json.user.role || "editor").toLowerCase());
           // Existing user with workspace -> redirect to dashboard
           setStatus("Workspace found, redirecting to Dashboard...");
@@ -52,6 +53,8 @@ export default function AuthCallbackPage() {
         } else {
           // New user -> prepare onboarding state in sessionStorage and redirect to onboarding
           setStatus("Setting up onboarding wizard...");
+          sessionStorage.removeItem("ansh_onboarding_wid");
+          sessionStorage.removeItem("ansh_user_role");
           sessionStorage.setItem("ansh_onboarding_name", currentUser.user_metadata?.full_name || email.split("@")[0]);
           sessionStorage.setItem("ansh_onboarding_email", email);
           sessionStorage.setItem("ansh_onboarding_uid", currentUser.id);

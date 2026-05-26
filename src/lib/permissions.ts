@@ -10,6 +10,12 @@ export const PERMISSION_DENIED_MESSAGE =
   "You don't have permission. Contact your Admin or Owner for permission.";
 export const PERMISSION_DENIED_EVENT = "ansh:permission-denied";
 
+export function getPermissionStorageKey(workspaceId: number | null | undefined) {
+  const normalizedWorkspaceId =
+    typeof workspaceId === "number" && Number.isFinite(workspaceId) ? workspaceId : 1;
+  return `${PERMISSION_STORAGE_KEY}:${normalizedWorkspaceId}`;
+}
+
 export const DEFAULT_PERMISSION_MATRIX: PermissionMatrix = {
   owner: {
     modify_workspace: true,

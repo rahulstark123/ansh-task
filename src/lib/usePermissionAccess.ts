@@ -5,39 +5,42 @@ import { supabase } from "@/lib/supabase";
 import {
   AppRole,
   DEFAULT_PERMISSION_MATRIX,
-  PERMISSION_STORAGE_KEY,
   PermissionMatrix,
   USER_ROLE_SESSION_KEY,
   canAccessPermission,
+  getPermissionStorageKey,
   getRequiredPermissionForPath,
   normalizeRole,
   parsePermissionMatrix,
   sanitizePermissionMatrix,
   showPermissionDeniedModal,
 } from "@/lib/permissions";
+import { resolveWorkspaceIdFromSession } from "@/lib/plans";
 
 export function usePermissionAccess() {
   const [role, setRole] = useState<AppRole>("editor");
   const [matrix, setMatrix] = useState<PermissionMatrix>(DEFAULT_PERMISSION_MATRIX);
   const [ready, setReady] = useState(false);
+  const [workspaceId] = useState(() => resolveWorkspaceIdFromSession());
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const storageKey = getPermissionStorageKey(workspaceId);
     const loadMatrix = () => {
-      const raw = window.localStorage.getItem(PERMISSION_STORAGE_KEY);
+      const raw = window.localStorage.getItem(storageKey);
       setMatrix(parsePermissionMatrix(raw));
     };
 
     loadMatrix();
     const onStorage = (event: StorageEvent) => {
-      if (event.key === PERMISSION_STORAGE_KEY) {
+      if (event.key === storageKey) {
         setMatrix(parsePermissionMatrix(event.newValue));
       }
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [workspaceId]);
 
   useEffect(() => {
     let active = true;
@@ -55,7 +58,7 @@ export function usePermissionAccess() {
 
         const [profileRes, permissionsRes] = await Promise.all([
           fetch(`/api/profile?email=${encodeURIComponent(user.email)}`),
-          fetch(`/api/permissions?email=${encodeURIComponent(user.email)}`, {
+          fetch(`/api/permissions?wid=${workspaceId}&email=${encodeURIComponent(user.email)}`, {
             cache: "no-store",
           }),
         ]);
@@ -72,7 +75,10 @@ export function usePermissionAccess() {
         if (typeof window !== "undefined") {
           window.sessionStorage.setItem(USER_ROLE_SESSION_KEY, resolvedRole);
           if (resolvedMatrix) {
-            window.localStorage.setItem(PERMISSION_STORAGE_KEY, JSON.stringify(resolvedMatrix));
+            window.localStorage.setItem(
+              getPermissionStorageKey(workspaceId),
+              JSON.stringify(resolvedMatrix)
+            );
           }
         }
 
@@ -95,7 +101,7 @@ export function usePermissionAccess() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [workspaceId]);
 
   const can = useCallback(
     (permissionId: string | null | undefined) => canAccessPermission(role, permissionId, matrix),
