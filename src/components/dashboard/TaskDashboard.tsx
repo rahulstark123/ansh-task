@@ -37,6 +37,7 @@ import type { NewTaskPayload, Task, TaskNote, TaskPriority, TaskStatus } from "@
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
 import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
+import { usePermissionAccess } from "@/lib/usePermissionAccess";
 
 
 
@@ -416,6 +417,18 @@ export function TaskDashboard({
   taskModule = "list",
 }: TaskDashboardProps) {
   const { showToast } = useToast();
+  const { can, alertNoPermission } = usePermissionAccess();
+  const canCreateTasks = can("create_tasks");
+  const canEditTasks = can("edit_tasks");
+  const canDeleteTasks = can("delete_tasks");
+  const canReorderColumns = can("reorder_columns");
+
+  const enforcePermission = (allowed: boolean) => {
+    if (allowed) return true;
+    alertNoPermission();
+    return false;
+  };
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
@@ -490,6 +503,7 @@ export function TaskDashboard({
   const dynamicColumns = currentColumnOrder.map((statusId, idx) => getColumnDetails(statusId, idx));
 
   async function moveColumn(colId: string, direction: "left" | "right") {
+    if (!enforcePermission(canReorderColumns)) return;
     const fromIndex = currentColumnOrder.indexOf(colId);
     if (fromIndex === -1) return;
     const toIndex = direction === "left" ? fromIndex - 1 : fromIndex + 1;
@@ -762,6 +776,7 @@ export function TaskDashboard({
   }
 
   function handleToggleDone(id: string) {
+    if (!enforcePermission(canEditTasks)) return;
     const task = tasks.find((t) => t.id === id);
     if (!task) return;
     if (task.done) {
@@ -780,6 +795,7 @@ export function TaskDashboard({
   };
 
   function handleStatusChange(id: string, newStatus: TaskStatus) {
+    if (!enforcePermission(canEditTasks)) return;
     const task = tasks.find((t) => t.id === id);
     if (newStatus === "done" && task && !task.done) {
       requestMarkComplete(task);
@@ -797,6 +813,7 @@ export function TaskDashboard({
   }
 
   function handleHoldToggle() {
+    if (!enforcePermission(canEditTasks)) return;
     if (!selectedTask) return;
     if (selectedTask.status === "on_hold") {
       const restore = statusBeforeHoldRef.current || "todo";
@@ -811,6 +828,7 @@ export function TaskDashboard({
   }
 
   function handlePriorityChange(id: string, newPriority: TaskPriority) {
+    if (!enforcePermission(canEditTasks)) return;
     setTasks((prev) => prev.map((t) => t.id === id ? { ...t, priority: newPriority } : t));
     if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, priority: newPriority } : null);
@@ -819,6 +837,7 @@ export function TaskDashboard({
   }
 
   function handleAssigneeChange(id: string, newAssignee: string) {
+    if (!enforcePermission(canEditTasks)) return;
     setTasks((prev) => prev.map((t) => t.id === id ? { ...t, assignee: newAssignee } : t));
     if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, assignee: newAssignee } : null);
@@ -827,6 +846,7 @@ export function TaskDashboard({
   }
 
   function handleCategoryChange(id: string, newCategory: string) {
+    if (!enforcePermission(canEditTasks)) return;
     setTasks((prev) => prev.map((t) => t.id === id ? { ...t, category: newCategory } : t));
     if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, category: newCategory } : null);
@@ -837,6 +857,7 @@ export function TaskDashboard({
 
 
   const handleSaveTaskEdits = async () => {
+    if (!enforcePermission(canEditTasks)) return;
     if (!selectedTask) return;
     if (!tempTitle.trim()) {
       showToast("Task title cannot be empty", "error");
@@ -894,6 +915,7 @@ export function TaskDashboard({
   };
 
   function openNotesModal(note?: TaskNote) {
+    if (!enforcePermission(canEditTasks)) return;
     if (!selectedTask) return;
     if (note) {
       setEditingNoteId(note.id);
@@ -906,6 +928,7 @@ export function TaskDashboard({
   }
 
   async function handleSaveNotesModal() {
+    if (!enforcePermission(canEditTasks)) return;
     if (!selectedTask) return;
     const content = notesModalDraft.trim();
     if (!content) {
@@ -964,6 +987,7 @@ export function TaskDashboard({
   }
 
   async function handleDeleteNote(note: TaskNote) {
+    if (!enforcePermission(canEditTasks)) return;
     try {
       const res = await fetch(`/api/task/notes?id=${encodeURIComponent(note.id)}`, {
         method: "DELETE",
@@ -1001,17 +1025,20 @@ export function TaskDashboard({
   }
 
   function handleTitleChange(id: string, newTitle: string) {
+    if (!enforcePermission(canEditTasks)) return;
     if (!newTitle.trim()) return;
     setTasks((prev) => prev.map((t) => t.id === id ? { ...t, title: newTitle } : t));
     patchTask(id, { title: newTitle });
   }
 
   function handleDescriptionChange(id: string, newDesc: string) {
+    if (!enforcePermission(canEditTasks)) return;
     setTasks((prev) => prev.map((t) => t.id === id ? { ...t, description: newDesc } : t));
     // Debounced in drawer – patchTask called on blur (see drawer textarea)
   }
 
   async function handleTaskDelete(id: string) {
+    if (!enforcePermission(canDeleteTasks)) return;
     setTasks((prev) => prev.filter((t) => t.id !== id));
     setSelectedTask(null);
     try {
@@ -1027,6 +1054,7 @@ export function TaskDashboard({
 
   // ── Create task (modal) ────────────────────────────────────
   async function handleAddTaskFromModal(payload: NewTaskPayload) {
+    if (!enforcePermission(canCreateTasks)) return;
     const wid = getWid();
     // Optimistic insert with a temp id
     const tempId = `temp-${crypto.randomUUID()}`;
@@ -1084,6 +1112,7 @@ export function TaskDashboard({
   }
 
   async function handleQuickAddCard(status: TaskStatus) {
+    if (!enforcePermission(canCreateTasks)) return;
     const text = columnQuickAdd[status]?.trim();
     if (!text) return;
     const wid = getWid();
@@ -1304,10 +1333,13 @@ export function TaskDashboard({
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => {
+                if (!enforcePermission(canCreateTasks)) return;
                 setAddModalSession((s) => s + 1);
                 setAddOpen(true);
               }}
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[var(--app-primary)] px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[var(--app-primary-hover)] lg:px-5"
+              disabled={!canCreateTasks}
+              title={!canCreateTasks ? "Requires create task permission" : "Add task"}
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-[var(--app-primary)] px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[var(--app-primary-hover)] disabled:cursor-not-allowed disabled:opacity-45 lg:px-5"
             >
               <PlusIcon className="h-4 w-4" />
               Add task
@@ -1428,7 +1460,8 @@ export function TaskDashboard({
                           <button
                             type="button"
                             onClick={() => moveColumn(col.id, "left")}
-                            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                            disabled={!canReorderColumns}
+                            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-45 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
                             title="Move column left"
                           >
                             <ChevronLeftIcon className="h-4 w-4" />
@@ -1438,7 +1471,8 @@ export function TaskDashboard({
                           <button
                             type="button"
                             onClick={() => moveColumn(col.id, "right")}
-                            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                            disabled={!canReorderColumns}
+                            className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-45 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
                             title="Move column right"
                           >
                             <ChevronRightIcon className="h-4 w-4" />
@@ -1447,11 +1481,13 @@ export function TaskDashboard({
                         <button
                           type="button"
                           onClick={() => {
+                            if (!enforcePermission(canCreateTasks)) return;
                             setAddModalDefaultStatus(col.id);
                             setAddModalSession((s) => s + 1);
                             setAddOpen(true);
                           }}
-                          className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
+                          disabled={!canCreateTasks}
+                          className="rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-45 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 cursor-pointer"
                           title={`Add task to ${col.label}`}
                         >
                           <PlusIcon className="h-4 w-4" />
@@ -1600,7 +1636,7 @@ export function TaskDashboard({
                             <button
                               type="button"
                               onClick={() => handleQuickAddCard(col.id)}
-                              disabled={!columnQuickAdd[col.id]?.trim()}
+                              disabled={!canCreateTasks || !columnQuickAdd[col.id]?.trim()}
                               className="bg-[var(--app-primary)] text-white px-2.5 py-1 rounded text-[10px] font-semibold disabled:opacity-45 hover:bg-[var(--app-primary-hover)]"
                             >
                               Add card
@@ -1611,11 +1647,14 @@ export function TaskDashboard({
                         <button
                           type="button"
                           onClick={() => {
+                            if (!enforcePermission(canCreateTasks)) return;
                             setAddModalDefaultStatus(col.id);
                             setAddModalSession((s) => s + 1);
                             setAddOpen(true);
                           }}
-                          className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-semibold text-zinc-500 hover:bg-white hover:text-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-zinc-200 border border-transparent hover:border-zinc-200/60 dark:hover:border-zinc-800 transition-colors cursor-pointer"
+                          disabled={!canCreateTasks}
+                          title={!canCreateTasks ? "Requires create task permission" : "Add a card"}
+                          className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-xs font-semibold text-zinc-500 hover:bg-white hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-45 dark:text-zinc-400 dark:hover:bg-zinc-900/60 dark:hover:text-zinc-200 border border-transparent hover:border-zinc-200/60 dark:hover:border-zinc-800 transition-colors cursor-pointer"
                         >
                           <PlusIcon className="h-3.5 w-3.5" />
                           Add a card
@@ -1885,6 +1924,7 @@ export function TaskDashboard({
                                 type="button"
                                 onClick={() => {
                                   setSelectedTask(task);
+                                  if (!enforcePermission(canEditTasks)) return;
                                   setIsEditingTaskDetails(true);
                                   setActiveDropdown(null);
                                 }}
@@ -1897,6 +1937,7 @@ export function TaskDashboard({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  if (!enforcePermission(canDeleteTasks)) return;
                                   setTaskToDelete(task);
                                   setActiveDropdown(null);
                                 }}
@@ -1963,6 +2004,7 @@ export function TaskDashboard({
                   <button
                     type="button"
                     onClick={() => {
+                      if (!enforcePermission(canEditTasks)) return;
                       setDetailDrawerTab("notes");
                       openNotesModal();
                     }}
@@ -1977,6 +2019,7 @@ export function TaskDashboard({
                       if (isEditingTaskDetails) {
                         handleCancelTaskEdits();
                       } else {
+                        if (!enforcePermission(canEditTasks)) return;
                         setIsEditingTaskDetails(true);
                       }
                     }}
@@ -1991,7 +2034,10 @@ export function TaskDashboard({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTaskToDelete(selectedTask)}
+                    onClick={() => {
+                      if (!enforcePermission(canDeleteTasks)) return;
+                      setTaskToDelete(selectedTask);
+                    }}
                     className="rounded-lg p-1.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-505 dark:hover:bg-rose-950/20 transition-colors"
                     title="Delete task"
                   >

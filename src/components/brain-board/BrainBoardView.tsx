@@ -14,6 +14,7 @@ import {
   PencilIcon,
 } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
+import { usePermissionAccess } from "@/lib/usePermissionAccess";
 
 type Note = {
   id: string;
@@ -54,6 +55,17 @@ const COLOR_OPTIONS = [
 ];
 
 export function BrainBoardView() {
+  const { can, alertNoPermission } = usePermissionAccess();
+  const canCreateStickyNotes = can("create_sticky_notes");
+  const canEditNotes = can("edit_notes");
+  const canDeleteNotes = can("delete_notes");
+
+  const enforcePermission = (allowed: boolean) => {
+    if (allowed) return true;
+    alertNoPermission();
+    return false;
+  };
+
   const containerRef = useRef<HTMLDivElement>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -153,6 +165,7 @@ export function BrainBoardView() {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stickyTitle.trim() || !stickyBody.trim() || !userId) return;
+    if (!enforcePermission(editingNote ? canEditNotes : canCreateStickyNotes)) return;
 
     if (editingNote) {
       // Edit existing note
@@ -219,6 +232,7 @@ export function BrainBoardView() {
 
   // Persistent drag end positioning
   const handleDragEnd = async (noteId: string, offset: { x: number; y: number }) => {
+    if (!enforcePermission(canEditNotes)) return;
     setNotes((prev) =>
       prev.map((n) => {
         if (n.id === noteId) {
@@ -240,6 +254,7 @@ export function BrainBoardView() {
   };
 
   const handleDeleteNote = async (noteId: string) => {
+    if (!enforcePermission(canDeleteNotes)) return;
     try {
       setNotes((prev) => prev.filter((n) => n.id !== noteId));
       await fetch(`/api/brain-board?id=${noteId}`, {
@@ -310,8 +325,12 @@ export function BrainBoardView() {
             </button>
 
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="flex h-9 items-center gap-2 rounded-lg bg-[var(--app-primary)] px-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all"
+              onClick={() => {
+                if (!enforcePermission(canCreateStickyNotes)) return;
+                setIsModalOpen(true);
+              }}
+              disabled={!canCreateStickyNotes}
+              className="flex h-9 items-center gap-2 rounded-lg bg-[var(--app-primary)] px-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-45"
             >
               <PlusIcon className="h-4 w-4" />
               New Sticky
@@ -338,7 +357,7 @@ export function BrainBoardView() {
           {filteredNotes.map((note) => (
             <motion.div
               key={note.id}
-              drag
+              drag={canEditNotes}
               dragConstraints={{ left: 0, right: 3000 - 256, top: 0, bottom: 2000 - 180 }}
               dragMomentum={false}
               initial={{ x: note.x, y: note.y, rotate: note.rotation }}
@@ -352,25 +371,31 @@ export function BrainBoardView() {
                 </span>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
+                    type="button"
+                    disabled={!canEditNotes}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (!enforcePermission(canEditNotes)) return;
                       setEditingNote(note);
                       setStickyTitle(note.title);
                       setStickyBody(note.body);
                       setStickyColor(note.color);
                       setIsModalOpen(true);
                     }}
-                    className="rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10 opacity-45 hover:opacity-100 transition-opacity"
+                    className="rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10 opacity-45 hover:opacity-100 transition-opacity disabled:cursor-not-allowed disabled:opacity-30"
                     title="Edit Note"
                   >
                     <PencilIcon className="h-3.5 w-3.5" />
                   </button>
                   <button
+                    type="button"
+                    disabled={!canDeleteNotes}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (!enforcePermission(canDeleteNotes)) return;
                       setNoteToDelete(note.id);
                     }}
-                    className="rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10 opacity-45 hover:opacity-100 transition-opacity text-rose-650 dark:text-rose-400"
+                    className="rounded p-0.5 hover:bg-black/5 dark:hover:bg-white/10 opacity-45 hover:opacity-100 transition-opacity text-rose-650 dark:text-rose-400 disabled:cursor-not-allowed disabled:opacity-30"
                     title="Delete Note"
                   >
                     <TrashIcon className="h-3.5 w-3.5" />
@@ -406,8 +431,12 @@ export function BrainBoardView() {
               This is your infinite space to map thoughts, ideas, and strategies. Create your first sticky note to start brainstorming!
             </p>
             <button
-              onClick={() => setIsModalOpen(true)}
-              className="mt-5 inline-flex h-9 items-center gap-2 rounded-lg bg-[var(--app-primary)] px-4 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all"
+              onClick={() => {
+                if (!enforcePermission(canCreateStickyNotes)) return;
+                setIsModalOpen(true);
+              }}
+              disabled={!canCreateStickyNotes}
+              className="mt-5 inline-flex h-9 items-center gap-2 rounded-lg bg-[var(--app-primary)] px-4 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-45"
             >
               <PlusIcon className="h-4 w-4" />
               Place First Sticky
@@ -526,12 +555,13 @@ export function BrainBoardView() {
                       <button
                         key={color.name}
                         type="button"
+                        disabled={editingNote ? !canEditNotes : !canCreateStickyNotes}
                         onClick={() => setStickyColor(color.value)}
                         className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
                           stickyColor === color.value
                             ? "border-[var(--app-primary)] scale-110 shadow-sm"
                             : "border-transparent hover:scale-105"
-                        }`}
+                        } disabled:cursor-not-allowed disabled:opacity-45`}
                         title={color.name}
                       >
                         <div className={`h-6.5 w-6.5 rounded-full ${color.dotClass} flex items-center justify-center text-white`}>
@@ -555,7 +585,8 @@ export function BrainBoardView() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 rounded-xl bg-[var(--app-primary)] py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all"
+                    disabled={editingNote ? !canEditNotes : !canCreateStickyNotes}
+                    className="flex-1 rounded-xl bg-[var(--app-primary)] py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     {editingNote ? "Save Changes" : "Place Sticky"}
                   </button>
@@ -607,13 +638,15 @@ export function BrainBoardView() {
                 </button>
                 <button
                   type="button"
+                  disabled={!canDeleteNotes}
                   onClick={async () => {
+                    if (!enforcePermission(canDeleteNotes)) return;
                     if (noteToDelete) {
                       await handleDeleteNote(noteToDelete);
                       setNoteToDelete(null);
                     }
                   }}
-                  className="flex-1 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white shadow-md hover:bg-rose-700 active:scale-98 transition-all"
+                  className="flex-1 rounded-xl bg-rose-600 py-2.5 text-xs font-bold text-white shadow-md hover:bg-rose-700 active:scale-98 transition-all disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   Confirm Delete
                 </button>

@@ -7,11 +7,13 @@ import { ChevronLeftIcon, ChevronRightIcon, SwatchIcon } from "@heroicons/react/
 import { useEffect, useState } from "react";
 import { useAppearance } from "@/context/AppearanceContext";
 import { isNavActive, NAV_SECTIONS } from "@/config/navigation";
+import { usePermissionAccess } from "@/lib/usePermissionAccess";
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { isSidebarCollapsed, setIsSidebarCollapsed, setIsAppearanceOpen } = useAppearance();
   const [mounted, setMounted] = useState(false);
+  const { ready, canAccessPath, guardPathAccess } = usePermissionAccess();
 
   useEffect(() => {
     setMounted(true);
@@ -67,14 +69,23 @@ export function AppSidebar() {
               {section.items.map(({ href, label, icon: Icon, match }) => {
                 const active = isNavActive(pathname, href, match ?? "prefix");
                 const layoutId = `nav-pill-${href.replace(/\//g, "-") || "root"}`;
+                const allowed = !ready || canAccessPath(href);
                 return (
                   <Link
                     key={href}
                     href={href}
                     title={isSidebarCollapsed ? label : undefined}
+                    onClick={(e) => {
+                      if (!guardPathAccess(href)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }
+                    }}
+                    aria-disabled={!allowed}
                     className={[
                       "group relative flex min-h-[2.5rem] items-center rounded-[11px] transition-colors",
                       isSidebarCollapsed ? "justify-center w-11 h-11 mx-auto" : "gap-3 px-3 text-[13px] font-medium",
+                      !allowed ? "opacity-45 cursor-not-allowed" : "",
                       active
                         ? "text-[var(--app-primary-soft-text)] dark:text-teal-100"
                         : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/[0.04] dark:hover:text-zinc-100",

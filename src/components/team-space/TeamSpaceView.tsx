@@ -23,6 +23,7 @@ import { useState, useRef, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
+import { usePermissionAccess } from "@/lib/usePermissionAccess";
 
 const EmojiPicker = dynamic(
   () => import("emoji-picker-react").then((mod) => mod.default),
@@ -67,6 +68,19 @@ const SEED_CHANNELS: ChatTarget[] = [
 ];
 
 export function TeamSpaceView() {
+  const { can, alertNoPermission } = usePermissionAccess();
+  const canCreateChannels = can("create_channels");
+  const canDeleteChannels = can("delete_channels");
+  const canPostMessages = can("post_messages");
+  const canManageChannelMembers = can("manage_channel_members");
+  const canOpenChannelActions = canManageChannelMembers || canDeleteChannels;
+
+  const enforcePermission = (allowed: boolean) => {
+    if (allowed) return true;
+    alertNoPermission();
+    return false;
+  };
+
   const [channels, setChannels] = useState<ChatTarget[]>([]);
   const [dms, setDms] = useState<ChatTarget[]>([]);
   const [activeChat, setActiveChat] = useState<ChatTarget | null>(null);
@@ -485,6 +499,7 @@ export function TeamSpaceView() {
 
   async function handleSendMessage() {
     if ((!draft.trim() && attachments.length === 0) || !currentUser || !activeChat) return;
+    if (!enforcePermission(canPostMessages)) return;
     
     let draftText = draft.trim();
     if (attachments.length > 0) {
@@ -682,6 +697,7 @@ export function TeamSpaceView() {
 
   const handleCreateChannelSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!enforcePermission(canCreateChannels)) return;
     const name = newChannelName.trim();
     if (!name) return;
 
@@ -724,6 +740,7 @@ export function TeamSpaceView() {
 
   const handleEditChannelSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!enforcePermission(canManageChannelMembers)) return;
     const name = editChannelName.trim();
     if (!name || !editChannelId) return;
 
@@ -772,6 +789,7 @@ export function TeamSpaceView() {
 
   const handleDeleteChannelSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!enforcePermission(canDeleteChannels)) return;
     const isConfirmed = deleteConfirmationText === deleteChannelName || deleteConfirmationText === `#${deleteChannelName}`;
     if (!deleteChannelId || !isConfirmed) return;
 
@@ -796,6 +814,7 @@ export function TeamSpaceView() {
   };
 
   const handleCreateDm = (member: { id: string; name: string; jobTitle?: string }) => {
+    if (!enforcePermission(canPostMessages)) return;
     const existing = dms.find((d) => d.id === member.id || d.name === member.name);
     if (existing) {
       setActiveChat(existing);
@@ -872,6 +891,7 @@ export function TeamSpaceView() {
               <button
                 type="button"
                 onClick={() => {
+                  if (!enforcePermission(canCreateChannels)) return;
                   setShowNewChannelModal(true);
                   setNewChannelName("");
                   setNewChannelTopic("");
@@ -879,8 +899,9 @@ export function TeamSpaceView() {
                   setMemberSearchCreate("");
                   setSelectedMembers([]);
                 }}
-                className="flex items-center justify-center h-5 w-5 rounded-md border border-zinc-250 bg-white/60 text-[var(--app-primary)] shadow-sm hover:bg-white hover:text-[var(--app-primary-hover)] dark:border-white/5 dark:bg-white/[0.04] dark:text-teal-400 dark:hover:bg-white/[0.08] dark:hover:text-teal-300 transition-all cursor-pointer"
-                title="Add channel"
+                disabled={!canCreateChannels}
+                className="flex items-center justify-center h-5 w-5 rounded-md border border-zinc-250 bg-white/60 text-[var(--app-primary)] shadow-sm hover:bg-white hover:text-[var(--app-primary-hover)] dark:border-white/5 dark:bg-white/[0.04] dark:text-teal-400 dark:hover:bg-white/[0.08] dark:hover:text-teal-300 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
+                title={!canCreateChannels ? "Requires create channel permission" : "Add channel"}
               >
                 <PlusIcon className="h-3.5 w-3.5" />
               </button>
@@ -927,6 +948,7 @@ export function TeamSpaceView() {
                     </button>
 
                     {/* Options Menu Trigger */}
+                    {canOpenChannelActions && (
                     <div className="absolute right-1 flex items-center">
                       <button
                         type="button"
@@ -945,40 +967,45 @@ export function TeamSpaceView() {
                         <>
                           <div className="fixed inset-0 z-40" onClick={() => setActiveChannelMenuId(null)} />
                           <div className="absolute right-0 top-6 z-50 w-32 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-800 dark:bg-zinc-900 text-left">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditChannelId(channel.id);
-                                setEditChannelName(channel.name);
-                                setEditChannelTopic(channel.topic || "");
-                                setEditChannelIsPrivate(channel.isPrivate || false);
-                                setMemberSearchEdit("");
-                                setEditChannelMembers([]);
-                                setShowEditChannelModal(true);
-                                setActiveChannelMenuId(null);
-                              }}
-                              className="flex w-full items-center px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer"
-                            >
-                              Edit Channel
-                            </button>
-                            <button
-                              type="button"
-                              disabled={channel.name === "general"}
-                              onClick={() => {
-                                setDeleteChannelId(channel.id);
-                                setDeleteChannelName(channel.name);
-                                setDeleteConfirmationText("");
-                                setShowDeleteChannelModal(true);
-                                setActiveChannelMenuId(null);
-                              }}
-                              className="flex w-full items-center px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-zinc-50 dark:text-rose-400 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                            >
-                              Delete Channel
-                            </button>
+                            {canManageChannelMembers && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditChannelId(channel.id);
+                                  setEditChannelName(channel.name);
+                                  setEditChannelTopic(channel.topic || "");
+                                  setEditChannelIsPrivate(channel.isPrivate || false);
+                                  setMemberSearchEdit("");
+                                  setEditChannelMembers([]);
+                                  setShowEditChannelModal(true);
+                                  setActiveChannelMenuId(null);
+                                }}
+                                className="flex w-full items-center px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800 cursor-pointer"
+                              >
+                                Edit Channel
+                              </button>
+                            )}
+                            {canDeleteChannels && (
+                              <button
+                                type="button"
+                                disabled={channel.name === "general"}
+                                onClick={() => {
+                                  setDeleteChannelId(channel.id);
+                                  setDeleteChannelName(channel.name);
+                                  setDeleteConfirmationText("");
+                                  setShowDeleteChannelModal(true);
+                                  setActiveChannelMenuId(null);
+                                }}
+                                className="flex w-full items-center px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-zinc-50 dark:text-rose-400 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                              >
+                                Delete Channel
+                              </button>
+                            )}
                           </div>
                         </>
                       )}
                     </div>
+                    )}
                   </div>
                 );
               })
@@ -994,9 +1021,13 @@ export function TeamSpaceView() {
               </span>
               <button
                 type="button"
-                onClick={() => setShowNewDmModal(true)}
-                className="flex items-center justify-center h-5 w-5 rounded-md border border-zinc-250 bg-white/60 text-[var(--app-primary)] shadow-sm hover:bg-white hover:text-[var(--app-primary-hover)] dark:border-white/5 dark:bg-white/[0.04] dark:text-teal-400 dark:hover:bg-white/[0.08] dark:hover:text-teal-300 transition-all cursor-pointer"
-                title="Add direct message"
+                onClick={() => {
+                  if (!enforcePermission(canPostMessages)) return;
+                  setShowNewDmModal(true);
+                }}
+                disabled={!canPostMessages}
+                className="flex items-center justify-center h-5 w-5 rounded-md border border-zinc-250 bg-white/60 text-[var(--app-primary)] shadow-sm hover:bg-white hover:text-[var(--app-primary-hover)] dark:border-white/5 dark:bg-white/[0.04] dark:text-teal-400 dark:hover:bg-white/[0.08] dark:hover:text-teal-300 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
+                title={!canPostMessages ? "Requires message permission" : "Add direct message"}
               >
                 <PlusIcon className="h-3.5 w-3.5" />
               </button>
@@ -1269,7 +1300,8 @@ export function TeamSpaceView() {
               <button
                 type="button"
                 onClick={() => insertFormatting("**", "**")}
-                className="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-250 transition-colors cursor-pointer"
+                disabled={!canPostMessages}
+                className="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-250 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
                 title="Format Bold"
               >
                 <span className="font-serif font-bold text-sm px-1.5">B</span>
@@ -1277,7 +1309,8 @@ export function TeamSpaceView() {
               <button
                 type="button"
                 onClick={() => insertFormatting("*", "*")}
-                className="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-250 transition-colors cursor-pointer"
+                disabled={!canPostMessages}
+                className="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-250 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
                 title="Format Italic"
               >
                 <span className="font-serif italic text-sm px-1.5">I</span>
@@ -1286,7 +1319,8 @@ export function TeamSpaceView() {
               <button 
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-250 transition-colors cursor-pointer" 
+                disabled={!canPostMessages}
+                className="rounded p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-250 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45" 
                 title="Attach files"
               >
                 <PaperClipIcon className="h-4 w-4" />
@@ -1334,7 +1368,8 @@ export function TeamSpaceView() {
               value={draft}
               onChange={(e) => handleDraftChange(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={`Message ${activeChat.type === "channel" ? `#${activeChat.name}` : activeChat.name}`}
+              readOnly={!canPostMessages}
+              placeholder={canPostMessages ? `Message ${activeChat.type === "channel" ? `#${activeChat.name}` : activeChat.name}` : "You don't have permission to post messages."}
               className="w-full resize-none bg-transparent px-3 py-3 text-[14px] text-zinc-900 placeholder:text-zinc-505 outline-none dark:text-zinc-100 dark:placeholder:text-zinc-500 max-h-48"
               rows={1}
               style={{ minHeight: "44px" }}
@@ -1346,7 +1381,8 @@ export function TeamSpaceView() {
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="rounded p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-250 transition-colors cursor-pointer"
+                  disabled={!canPostMessages}
+                  className="rounded p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-250 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
                   title="Add emoji"
                 >
                   <FaceSmileIcon className="h-4.5 w-4.5" />
@@ -1354,7 +1390,8 @@ export function TeamSpaceView() {
                 <button
                   type="button"
                   onClick={handleAtClick}
-                  className="rounded p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-250 transition-colors cursor-pointer"
+                  disabled={!canPostMessages}
+                  className="rounded p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-250 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-45"
                   title="Mention teammate"
                 >
                   <AtSymbolIcon className="h-4.5 w-4.5" />
@@ -1364,7 +1401,7 @@ export function TeamSpaceView() {
               <button
                 type="button"
                 onClick={handleSendMessage}
-                disabled={!draft.trim() && attachments.length === 0}
+                disabled={!canPostMessages || (!draft.trim() && attachments.length === 0)}
                 className="flex items-center justify-center rounded-lg bg-[var(--app-primary)] p-1.5 text-white transition-all hover:bg-[var(--app-primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer"
               >
                 <PaperAirplaneIcon className="h-4 w-4 -translate-y-[0.5px] translate-x-[0.5px]" />
@@ -1574,7 +1611,8 @@ export function TeamSpaceView() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 rounded-xl bg-[var(--app-primary)] py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all cursor-pointer"
+                    disabled={!canCreateChannels}
+                    className="flex-1 rounded-xl bg-[var(--app-primary)] py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Create Channel
                   </button>
@@ -1783,7 +1821,8 @@ export function TeamSpaceView() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 rounded-xl bg-[var(--app-primary)] py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all cursor-pointer"
+                    disabled={!canManageChannelMembers}
+                    className="flex-1 rounded-xl bg-[var(--app-primary)] py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Save Changes
                   </button>
@@ -1861,7 +1900,7 @@ export function TeamSpaceView() {
                   </button>
                   <button
                     type="submit"
-                    disabled={deleteConfirmationText !== deleteChannelName && deleteConfirmationText !== '#' + deleteChannelName}
+                    disabled={!canDeleteChannels || (deleteConfirmationText !== deleteChannelName && deleteConfirmationText !== '#' + deleteChannelName)}
                     className="flex-1 rounded-xl bg-rose-600 py-3 text-xs font-bold text-white shadow-md hover:bg-rose-700 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-rose-600 transition-all cursor-pointer"
                   >
                     Delete Channel
@@ -1920,8 +1959,9 @@ export function TeamSpaceView() {
                     workspaceMembers.map((member) => (
                       <button
                         key={member.id}
+                        disabled={!canPostMessages}
                         onClick={() => handleCreateDm(member)}
-                        className="flex w-full items-center gap-3 py-3 px-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/40 text-left transition-colors cursor-pointer"
+                        className="flex w-full items-center gap-3 py-3 px-2 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-800/40 text-left transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         <span 
                           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-sm"
@@ -2013,36 +2053,40 @@ export function TeamSpaceView() {
                   <div className="space-y-2 border-t border-zinc-100 dark:border-white/5 pt-4">
                     <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest block">Channel Actions</span>
                     <div className="flex gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditChannelId(activeChat.id);
-                          setEditChannelName(activeChat.name);
-                          setEditChannelTopic(channelDetails?.topic || activeChat.topic || "");
-                          setEditChannelIsPrivate(activeChat.isPrivate || false);
-                          setMemberSearchEdit("");
-                          setEditChannelMembers([]);
-                          setShowEditChannelModal(true);
-                        }}
-                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/50 dark:hover:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-350 py-2.5 transition-colors cursor-pointer"
-                      >
-                        <PencilIcon className="h-3.5 w-3.5" />
-                        Edit Settings
-                      </button>
-                      <button
-                        type="button"
-                        disabled={activeChat.name === "general"}
-                        onClick={() => {
-                          setDeleteChannelId(activeChat.id);
-                          setDeleteChannelName(activeChat.name);
-                          setDeleteConfirmationText("");
-                          setShowDeleteChannelModal(true);
-                        }}
-                        className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-rose-100 dark:border-rose-900/30 bg-rose-50/50 hover:bg-rose-100/50 dark:bg-rose-950/15 dark:hover:bg-rose-900/20 text-xs font-bold text-rose-600 dark:text-rose-450 py-2.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                      >
-                        <TrashIcon className="h-3.5 w-3.5" />
-                        Delete Channel
-                      </button>
+                      {canManageChannelMembers && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditChannelId(activeChat.id);
+                            setEditChannelName(activeChat.name);
+                            setEditChannelTopic(channelDetails?.topic || activeChat.topic || "");
+                            setEditChannelIsPrivate(activeChat.isPrivate || false);
+                            setMemberSearchEdit("");
+                            setEditChannelMembers([]);
+                            setShowEditChannelModal(true);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 dark:border-white/10 bg-zinc-50 hover:bg-zinc-100 dark:bg-zinc-900/50 dark:hover:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-350 py-2.5 transition-colors cursor-pointer"
+                        >
+                          <PencilIcon className="h-3.5 w-3.5" />
+                          Edit Settings
+                        </button>
+                      )}
+                      {canDeleteChannels && (
+                        <button
+                          type="button"
+                          disabled={activeChat.name === "general"}
+                          onClick={() => {
+                            setDeleteChannelId(activeChat.id);
+                            setDeleteChannelName(activeChat.name);
+                            setDeleteConfirmationText("");
+                            setShowDeleteChannelModal(true);
+                          }}
+                          className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-rose-100 dark:border-rose-900/30 bg-rose-50/50 hover:bg-rose-100/50 dark:bg-rose-950/15 dark:hover:bg-rose-900/20 text-xs font-bold text-rose-600 dark:text-rose-450 py-2.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <TrashIcon className="h-3.5 w-3.5" />
+                          Delete Channel
+                        </button>
+                      )}
                     </div>
                   </div>
 

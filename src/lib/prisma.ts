@@ -14,8 +14,12 @@ function createPrismaClient() {
 function getPrismaClient(): PrismaClient {
   const cached = globalForPrisma.prisma;
   const hasTaskNotes = cached && "taskNote" in cached && typeof cached.taskNote?.findMany === "function";
+  const hasPermissionSettings =
+    cached &&
+    "workspacePermissionSettings" in cached &&
+    typeof cached.workspacePermissionSettings?.findUnique === "function";
 
-  if (cached && !hasTaskNotes) {
+  if (cached && (!hasTaskNotes || !hasPermissionSettings)) {
     void cached.$disconnect().catch(() => undefined);
     globalForPrisma.prisma = undefined;
   }

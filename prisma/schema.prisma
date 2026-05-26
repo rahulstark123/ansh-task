@@ -72,6 +72,7 @@ model Workspace {
   conversations Conversation[]
   subscriptions Subscription[]
   transactions  Transaction[]
+  permissionSettings WorkspacePermissionSettings?
 }
 
 model WorkspaceRole {
@@ -94,6 +95,15 @@ model WorkspaceDepartment {
   updatedAt   DateTime  @updatedAt
 
   @@unique([workspaceId, name])
+}
+
+model WorkspacePermissionSettings {
+  id          String    @id @default(uuid())
+  workspaceId Int       @unique
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  matrix      Json
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
 
 model Project {

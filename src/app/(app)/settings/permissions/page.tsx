@@ -20,8 +20,17 @@ import {
   UserGroupIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
+import { supabase } from "@/lib/supabase";
+import {
+  AppRole,
+  DEFAULT_PERMISSION_MATRIX,
+  PERMISSION_STORAGE_KEY,
+  PermissionMatrix,
+  parsePermissionMatrix,
+  sanitizePermissionMatrix,
+} from "@/lib/permissions";
 
-type RoleType = "owner" | "admin" | "editor" | "observer";
+type RoleType = AppRole;
 
 interface PermissionItem {
   id: string;
@@ -138,104 +147,66 @@ const MODULES: PermissionModule[] = [
   },
 ];
 
-const DEFAULT_PRESETS: Record<RoleType, Record<string, boolean>> = {
-  owner: {
-    modify_workspace: true,
-    manage_members: true,
-    setup_integrations: true,
-    create_channels: true,
-    delete_channels: true,
-    post_messages: true,
-    manage_channel_members: true,
-    create_projects: true,
-    create_tasks: true,
-    edit_tasks: true,
-    delete_tasks: true,
-    reorder_columns: true,
-    view_invoices: true,
-    manage_subscription: true,
-    create_sticky_notes: true,
-    edit_notes: true,
-    delete_notes: true,
-  },
-  admin: {
-    modify_workspace: true,
-    manage_members: true,
-    setup_integrations: true,
-    create_channels: true,
-    delete_channels: true,
-    post_messages: true,
-    manage_channel_members: true,
-    create_projects: true,
-    create_tasks: true,
-    edit_tasks: true,
-    delete_tasks: true,
-    reorder_columns: true,
-    view_invoices: true,
-    manage_subscription: false,
-    create_sticky_notes: true,
-    edit_notes: true,
-    delete_notes: true,
-  },
-  editor: {
-    modify_workspace: false,
-    manage_members: false,
-    setup_integrations: false,
-    create_channels: true,
-    delete_channels: false,
-    post_messages: true,
-    manage_channel_members: true,
-    create_projects: false,
-    create_tasks: true,
-    edit_tasks: true,
-    delete_tasks: false,
-    reorder_columns: false,
-    view_invoices: false,
-    manage_subscription: false,
-    create_sticky_notes: true,
-    edit_notes: true,
-    delete_notes: true,
-  },
-  observer: {
-    modify_workspace: false,
-    manage_members: false,
-    setup_integrations: false,
-    create_channels: false,
-    delete_channels: false,
-    post_messages: false,
-    manage_channel_members: false,
-    create_projects: false,
-    create_tasks: false,
-    edit_tasks: false,
-    delete_tasks: false,
-    reorder_columns: false,
-    view_invoices: false,
-    manage_subscription: false,
-    create_sticky_notes: false,
-    edit_notes: false,
-    delete_notes: false,
-  },
-};
+const DEFAULT_PRESETS = DEFAULT_PERMISSION_MATRIX;
+
+function syncLocalPermissions(nextPermissions: PermissionMatrix) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(PERMISSION_STORAGE_KEY, JSON.stringify(nextPermissions));
+}
 
 export default function PermissionsSettingsPage() {
   const [selectedRole, setSelectedRole] = useState<RoleType>("owner");
   const [searchQuery, setSearchQuery] = useState("");
-  const [rolePermissions, setRolePermissions] = useState<Record<RoleType, Record<string, boolean>>>(DEFAULT_PRESETS);
+  const [rolePermissions, setRolePermissions] = useState<PermissionMatrix>(DEFAULT_PRESETS);
   const [showToast, setShowToast] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize permissions state from local storage on mount
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    let active = true;
+
+    async function loadPermissions() {
       try {
-        const saved = localStorage.getItem("ansh_role_permissions");
+        const saved = typeof window !== "undefined"
+          ? window.localStorage.getItem(PERMISSION_STORAGE_KEY)
+          : null;
         if (saved) {
-          setRolePermissions(JSON.parse(saved));
+          setRolePermissions(parsePermissionMatrix(saved));
         }
       } catch (err) {
         console.error("Error loading permissions from localStorage:", err);
       }
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const query = user?.email ? `?email=${encodeURIComponent(user.email)}` : "";
+        const res = await fetch(`/api/permissions${query}`, { cache: "no-store" });
+        const json = await res.json();
+
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.error || "Failed to load permissions");
+        }
+
+        const nextPermissions = sanitizePermissionMatrix(json.matrix);
+        if (!active) return;
+
+        setRolePermissions(nextPermissions);
+        syncLocalPermissions(nextPermissions);
+      } catch (err) {
+        console.error("Error loading permissions from API:", err);
+      } finally {
+        if (active) {
+          setIsLoading(false);
+        }
+      }
     }
+
+    void loadPermissions();
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Filter permission items dynamically based on search query
@@ -255,32 +226,76 @@ export default function PermissionsSettingsPage() {
     }).filter((mod) => mod.permissions.length > 0);
   }, [searchQuery]);
 
-  const handleToggle = (role: RoleType, permissionId: string) => {
+  const savePermissions = async (
+    nextPermissions: PermissionMatrix,
+    previousPermissions: PermissionMatrix,
+    successMessage: string,
+    errorMessage: string
+  ) => {
+    setRolePermissions(nextPermissions);
+    syncLocalPermissions(nextPermissions);
+    setIsSaving(true);
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const res = await fetch("/api/permissions", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: user?.email ?? null,
+          matrix: nextPermissions,
+        }),
+      });
+      const json = await res.json();
+
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || "Failed to save permissions");
+      }
+
+      const persistedPermissions = sanitizePermissionMatrix(json.matrix);
+      setRolePermissions(persistedPermissions);
+      syncLocalPermissions(persistedPermissions);
+      triggerToast(successMessage);
+    } catch (err) {
+      console.error("Error saving permissions:", err);
+      setRolePermissions(previousPermissions);
+      syncLocalPermissions(previousPermissions);
+      triggerToast(errorMessage);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleToggle = async (role: RoleType, permissionId: string) => {
     // Owner is locked to true for safety
     if (role === "owner") {
       triggerToast("Owner permissions are locked to full access for security.");
       return;
     }
 
-    setRolePermissions((prev) => {
-      const nextPermissions = {
-        ...prev,
-        [role]: {
-          ...prev[role],
-          [permissionId]: !prev[role][permissionId],
-        },
-      };
-      
-      // Auto-save changes locally
-      if (typeof window !== "undefined") {
-        localStorage.setItem("ansh_role_permissions", JSON.stringify(nextPermissions));
-      }
-      
-      return nextPermissions;
-    });
+    if (isSaving || isLoading) {
+      return;
+    }
 
+    const previousPermissions = rolePermissions;
+    const nextPermissions = sanitizePermissionMatrix({
+      ...rolePermissions,
+      [role]: {
+        ...rolePermissions[role],
+        [permissionId]: !rolePermissions[role][permissionId],
+      },
+    });
     const roleLabel = ROLES.find(r => r.id === role)?.name || role;
-    triggerToast(`Updated ${roleLabel} permission toggle.`);
+    await savePermissions(
+      nextPermissions,
+      previousPermissions,
+      `Updated ${roleLabel} permission toggle.`,
+      `Failed to update ${roleLabel} permissions.`
+    );
   };
 
   const triggerToast = (msg: string) => {
@@ -291,16 +306,17 @@ export default function PermissionsSettingsPage() {
     return () => clearTimeout(id);
   };
 
-  const handleResetToDefaults = () => {
-    setIsSaving(true);
-    setTimeout(() => {
-      setRolePermissions(DEFAULT_PRESETS);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("ansh_role_permissions", JSON.stringify(DEFAULT_PRESETS));
-      }
-      setIsSaving(false);
-      triggerToast("Permissions reverted to system presets.");
-    }, 600); // 600ms simulation
+  const handleResetToDefaults = async () => {
+    if (isSaving || isLoading) {
+      return;
+    }
+
+    await savePermissions(
+      DEFAULT_PRESETS,
+      rolePermissions,
+      "Permissions reverted to system presets.",
+      "Failed to reset permissions."
+    );
   };
 
   return (
@@ -320,10 +336,10 @@ export default function PermissionsSettingsPage() {
         <button
           type="button"
           onClick={handleResetToDefaults}
-          disabled={isSaving}
+          disabled={isSaving || isLoading}
           className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-zinc-250/60 bg-white/50 px-4 text-xs font-bold text-zinc-600 shadow-sm transition-all hover:bg-zinc-50 hover:text-zinc-800 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-zinc-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
         >
-          <ArrowPathIcon className={`h-3.5 w-3.5 ${isSaving ? "animate-spin" : ""}`} />
+          <ArrowPathIcon className={`h-3.5 w-3.5 ${(isSaving || isLoading) ? "animate-spin" : ""}`} />
           Reset Defaults
         </button>
       </div>
@@ -504,7 +520,8 @@ export default function PermissionsSettingsPage() {
                                       <button
                                         type="button"
                                         onClick={() => handleToggle(role.id, perm.id)}
-                                        className={`relative inline-flex h-5.5 w-10 shrink-0 items-center rounded-full border transition-all duration-300 focus:outline-none hover:scale-[1.05] cursor-pointer ${
+                                        disabled={isSaving || isLoading}
+                                        className={`relative inline-flex h-5.5 w-10 shrink-0 items-center rounded-full border transition-all duration-300 focus:outline-none hover:scale-[1.05] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${
                                           isEnabled
                                             ? "bg-gradient-to-r from-teal-500 to-emerald-500 border-teal-500/20 shadow-[0_0_8px_rgba(20,184,166,0.25)]"
                                             : "bg-zinc-200 dark:bg-zinc-800 border-zinc-300 dark:border-white/[0.08]"

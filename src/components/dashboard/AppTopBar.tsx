@@ -23,6 +23,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAppearance } from "@/context/AppearanceContext";
 import { supabase } from "@/lib/supabase";
+import { usePermissionAccess } from "@/lib/usePermissionAccess";
 
 type SearchItem = {
   id: string;
@@ -47,6 +48,7 @@ export function AppTopBar() {
   const router = useRouter();
   const { setTheme, theme } = useTheme();
   const { setIsAppearanceOpen } = useAppearance();
+  const { guardPathAccess } = usePermissionAccess();
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
     {
@@ -357,7 +359,7 @@ export function AppTopBar() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isProfileCardOpen, setIsProfileCardOpen] = useState(false);
-  const [userInfo, setUserInfo] = useState<{ name: string; email: string; avatar: string } | null>(null);
+  const [userInfo, setUserInfo] = useState<{ name: string; email: string; avatar: string; role: string } | null>(null);
   const [userInitial, setUserInitial] = useState("A");
 
   const [dbProjects, setDbProjects] = useState<any[]>([]);
@@ -375,17 +377,28 @@ export function AppTopBar() {
           const json = await res.json();
           let name = user.user_metadata?.full_name || user.email.split("@")[0];
           let avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(user.email)}`;
+          let role = "Editor";
           
           if (json.success && json.user) {
             const u = json.user;
             name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || name;
             avatar = u.avatar || avatar;
+            const normalizedRole = (u.role || "editor").toString().toLowerCase();
+            role =
+              normalizedRole === "owner"
+                ? "Owner"
+                : normalizedRole === "admin"
+                ? "Admin"
+                : normalizedRole === "observer"
+                ? "Observer"
+                : "Editor";
           }
 
           setUserInfo({
             name,
             email: user.email,
             avatar,
+            role,
           });
 
           const initials = name
@@ -468,16 +481,22 @@ export function AppTopBar() {
     }
   }, [isOpen]);
 
+  const guardedRoutePush = (path: string) => {
+    if (!guardPathAccess(path)) return;
+    router.push(path);
+    setIsOpen(false);
+  };
+
   const searchItems: SearchItem[] = [
     // Navigation Pages
-    { id: "p-dash", type: "page", title: "Go to Dashboard", subtitle: "Main analytics & overview", action: () => { router.push("/dashboard"); setIsOpen(false); } },
-    { id: "p-tasks", type: "page", title: "Go to Task List", subtitle: "Complete tasks backlog", action: () => { router.push("/tasks"); setIsOpen(false); } },
-    { id: "p-mytasks", type: "page", title: "Go to My Tasks", subtitle: "Your assigned workload list", action: () => { router.push("/tasks/my"); setIsOpen(false); } },
-    { id: "p-team", type: "page", title: "Go to Team Space", subtitle: "Discussions & updates board", action: () => { router.push("/tasks/team"); setIsOpen(false); } },
-    { id: "p-proj", type: "page", title: "Go to Projects", subtitle: "List of active portfolio projects", action: () => { router.push("/projects"); setIsOpen(false); } },
-    { id: "p-bb", type: "page", title: "Go to Brain Board", subtitle: "Sticky canvas ideas mapping", action: () => { router.push("/brain-board"); setIsOpen(false); } },
-    { id: "p-teams", type: "page", title: "Go to Teams Management", subtitle: "Add and manage team members", action: () => { router.push("/management/teams"); setIsOpen(false); } },
-    { id: "p-settings", type: "page", title: "Go to Settings", subtitle: "Workspace configuration drawer", action: () => { router.push("/settings"); setIsOpen(false); } },
+    { id: "p-dash", type: "page", title: "Go to Dashboard", subtitle: "Main analytics & overview", action: () => guardedRoutePush("/dashboard") },
+    { id: "p-tasks", type: "page", title: "Go to Task List", subtitle: "Complete tasks backlog", action: () => guardedRoutePush("/tasks") },
+    { id: "p-mytasks", type: "page", title: "Go to My Tasks", subtitle: "Your assigned workload list", action: () => guardedRoutePush("/tasks/my") },
+    { id: "p-team", type: "page", title: "Go to Team Space", subtitle: "Discussions & updates board", action: () => guardedRoutePush("/tasks/team") },
+    { id: "p-proj", type: "page", title: "Go to Projects", subtitle: "List of active portfolio projects", action: () => guardedRoutePush("/projects") },
+    { id: "p-bb", type: "page", title: "Go to Brain Board", subtitle: "Sticky canvas ideas mapping", action: () => guardedRoutePush("/brain-board") },
+    { id: "p-teams", type: "page", title: "Go to Teams Management", subtitle: "Add and manage team members", action: () => guardedRoutePush("/management/teams") },
+    { id: "p-settings", type: "page", title: "Go to Settings", subtitle: "Workspace configuration drawer", action: () => guardedRoutePush("/settings") },
     
     // Core Projects (Dynamic from DB)
     ...dbProjects.map((p) => ({
@@ -485,7 +504,7 @@ export function AppTopBar() {
       type: "project" as const,
       title: `Project: ${p.name}`,
       subtitle: `${p.category || "General"} · ${p.progress || 0}% complete`,
-      action: () => { router.push("/projects"); setIsOpen(false); }
+      action: () => guardedRoutePush("/projects")
     })),
 
     // Core Tasks (Dynamic from DB)
@@ -494,7 +513,7 @@ export function AppTopBar() {
       type: "task" as const,
       title: `Task: ${t.title}`,
       subtitle: `${t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : "Normal"} Priority · ${t.category || "General"} · ${t.status || "Todo"}`,
-      action: () => { router.push("/tasks"); setIsOpen(false); }
+      action: () => guardedRoutePush("/tasks")
     })),
 
     // Team Members (Dynamic from DB)
@@ -503,7 +522,7 @@ export function AppTopBar() {
       type: "member" as const,
       title: `Member: ${m.name}`,
       subtitle: m.email,
-      action: () => { router.push("/management/teams"); setIsOpen(false); }
+      action: () => guardedRoutePush("/management/teams")
     })),
 
     // Quick Actions
@@ -777,6 +796,9 @@ export function AppTopBar() {
                       <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
                         {userInfo?.email || ""}
                       </p>
+                      <span className="mt-1 inline-flex rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-500 dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-350">
+                        {userInfo?.role || "Editor"}
+                      </span>
                     </div>
                   </div>
                   

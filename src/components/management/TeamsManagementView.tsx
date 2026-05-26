@@ -29,6 +29,7 @@ import { useToast } from "@/context/ToastContext";
 import "react-phone-input-2/lib/style.css";
 import PhoneInput from "react-phone-input-2";
 import { AddTaskModal } from "@/components/tasks/AddTaskModal";
+import { usePermissionAccess } from "@/lib/usePermissionAccess";
 
 type TaskMock = {
   id?: string;
@@ -379,6 +380,16 @@ function priorityBadgeColor(p: string) {
 
 export function TeamsManagementView() {
   const { showToast } = useToast();
+  const { can, alertNoPermission } = usePermissionAccess();
+  const canManageMembers = can("manage_members");
+  const canCreateTasks = can("create_tasks");
+
+  const enforcePermission = (allowed: boolean) => {
+    if (allowed) return true;
+    alertNoPermission();
+    return false;
+  };
+
   const [members, setMembers] = useState<Member[]>([]);
 
   // Search State
@@ -547,6 +558,7 @@ export function TeamsManagementView() {
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!enforcePermission(canManageMembers)) return;
     if (!name.trim()) return;
     const digits = (phone || "").replace(/\D/g, "");
     if (phone && (digits.length < 8 || digits.length > 15)) {
@@ -593,6 +605,7 @@ export function TeamsManagementView() {
   };
 
   const handleStartEdit = (member: Member) => {
+    if (!enforcePermission(canManageMembers)) return;
     setEditingMember(member);
     setEditName(member.name);
     setEditEmail(member.email);
@@ -606,6 +619,7 @@ export function TeamsManagementView() {
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!enforcePermission(canManageMembers)) return;
     if (!editingMember || !editName.trim()) return;
     const editDigits = (editPhone || "").replace(/\D/g, "");
     if (editPhone && (editDigits.length < 8 || editDigits.length > 15)) {
@@ -646,6 +660,7 @@ export function TeamsManagementView() {
   };
 
   const handleDeleteMember = async (id: string) => {
+    if (!enforcePermission(canManageMembers)) return;
     try {
       const res = await fetch(`/api/team?id=${id}`, {
         method: "DELETE",
@@ -667,6 +682,7 @@ export function TeamsManagementView() {
   };
 
   const handleCreateTask = async (payload: import("@/types/task").NewTaskPayload) => {
+    if (!enforcePermission(canCreateTasks)) return;
     if (!selectedMember) return;
     setIsAddingTask(true);
     try {
@@ -720,6 +736,7 @@ export function TeamsManagementView() {
   };
 
   const handleCreateDesignation = () => {
+    if (!enforcePermission(canManageMembers)) return;
     const trimmed = newDesignationName.trim();
     if (!trimmed) return;
     if (!availableDesignations.includes(trimmed)) {
@@ -735,6 +752,7 @@ export function TeamsManagementView() {
   };
 
   const handleCreateDept = () => {
+    if (!enforcePermission(canManageMembers)) return;
     const trimmed = newDeptName.trim();
     if (!trimmed) return;
     if (!availableDepts.includes(trimmed)) {
@@ -794,8 +812,12 @@ export function TeamsManagementView() {
             </div>
 
             <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex h-9 items-center gap-2 rounded-lg bg-[var(--app-primary)] px-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all"
+              onClick={() => {
+                if (!enforcePermission(canManageMembers)) return;
+                setIsAddModalOpen(true);
+              }}
+              disabled={!canManageMembers}
+              className="flex h-9 items-center gap-2 rounded-lg bg-[var(--app-primary)] px-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-45"
             >
               <UserPlusIcon className="h-4 w-4" />
               Add Member
@@ -836,8 +858,12 @@ export function TeamsManagementView() {
                           Get started by adding teammates to your workspace. They will be able to collaborate on tasks, assign projects, and log activities.
                         </p>
                         <button
-                          onClick={() => setIsAddModalOpen(true)}
-                          className="mt-5 flex h-9 items-center gap-1.5 rounded-xl bg-[var(--app-primary)] px-4 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all"
+                          onClick={() => {
+                            if (!enforcePermission(canManageMembers)) return;
+                            setIsAddModalOpen(true);
+                          }}
+                          disabled={!canManageMembers}
+                          className="mt-5 flex h-9 items-center gap-1.5 rounded-xl bg-[var(--app-primary)] px-4 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-45"
                         >
                           <PlusIcon className="h-4 w-4" />
                           Add Member
@@ -904,7 +930,9 @@ export function TeamsManagementView() {
                             e.stopPropagation();
                             setActiveMenuId(activeMenuId === m.id ? null : m.id);
                           }}
-                          className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                          disabled={!canManageMembers}
+                          title={!canManageMembers ? "Requires team management permission" : "Member actions"}
+                          className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-45"
                         >
                           <EllipsisVerticalIcon className="h-5 w-5" />
                         </button>
@@ -929,27 +957,31 @@ export function TeamsManagementView() {
                                 <EyeIcon className="h-4 w-4 text-zinc-400" />
                                 Preview
                               </button>
-                              <button
-                                onClick={() => {
-                                  handleStartEdit(m);
-                                  setActiveMenuId(null);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                              >
-                                <PencilSquareIcon className="h-4 w-4 text-zinc-400" />
-                                Edit Member
-                              </button>
-                              <div className="my-1 border-t border-zinc-100 dark:border-white/5" />
-                              <button
-                                onClick={() => {
-                                  setMemberToDelete(m);
-                                  setActiveMenuId(null);
-                                }}
-                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                                Delete
-                              </button>
+                              {canManageMembers && (
+                                <button
+                                  onClick={() => {
+                                    handleStartEdit(m);
+                                    setActiveMenuId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                >
+                                  <PencilSquareIcon className="h-4 w-4 text-zinc-400" />
+                                  Edit Member
+                                </button>
+                              )}
+                              {canManageMembers && <div className="my-1 border-t border-zinc-100 dark:border-white/5" />}
+                              {canManageMembers && (
+                                <button
+                                  onClick={() => {
+                                    setMemberToDelete(m);
+                                    setActiveMenuId(null);
+                                  }}
+                                  className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                                >
+                                  <TrashIcon className="h-4 w-4" />
+                                  Delete
+                                </button>
+                              )}
                             </motion.div>
                           )}
                         </AnimatePresence>
@@ -1140,8 +1172,12 @@ export function TeamsManagementView() {
                       </h4>
                       <button
                         type="button"
-                        onClick={() => setIsTaskModalOpen(true)}
-                        className="flex h-8 items-center gap-1.5 rounded-xl bg-teal-500 px-3 text-xs font-bold text-white shadow-sm hover:bg-teal-650 active:scale-95 transition-all"
+                        onClick={() => {
+                          if (!enforcePermission(canCreateTasks)) return;
+                          setIsTaskModalOpen(true);
+                        }}
+                        disabled={!canCreateTasks}
+                        className="flex h-8 items-center gap-1.5 rounded-xl bg-teal-500 px-3 text-xs font-bold text-white shadow-sm hover:bg-teal-650 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-45"
                       >
                         <PlusIcon className="h-4 w-4" />
                         Add Task
@@ -2278,12 +2314,14 @@ export function TeamsManagementView() {
                 </button>
                 <button
                   type="button"
+                  disabled={!canManageMembers}
                   onClick={async () => {
+                    if (!enforcePermission(canManageMembers)) return;
                     const id = memberToDelete.id;
                     setMemberToDelete(null);
                     await handleDeleteMember(id);
                   }}
-                  className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 active:scale-95 transition-all"
+                  className="rounded-xl bg-rose-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-rose-700 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   Yes, Remove
                 </button>
@@ -2294,7 +2332,7 @@ export function TeamsManagementView() {
       </AnimatePresence>
 
       <AddTaskModal
-        open={isTaskModalOpen}
+        open={isTaskModalOpen && canCreateTasks}
         onClose={() => setIsTaskModalOpen(false)}
         onCreate={handleCreateTask}
         assignees={members.map((m) => m.name)}

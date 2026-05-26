@@ -45,6 +45,7 @@ export default function AuthCallbackPage() {
         const json = await res.json();
 
         if (json.success && json.user && json.user.workspaceId) {
+          sessionStorage.setItem("ansh_user_role", (json.user.role || "editor").toLowerCase());
           // Existing user with workspace -> redirect to dashboard
           setStatus("Workspace found, redirecting to Dashboard...");
           router.push("/dashboard");
