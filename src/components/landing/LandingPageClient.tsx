@@ -35,6 +35,77 @@ const ACCENTS = [
   { id: "rose", name: "Rose", color: "#e11d48", class: "bg-rose-600 focus:ring-rose-400" },
 ];
 
+const PRICING_PLANS = [
+  {
+    id: "free",
+    name: "Free",
+    badge: "Start free",
+    price: "₹0",
+    cadence: "/ workspace",
+    description:
+      "Great for trying the product, managing small teams, and getting real work done without paying upfront.",
+    features: [
+      { label: "Up to 2 team members", included: true },
+      { label: "Up to 3 projects", included: true },
+      { label: "50 tasks per month", included: true },
+      { label: "Brain Board included", included: true },
+      { label: "Team Space not included", included: false },
+      { label: "Advanced Analytics not included", included: false },
+    ],
+    ctaLabel: "Start Free",
+    ctaHref: "/signup",
+    highlighted: false,
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    badge: "Most popular",
+    price: "₹199",
+    cadence: "/ user / month",
+    description:
+      "Best for growing teams that want seat-based scaling, deeper visibility, and full collaboration in one workspace.",
+    features: [
+      { label: "Add team members based on paid seats", included: true },
+      { label: "Unlimited projects", included: true },
+      { label: "Unlimited tasks", included: true },
+      { label: "Brain Board included", included: true },
+      { label: "Team Space channels and DMs", included: true },
+      { label: "Advanced Analytics included", included: true },
+    ],
+    ctaLabel: "Upgrade to Pro",
+    ctaHref: "/signup",
+    note: "Yearly billing saves 17%",
+    highlighted: true,
+  },
+] as const;
+
+const COMPETITOR_COMPARISONS = [
+  {
+    title: "Compared to Zoho Projects",
+    summary: "Cleaner daily execution for teams that want less suite complexity.",
+    points: [
+      "Tasks, Brain Board, docs, and support workflows stay in one focused workspace.",
+      "Faster onboarding for smaller teams that do not want a bulky business suite feel.",
+    ],
+  },
+  {
+    title: "Compared to monday.com",
+    summary: "More built-in workflow depth without forcing extra tools for brainstorming and structured execution.",
+    points: [
+      "Brain Board turns ideas into action without leaving the product.",
+      "Free plan still gives real room to work with 2 members, 3 projects, and 50 tasks each month.",
+    ],
+  },
+  {
+    title: "Compared to Jira",
+    summary: "Easier for mixed teams beyond engineering-heavy workflows.",
+    points: [
+      "Product, design, operations, and founders can move fast without admin-heavy setup.",
+      "You keep collaboration, planning, and execution in one place instead of managing complex workflow layers.",
+    ],
+  },
+] as const;
+
 export function LandingPageClient() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -93,6 +164,8 @@ export function LandingPageClient() {
           {/* Desktop Nav Links */}
           <nav className="hidden md:flex items-center gap-8 text-[14px] font-medium text-zinc-600 dark:text-zinc-400">
             <a href="#features" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Features</a>
+            <a href="#pricing" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Pricing</a>
+            <a href="#compare" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Why ANSH</a>
             <a href="#preview" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Interactive Hub</a>
             <a href="#customization" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Themes</a>
             <a href="#faq" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">FAQ</a>
@@ -157,6 +230,8 @@ export function LandingPageClient() {
           >
             <nav className="flex flex-col gap-4 text-base font-semibold">
               <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Features</a>
+              <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Pricing</a>
+              <a href="#compare" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Why ANSH</a>
               <a href="#preview" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Interactive Hub</a>
               <a href="#customization" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Themes</a>
               <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">FAQ</a>
@@ -551,6 +626,183 @@ export function LandingPageClient() {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section id="pricing" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-400 text-xs font-semibold tracking-wide border border-teal-500/20">
+              <BriefcaseIcon className="h-3.5 w-3.5" />
+              Simple Pricing
+            </div>
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
+              Clear plans for teams that want to move fast
+            </h2>
+            <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
+              Start free, then upgrade only when your team needs more seats, Team Space, and Advanced Analytics.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {PRICING_PLANS.map((plan) => (
+              <div
+                key={plan.id}
+                className={`relative rounded-3xl border p-8 shadow-sm transition-all ${
+                  plan.highlighted
+                    ? "border-teal-500/30 bg-zinc-900 text-white shadow-xl shadow-teal-950/15 dark:bg-zinc-900"
+                    : "border-zinc-200/80 bg-white dark:border-zinc-800/60 dark:bg-zinc-900/60"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <span
+                      className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+                        plan.highlighted
+                          ? "bg-teal-500/20 text-teal-300"
+                          : "bg-teal-500/10 text-teal-700 dark:text-teal-400"
+                      }`}
+                    >
+                      {plan.badge}
+                    </span>
+                    <h3 className={`mt-4 text-2xl font-bold ${plan.highlighted ? "text-white" : "text-zinc-900 dark:text-white"}`}>
+                      {plan.name}
+                    </h3>
+                    <p className={`mt-2 max-w-md text-sm leading-relaxed ${plan.highlighted ? "text-zinc-300" : "text-zinc-500 dark:text-zinc-400"}`}>
+                      {plan.description}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className={`font-heading text-4xl font-extrabold tracking-tight ${plan.highlighted ? "text-white" : "text-zinc-900 dark:text-white"}`}>
+                      {plan.price}
+                    </div>
+                    <div className={`mt-1 text-xs font-semibold ${plan.highlighted ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400"}`}>
+                      {plan.cadence}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 space-y-3">
+                  {plan.features.map((feature) => (
+                    <div key={feature.label} className="flex items-start gap-3">
+                      <div
+                        className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                          feature.included
+                            ? plan.highlighted
+                              ? "bg-teal-500/20 text-teal-300"
+                              : "bg-teal-500/10 text-teal-600 dark:text-teal-400"
+                            : "bg-zinc-200/70 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
+                        }`}
+                      >
+                        {feature.included ? (
+                          <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
+                        ) : (
+                          <XMarkIcon className="h-3.5 w-3.5" />
+                        )}
+                      </div>
+                      <span className={`text-sm font-medium ${plan.highlighted ? "text-zinc-200" : "text-zinc-700 dark:text-zinc-300"}`}>
+                        {feature.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-8 flex items-center justify-between gap-4 border-t border-zinc-200/10 pt-6">
+                  <div className={`text-xs font-semibold ${plan.highlighted ? "text-teal-300" : "text-zinc-500 dark:text-zinc-400"}`}>
+                    {plan.highlighted ? plan.note : "No credit card needed to start"}
+                  </div>
+                  <Link
+                    href={plan.ctaHref}
+                    className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
+                      plan.highlighted
+                        ? "bg-teal-500 text-zinc-950 hover:bg-teal-400"
+                        : "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+                    }`}
+                  >
+                    {plan.ctaLabel}
+                    <ArrowRightIcon className="h-4 w-4" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison Section */}
+      <section id="compare" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 bg-zinc-100/40 dark:bg-zinc-950/20 relative z-10 scroll-mt-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-xs font-semibold tracking-wide border border-indigo-500/20">
+              <SparklesIcon className="h-3.5 w-3.5" />
+              Why Teams Switch
+            </div>
+            <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
+              Why ANSH Task feels better than Zoho Projects, monday.com, and Jira for growing teams
+            </h2>
+            <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
+              We are built for teams that want real work execution, cleaner collaboration, and less setup friction in one product.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            {COMPETITOR_COMPARISONS.map((item, index) => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-zinc-200/80 bg-white p-8 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/60"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-5">
+                  {index === 0 ? (
+                    <BriefcaseIcon className="h-6 w-6" />
+                  ) : index === 1 ? (
+                    <ChatBubbleLeftRightIcon className="h-6 w-6" />
+                  ) : (
+                    <ClipboardDocumentListIcon className="h-6 w-6" />
+                  )}
+                </div>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">
+                  {item.title}
+                </h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed mb-5">
+                  {item.summary}
+                </p>
+                <div className="space-y-3">
+                  {item.points.map((point) => (
+                    <div key={point} className="flex items-start gap-2.5">
+                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                        <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
+                      </div>
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                        {point}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10 rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/60">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="rounded-2xl border border-teal-500/20 bg-teal-500/5 p-5">
+                <h4 className="text-sm font-black uppercase tracking-widest text-teal-700 dark:text-teal-400">
+                  ANSH Task
+                </h4>
+                <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                  One workspace for tasks, Brain Board, docs, Team Space, permissions, and support. Less switching. Faster adoption. Better clarity for everyday teams.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950/40">
+                <h4 className="text-sm font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                  Typical competitor experience
+                </h4>
+                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                  More admin overhead, more configuration, or more add-on tools before teams get the same planning, collaboration, and execution flow.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Visual Accent Customization Feature (Section 3) */}
       <section id="customization" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -794,6 +1046,7 @@ export function LandingPageClient() {
               <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Product</h4>
               <ul className="space-y-2.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
                 <li><a href="#features" className="hover:text-teal-600">Kanban Board</a></li>
+                <li><a href="#pricing" className="hover:text-teal-600">Pricing</a></li>
                 <li><a href="#features" className="hover:text-teal-600">Brain Board</a></li>
                 <li><a href="#features" className="hover:text-teal-600">Doc Sharing</a></li>
                 <li><a href="#features" className="hover:text-teal-600">Team Spaces</a></li>

@@ -30,6 +30,11 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
 import { AddTaskModal } from "@/components/tasks/AddTaskModal";
 import type { NewTaskPayload } from "@/types/task";
+import {
+  FREE_PLAN_PROJECTS_LIMIT,
+  isUpgradeRequiredError,
+} from "@/lib/plans";
+import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
 
 
 type Project = {
@@ -319,6 +324,7 @@ function healthColorDot(health: string) {
 
 export function ProjectsListView() {
   const { showToast } = useToast();
+  const { ready: planReady, isPro, guardPlanFeature } = useWorkspacePlan();
   const layoutId = useId();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -357,6 +363,12 @@ export function ProjectsListView() {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const canCreateMoreProjects = isPro || projects.length < FREE_PLAN_PROJECTS_LIMIT;
+
+  const enforceProjectLimit = () => {
+    if (!planReady || canCreateMoreProjects) return true;
+    return guardPlanFeature("projectsLimit");
+  };
 
   const fetchProjectTasks = async (projectId: string) => {
     setTasksLoading(true);
@@ -451,6 +463,10 @@ export function ProjectsListView() {
           await fetchProjectTasks(selectedProject.id);
         }
       } else {
+        if (isUpgradeRequiredError(json)) {
+          guardPlanFeature(json.feature || "tasksLimit", json.error);
+          return;
+        }
         showToast(json.error || "Failed to add task", "error");
       }
     } catch (err) {
@@ -635,6 +651,7 @@ export function ProjectsListView() {
 
   const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!enforceProjectLimit()) return;
     if (!name.trim()) return;
 
     try {
@@ -677,6 +694,10 @@ export function ProjectsListView() {
         setIsTeamDropdownOpen(false);
         setIsAddModalOpen(false);
       } else {
+        if (isUpgradeRequiredError(json)) {
+          guardPlanFeature(json.feature || "projectsLimit", json.error);
+          return;
+        }
         showToast(json.error || "Failed to create project", "error");
       }
     } catch (err) {
@@ -793,7 +814,10 @@ export function ProjectsListView() {
 
             {/* Add Project Button */}
             <button
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={() => {
+                if (!enforceProjectLimit()) return;
+                setIsAddModalOpen(true);
+              }}
               className="flex h-9 items-center gap-2 rounded-lg bg-[var(--app-primary)] px-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all"
             >
               <PlusIcon className="h-4 w-4" />

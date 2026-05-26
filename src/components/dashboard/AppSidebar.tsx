@@ -8,12 +8,14 @@ import { useEffect, useState } from "react";
 import { useAppearance } from "@/context/AppearanceContext";
 import { isNavActive, NAV_SECTIONS } from "@/config/navigation";
 import { usePermissionAccess } from "@/lib/usePermissionAccess";
+import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
 
 export function AppSidebar() {
   const pathname = usePathname();
   const { isSidebarCollapsed, setIsSidebarCollapsed, setIsAppearanceOpen } = useAppearance();
   const [mounted, setMounted] = useState(false);
-  const { ready, canAccessPath, guardPathAccess } = usePermissionAccess();
+  const { ready: permissionReady, canAccessPath, guardPathAccess } = usePermissionAccess();
+  const { ready: planReady, canAccessPlanPath, guardPlanPathAccess } = useWorkspacePlan();
 
   useEffect(() => {
     setMounted(true);
@@ -69,7 +71,9 @@ export function AppSidebar() {
               {section.items.map(({ href, label, icon: Icon, match }) => {
                 const active = isNavActive(pathname, href, match ?? "prefix");
                 const layoutId = `nav-pill-${href.replace(/\//g, "-") || "root"}`;
-                const allowed = !ready || canAccessPath(href);
+                const allowed =
+                  (!permissionReady || canAccessPath(href)) &&
+                  (!planReady || canAccessPlanPath(href));
                 return (
                   <Link
                     key={href}
@@ -77,6 +81,11 @@ export function AppSidebar() {
                     title={isSidebarCollapsed ? label : undefined}
                     onClick={(e) => {
                       if (!guardPathAccess(href)) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return;
+                      }
+                      if (!guardPlanPathAccess(href)) {
                         e.preventDefault();
                         e.stopPropagation();
                       }

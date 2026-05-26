@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  FREE_PLAN_PROJECTS_LIMIT,
+  getEffectiveWorkspacePlan,
+  getWorkspaceProjectCount,
+} from "@/lib/planLimits";
+import { UPGRADE_REQUIRED_CODE } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +77,22 @@ export async function POST(request: Request) {
     }
 
     const wid = workspaceId ? parseInt(workspaceId, 10) : 1;
+
+    const currentPlan = await getEffectiveWorkspacePlan(wid);
+    if (currentPlan === "free") {
+      const projectCount = await getWorkspaceProjectCount(wid);
+      if (projectCount >= FREE_PLAN_PROJECTS_LIMIT) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: UPGRADE_REQUIRED_CODE,
+            feature: "projectsLimit",
+            error: `Free plan workspaces can create up to ${FREE_PLAN_PROJECTS_LIMIT} projects. Upgrade to PRO to create more.`,
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     const newProject = await prisma.project.create({
       data: {

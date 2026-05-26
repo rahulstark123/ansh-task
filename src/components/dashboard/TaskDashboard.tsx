@@ -38,6 +38,11 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
 import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
 import { usePermissionAccess } from "@/lib/usePermissionAccess";
+import {
+  FREE_PLAN_TASKS_PER_MONTH_LIMIT,
+  isUpgradeRequiredError,
+} from "@/lib/plans";
+import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
 
 
 
@@ -46,6 +51,14 @@ import { usePermissionAccess } from "@/lib/usePermissionAccess";
 function getWid(): number {
   if (typeof window === "undefined") return 1;
   return parseInt(sessionStorage.getItem("ansh_onboarding_wid") ?? "1", 10);
+}
+
+function isCurrentMonth(iso?: string) {
+  if (!iso) return false;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return false;
+  const now = new Date();
+  return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
 }
 
 type TaskAttachment = { name: string; size: number; dataUrl: string };
@@ -137,6 +150,7 @@ function mapApiTask(t: any): Task {
     estimate: t.estimate ?? undefined,
     done: t.done ?? false,
     attachmentUrls: t.attachmentUrls ?? [],
+    createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : undefined,
   };
 }
 
@@ -418,6 +432,7 @@ export function TaskDashboard({
 }: TaskDashboardProps) {
   const { showToast } = useToast();
   const { can, alertNoPermission } = usePermissionAccess();
+  const { ready: planReady, isPro, guardPlanFeature } = useWorkspacePlan();
   const canCreateTasks = can("create_tasks");
   const canEditTasks = can("edit_tasks");
   const canDeleteTasks = can("delete_tasks");
@@ -430,6 +445,16 @@ export function TaskDashboard({
   };
 
   const [tasks, setTasks] = useState<Task[]>([]);
+  const tasksCreatedThisMonth = useMemo(
+    () => tasks.filter((task) => isCurrentMonth(task.createdAt)).length,
+    [tasks]
+  );
+  const canCreateMoreTasksThisMonth =
+    isPro || tasksCreatedThisMonth < FREE_PLAN_TASKS_PER_MONTH_LIMIT;
+  const enforceTaskCreationLimit = () => {
+    if (!planReady || canCreateMoreTasksThisMonth) return true;
+    return guardPlanFeature("tasksLimit");
+  };
   const [tasksLoading, setTasksLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1055,6 +1080,7 @@ export function TaskDashboard({
   // ── Create task (modal) ────────────────────────────────────
   async function handleAddTaskFromModal(payload: NewTaskPayload) {
     if (!enforcePermission(canCreateTasks)) return;
+    if (!enforceTaskCreationLimit()) return;
     const wid = getWid();
     // Optimistic insert with a temp id
     const tempId = `temp-${crypto.randomUUID()}`;
@@ -1071,6 +1097,7 @@ export function TaskDashboard({
       status: payload.status,
       done: payload.status === "done",
       attachmentUrls: payload.attachmentUrls || [],
+      createdAt: new Date().toISOString(),
     };
     setTasks((prev) => [optimisticTask, ...prev]);
 
@@ -1101,6 +1128,11 @@ export function TaskDashboard({
         );
         showToast(`Task "${payload.title}" created successfully!`, "success");
       } else {
+        if (isUpgradeRequiredError(json)) {
+          setTasks((prev) => prev.filter((t) => t.id !== tempId));
+          guardPlanFeature(json.feature || "tasksLimit", json.error);
+          return;
+        }
         throw new Error(json.error);
       }
     } catch (err) {
@@ -1113,6 +1145,7 @@ export function TaskDashboard({
 
   async function handleQuickAddCard(status: TaskStatus) {
     if (!enforcePermission(canCreateTasks)) return;
+    if (!enforceTaskCreationLimit()) return;
     const text = columnQuickAdd[status]?.trim();
     if (!text) return;
     const wid = getWid();
@@ -1127,6 +1160,7 @@ export function TaskDashboard({
       assignee: "Unassigned",
       labels: defaultLabels || [],
       done: status === "done",
+      createdAt: new Date().toISOString(),
     };
     setTasks((prev) => [...prev, optimisticTask]);
     setColumnQuickAdd((prev) => ({ ...prev, [status]: "" }));
@@ -1155,6 +1189,11 @@ export function TaskDashboard({
         );
         showToast(`Task "${text}" added successfully!`, "success");
       } else {
+        if (isUpgradeRequiredError(json)) {
+          setTasks((prev) => prev.filter((t) => t.id !== tempId));
+          guardPlanFeature(json.feature || "tasksLimit", json.error);
+          return;
+        }
         throw new Error(json.error);
       }
     } catch (err) {
@@ -1334,6 +1373,7 @@ export function TaskDashboard({
               whileTap={{ scale: 0.99 }}
               onClick={() => {
                 if (!enforcePermission(canCreateTasks)) return;
+                if (!enforceTaskCreationLimit()) return;
                 setAddModalSession((s) => s + 1);
                 setAddOpen(true);
               }}

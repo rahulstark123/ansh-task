@@ -19,7 +19,7 @@ import { CheckCircleIcon } from "@heroicons/react/24/solid";
 
 /* ─── pricing data ───────────────────────────────────────── */
 
-const MONTHLY_PRICE = 399; // ₹ per seat / month (must match RAZORPAY_PRO_PLAN_AMOUNT_PAISA / 100)
+const MONTHLY_PRICE = 199; // ₹ per seat / month (must match RAZORPAY_PRO_PLAN_AMOUNT_PAISA / 100)
 const YEARLY_DISCOUNT = 0.83; // 17% off
 const YEARLY_PRICE = Math.round(MONTHLY_PRICE * 12 * YEARLY_DISCOUNT);
 const YEARLY_PER_MONTH = Math.round(YEARLY_PRICE / 12);
@@ -27,15 +27,15 @@ const YEARLY_PER_MONTH = Math.round(YEARLY_PRICE / 12);
 type Feature = { label: string; free: boolean | string; pro: boolean | string };
 
 const FEATURES: Feature[] = [
-  { label: "Tasks & subtasks",              free: "Up to 50",     pro: "Unlimited"      },
+  { label: "Tasks",                         free: "50 / month",   pro: "Unlimited"      },
   { label: "Projects",                      free: "3 projects",   pro: "Unlimited"      },
-  { label: "Team members",                  free: "1 member",     pro: "Unlimited"      },
-  { label: "Brain Board (sticky notes)",    free: true,           pro: true             },
+  { label: "Team members",                  free: "2 members",    pro: "Per paid seat"  },
+  { label: "Brain Board",                   free: true,           pro: true             },
   { label: "Kanban & table views",          free: true,           pro: true             },
-  { label: "File attachments",              free: "5 MB / file",  pro: "250 MB / file"  },
-  { label: "Priority support",              free: false,          pro: true             },
+  { label: "Team Space (channels & DMs)",   free: false,          pro: true             },
   { label: "Advanced analytics",            free: false,          pro: true             },
   { label: "Custom roles & permissions",    free: false,          pro: true             },
+  { label: "File attachments",              free: "5 MB / file",  pro: "250 MB / file"  },
   { label: "Integrations (Slack, GitHub…)", free: false,          pro: true             },
   { label: "Activity audit log",            free: false,          pro: true             },
   { label: "Export to CSV / PDF",           free: false,          pro: true             },
@@ -424,11 +424,13 @@ export default function BillingSettingsPage() {
 
           <ul className="mt-6 space-y-2.5">
             {[
-              "Up to 50 tasks",
+              "50 tasks per month",
               "3 projects",
-              "1 workspace member",
-              "Brain Board & Kanban",
+              "2 workspace members",
+              "Brain Board included",
+              "Kanban & table views",
               "5 MB file uploads",
+              "No Team Space or advanced analytics",
             ].map((f) => (
               <li key={f} className="flex items-start gap-2.5 text-sm">
                 <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 stroke-[2.5] text-[var(--app-primary)]" />
@@ -566,7 +568,9 @@ export default function BillingSettingsPage() {
           <ul className="mt-6 space-y-2.5">
             {[
               "Unlimited tasks & projects",
-              "Unlimited team members",
+              "Add team members based on paid seats",
+              "Team Space channels & DMs",
+              "Brain Board included",
               "250 MB file uploads",
               "Advanced analytics & reports",
               "Custom roles & permissions",
@@ -719,7 +723,7 @@ export default function BillingSettingsPage() {
                     <div className="rounded-2xl border border-zinc-150 bg-zinc-50/50 p-4 dark:border-white/5 dark:bg-zinc-900/30 space-y-2.5 text-left">
                       <div className="flex justify-between text-xs text-zinc-500 font-semibold">
                         <span>Price per seat</span>
-                        <span>₹{billing === "monthly" ? "399 / mo" : `${YEARLY_PER_MONTH} / mo`}</span>
+                        <span>₹{billing === "monthly" ? `${MONTHLY_PRICE} / mo` : `${YEARLY_PER_MONTH} / mo`}</span>
                       </div>
                       <div className="flex justify-between text-xs text-zinc-500 font-semibold">
                         <span>Subtotal ({checkoutUsers} {checkoutUsers === 1 ? "user" : "users"})</span>

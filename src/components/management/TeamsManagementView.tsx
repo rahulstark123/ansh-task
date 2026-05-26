@@ -30,6 +30,11 @@ import "react-phone-input-2/lib/style.css";
 import PhoneInput from "react-phone-input-2";
 import { AddTaskModal } from "@/components/tasks/AddTaskModal";
 import { usePermissionAccess } from "@/lib/usePermissionAccess";
+import {
+  FREE_PLAN_TEAM_MEMBERS_LIMIT,
+  isUpgradeRequiredError,
+} from "@/lib/plans";
+import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
 
 type TaskMock = {
   id?: string;
@@ -381,6 +386,7 @@ function priorityBadgeColor(p: string) {
 export function TeamsManagementView() {
   const { showToast } = useToast();
   const { can, alertNoPermission } = usePermissionAccess();
+  const { ready: planReady, isPro, guardPlanFeature } = useWorkspacePlan();
   const canManageMembers = can("manage_members");
   const canCreateTasks = can("create_tasks");
 
@@ -391,6 +397,18 @@ export function TeamsManagementView() {
   };
 
   const [members, setMembers] = useState<Member[]>([]);
+  const canAddMoreMembers = isPro || members.length < FREE_PLAN_TEAM_MEMBERS_LIMIT;
+
+  const enforceTeamMemberLimit = () => {
+    if (!planReady || canAddMoreMembers) return true;
+    return guardPlanFeature("teamMembersLimit");
+  };
+
+  const openAddMemberModal = () => {
+    if (!enforcePermission(canManageMembers)) return;
+    if (!enforceTeamMemberLimit()) return;
+    setIsAddModalOpen(true);
+  };
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -559,6 +577,7 @@ export function TeamsManagementView() {
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!enforcePermission(canManageMembers)) return;
+    if (!enforceTeamMemberLimit()) return;
     if (!name.trim()) return;
     const digits = (phone || "").replace(/\D/g, "");
     if (phone && (digits.length < 8 || digits.length > 15)) {
@@ -596,6 +615,10 @@ export function TeamsManagementView() {
         setPassword("");
         setIsAddModalOpen(false);
       } else {
+        if (isUpgradeRequiredError(json)) {
+          guardPlanFeature(json.feature || "teamMembersLimit", json.error);
+          return;
+        }
         showToast(json.error || "Failed to add team member", "error");
       }
     } catch (err) {
@@ -725,6 +748,10 @@ export function TeamsManagementView() {
           }
         }
       } else {
+        if (isUpgradeRequiredError(json)) {
+          guardPlanFeature(json.feature || "tasksLimit", json.error);
+          return;
+        }
         showToast(json.error || "Failed to add task", "error");
       }
     } catch (err) {
@@ -812,10 +839,7 @@ export function TeamsManagementView() {
             </div>
 
             <button
-              onClick={() => {
-                if (!enforcePermission(canManageMembers)) return;
-                setIsAddModalOpen(true);
-              }}
+              onClick={openAddMemberModal}
               disabled={!canManageMembers}
               className="flex h-9 items-center gap-2 rounded-lg bg-[var(--app-primary)] px-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-45"
             >
@@ -858,10 +882,7 @@ export function TeamsManagementView() {
                           Get started by adding teammates to your workspace. They will be able to collaborate on tasks, assign projects, and log activities.
                         </p>
                         <button
-                          onClick={() => {
-                            if (!enforcePermission(canManageMembers)) return;
-                            setIsAddModalOpen(true);
-                          }}
+                          onClick={openAddMemberModal}
                           disabled={!canManageMembers}
                           className="mt-5 flex h-9 items-center gap-1.5 rounded-xl bg-[var(--app-primary)] px-4 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all disabled:cursor-not-allowed disabled:opacity-45"
                         >

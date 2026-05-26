@@ -24,6 +24,7 @@ import { supabase } from "@/lib/supabase";
 import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { usePermissionAccess } from "@/lib/usePermissionAccess";
+import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
 
 const EmojiPicker = dynamic(
   () => import("emoji-picker-react").then((mod) => mod.default),
@@ -69,6 +70,7 @@ const SEED_CHANNELS: ChatTarget[] = [
 
 export function TeamSpaceView() {
   const { can, alertNoPermission } = usePermissionAccess();
+  const { ready: planReady, isPro } = useWorkspacePlan();
   const canCreateChannels = can("create_channels");
   const canDeleteChannels = can("delete_channels");
   const canPostMessages = can("post_messages");
@@ -318,8 +320,18 @@ export function TeamSpaceView() {
         setIsInitializing(false);
       }
     }
+    if (!planReady) return;
+    if (!isPro) {
+      setIsInitializing(false);
+      return;
+    }
+
     loadCurrentUserAndTeam();
-  }, []);
+  }, [isPro, planReady]);
+
+  if (planReady && !isPro) {
+    return null;
+  }
 
   // Fetch right side profile details when open or activeChat changes
   useEffect(() => {

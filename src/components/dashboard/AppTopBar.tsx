@@ -24,6 +24,7 @@ import {
 import { useAppearance } from "@/context/AppearanceContext";
 import { supabase } from "@/lib/supabase";
 import { usePermissionAccess } from "@/lib/usePermissionAccess";
+import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
 
 type SearchItem = {
   id: string;
@@ -49,6 +50,7 @@ export function AppTopBar() {
   const { setTheme, theme } = useTheme();
   const { setIsAppearanceOpen } = useAppearance();
   const { guardPathAccess } = usePermissionAccess();
+  const { plan, ready: planReady, guardPlanPathAccess } = useWorkspacePlan();
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
     {
@@ -76,25 +78,6 @@ export function AppTopBar() {
       read: true,
     },
   ]);
-  const [plan, setPlan] = useState<"free" | "pro" | null>(null);
-
-  // Fetch plan status on mount and pathname changes
-  useEffect(() => {
-    async function fetchPlan() {
-      try {
-        const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid");
-        const wid = onboardingWid ? parseInt(onboardingWid, 10) : 1;
-        const res = await fetch(`/api/billing/status?wid=${wid}`);
-        const json = await res.json();
-        if (json.success) {
-          setPlan(json.plan as "free" | "pro");
-        }
-      } catch (err) {
-        console.error("Error fetching plan in AppTopBar:", err);
-      }
-    }
-    fetchPlan();
-  }, [pathname]);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [workspaceMembers, setWorkspaceMembers] = useState<{ id: string; name: string; email: string }[]>([]);
   const [workspaceChannels, setWorkspaceChannels] = useState<{ id: string; name: string }[]>([]);
@@ -483,6 +466,7 @@ export function AppTopBar() {
 
   const guardedRoutePush = (path: string) => {
     if (!guardPathAccess(path)) return;
+    if (!guardPlanPathAccess(path)) return;
     router.push(path);
     setIsOpen(false);
   };
@@ -607,7 +591,7 @@ export function AppTopBar() {
 
         <div className="flex items-center gap-4.5">
           {/* Plan Status Badge */}
-          {plan && (
+          {planReady && plan && (
             <Link
               href="/settings/billing"
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer ${
@@ -695,6 +679,8 @@ export function AppTopBar() {
                             // Mark as read
                             setNotifications((prev) => prev.map((item) => item.id === n.id ? { ...item, read: true } : item));
                             if (n.link) {
+                              if (!guardPathAccess(n.link)) return;
+                              if (!guardPlanPathAccess(n.link)) return;
                               router.push(n.link);
                               setIsNotificationOpen(false);
                             }

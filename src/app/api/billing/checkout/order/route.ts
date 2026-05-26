@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     // 5. Compute amount (prefer client-provided dynamic amount, fallback to calculation)
     let amountPaisa = body.amountPaisa ?? body.amount;
     if (!amountPaisa || typeof amountPaisa !== "number" || amountPaisa <= 0) {
-      const monthlyPaisa = cfg.proPlanAmountPaisa ?? 39900; // per seat per month (default ₹399)
+      const monthlyPaisa = cfg.proPlanAmountPaisa ?? 19900; // per seat per month (default ₹199)
       const subtotal =
         billingCycle === "yearly"
           ? Math.round(monthlyPaisa * seats * 12 * 0.83)

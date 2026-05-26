@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  FREE_PLAN_TASKS_PER_MONTH_LIMIT,
+  getEffectiveWorkspacePlan,
+  getWorkspaceTaskCountThisMonth,
+} from "@/lib/planLimits";
+import { UPGRADE_REQUIRED_CODE } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -84,6 +90,22 @@ export async function POST(request: Request) {
     }
 
     const wid = workspaceId ? parseInt(workspaceId, 10) : 1;
+
+    const currentPlan = await getEffectiveWorkspacePlan(wid);
+    if (currentPlan === "free") {
+      const tasksThisMonth = await getWorkspaceTaskCountThisMonth(wid);
+      if (tasksThisMonth >= FREE_PLAN_TASKS_PER_MONTH_LIMIT) {
+        return NextResponse.json(
+          {
+            success: false,
+            code: UPGRADE_REQUIRED_CODE,
+            feature: "tasksLimit",
+            error: `Free plan workspaces can create up to ${FREE_PLAN_TASKS_PER_MONTH_LIMIT} tasks per month. Upgrade to PRO to create more.`,
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     const resolvedAssignees = assignees || (assignee ? [assignee] : []);
     const resolvedAssignee = resolvedAssignees.length > 0 ? resolvedAssignees[0] : null;

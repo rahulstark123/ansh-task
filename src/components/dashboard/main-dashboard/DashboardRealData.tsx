@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
 import {
   FolderIcon,
   CheckCircleIcon,
@@ -75,6 +76,7 @@ interface TeamMember {
 
 export function DashboardRealData() {
   const layoutId = useId();
+  const { ready: planReady, isPro, guardPlanFeature } = useWorkspacePlan();
   
   // Loading & State
   const [loading, setLoading] = useState(true);
@@ -587,11 +589,23 @@ export function DashboardRealData() {
       <div className="flex flex-col items-center py-2">
         <button
           type="button"
-          onClick={() => setShowAdvanced(!showAdvanced)}
+          onClick={() => {
+            if (!planReady) return;
+            if (!isPro) {
+              guardPlanFeature("advancedAnalytics");
+              return;
+            }
+            setShowAdvanced(!showAdvanced);
+          }}
           className="group relative flex items-center gap-2 overflow-hidden rounded-full bg-gradient-to-r from-[var(--app-primary)] to-[var(--app-primary-hover)] px-6 py-2.5 text-xs font-extrabold text-white shadow-md transition-all hover:brightness-110 active:scale-95 cursor-pointer"
         >
           <SparklesIcon className="h-4.5 w-4.5 animate-pulse text-teal-200" />
           <span>{showAdvanced ? "Hide Advanced Analytics" : "Show Advanced Analytics"}</span>
+          {planReady && !isPro && (
+            <span className="rounded-full bg-white/15 px-2 py-0.5 text-[9px] uppercase tracking-wider text-white/90">
+              Pro
+            </span>
+          )}
           {showAdvanced ? (
             <ChevronUpIcon className="h-4 w-4 shrink-0 transition-transform" />
           ) : (

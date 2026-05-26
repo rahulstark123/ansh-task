@@ -78,7 +78,7 @@ export function MainDashboardView() {
           {greeting || "Welcome"}{firstName ? `, ${firstName}` : ""}
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-650 dark:text-zinc-400">
-          Real-time metrics, project progression trackers, and support tickets from your current workspace. Expand advanced analytics to see priority allocation, workload depth, and status distributions.
+          Real-time metrics, project progression trackers, and support tickets from your current workspace. Advanced analytics is available on the Pro plan for deeper workload, priority, and status insights.
         </p>
       </div>
 
