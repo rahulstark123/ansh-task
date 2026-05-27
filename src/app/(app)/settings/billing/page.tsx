@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import posthog from "posthog-js";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckIcon,
@@ -19,8 +20,8 @@ import { CheckCircleIcon } from "@heroicons/react/24/solid";
 
 /* ─── pricing data ───────────────────────────────────────── */
 
-const MONTHLY_PRICE = 199; // ₹ per seat / month (must match RAZORPAY_PRO_PLAN_AMOUNT_PAISA / 100)
-const YEARLY_DISCOUNT = 0.83; // 17% off
+const MONTHLY_PRICE = 199; // ₹ per seat / month
+const YEARLY_DISCOUNT = 0.81; // 19% off
 const YEARLY_PRICE = Math.round(MONTHLY_PRICE * 12 * YEARLY_DISCOUNT);
 const YEARLY_PER_MONTH = Math.round(YEARLY_PRICE / 12);
 
@@ -35,10 +36,8 @@ const FEATURES: Feature[] = [
   { label: "Team Space (channels & DMs)",   free: false,          pro: true             },
   { label: "Advanced analytics",            free: false,          pro: true             },
   { label: "Custom roles & permissions",    free: false,          pro: true             },
-  { label: "File attachments",              free: "5 MB / file",  pro: "250 MB / file"  },
-  { label: "Integrations (Slack, GitHub…)", free: false,          pro: true             },
-  { label: "Activity audit log",            free: false,          pro: true             },
-  { label: "Export to CSV / PDF",           free: false,          pro: true             },
+  { label: "Activity audit log (Soon)",     free: false,          pro: "Soon"           },
+  { label: "Export to CSV / PDF (Soon)",    free: false,          pro: "Soon"           },
 ];
 
 declare global {
@@ -85,6 +84,7 @@ export default function BillingSettingsPage() {
   const [userCount, setUserCount] = useState<number>(1);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [currentPlan, setCurrentPlan] = useState<"free" | "pro">("free");
+  const [isTrial, setIsTrial] = useState(false);
   const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null);
   const [planLoading, setPlanLoading] = useState(true);
 
@@ -97,14 +97,23 @@ export default function BillingSettingsPage() {
   const fetchPlan = useCallback(async () => {
     try {
       const wid = getWid();
-      const res = await fetch(`/api/billing/status?wid=${wid}`);
+      const res = await fetch(`/api/billing/status?wid=${wid}`, {
+        cache: "no-store",
+      });
       const json = await res.json();
       if (json.success) {
         setCurrentPlan(json.plan as "free" | "pro");
         setPlanExpiresAt(json.planExpiresAt);
+        setIsTrial(Boolean(json.isTrial));
+      } else {
+        setCurrentPlan("free");
+        setPlanExpiresAt(null);
+        setIsTrial(false);
       }
     } catch {
-      /* ignore */
+      setCurrentPlan("free");
+      setPlanExpiresAt(null);
+      setIsTrial(false);
     } finally {
       setPlanLoading(false);
     }
@@ -147,6 +156,11 @@ export default function BillingSettingsPage() {
     setPaymentStatus("idle");
     setPaymentError("");
     setIsCheckoutOpen(true);
+    posthog.capture("upgrade_checkout_opened", {
+      billing_cycle: billing,
+      seat_count: userCount || 1,
+      current_plan: currentPlan,
+    });
   };
 
   const handleProceedToPay = async () => {
@@ -242,21 +256,28 @@ export default function BillingSettingsPage() {
         rzp.open();
       });
 
-      // Payment + verification succeeded
-      setCurrentPlan("pro");
+      // Payment + verification succeeded — reload so billing + app chrome show Pro
+      posthog.capture("upgrade_completed", {
+        billing_cycle: billing,
+        seat_count: checkoutUsers,
+        amount_inr: grandTotal,
+      });
       setPaymentStatus("success");
-      await fetchPlan(); // refresh expiry date from DB
+      setCurrentPlan("pro");
 
-      // Auto-close after 2.5s
       setTimeout(() => {
-        setIsCheckoutOpen(false);
-        setPaymentStatus("idle");
-      }, 2500);
+        window.location.reload();
+      }, 1500);
     } catch (err: any) {
       if (err?.message === "Payment cancelled") {
         // User dismissed — just go back to idle
         setPaymentStatus("idle");
       } else {
+        posthog.capture("upgrade_failed", {
+          billing_cycle: billing,
+          seat_count: checkoutUsers,
+          error_message: err.message || "Unknown error",
+        });
         setPaymentError(err.message || "Something went wrong. Please try again.");
         setPaymentStatus("error");
       }
@@ -280,7 +301,7 @@ export default function BillingSettingsPage() {
           Billing &amp; Plans
         </h1>
         <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
-          Choose the right plan for your team. Upgrade or downgrade any time.
+          Choose the right plan for your team. Upgrade any time.
         </p>
       </div>
 
@@ -299,7 +320,9 @@ export default function BillingSettingsPage() {
             ) : (
               <p className="mt-0.5 text-sm font-bold text-zinc-900 dark:text-zinc-50">
                 {currentPlan === "pro"
-                  ? `Pro Plan — Active${formattedExpiry ? ` · Renews ${formattedExpiry}` : ""}`
+                  ? isTrial
+                    ? `Free Trial — Active${formattedExpiry ? ` · Ends ${formattedExpiry}` : ""}`
+                    : `Pro Plan — Active${formattedExpiry ? ` · Renews ${formattedExpiry}` : ""}`
                   : "Free Plan — No active subscription"}
               </p>
             )}
@@ -328,10 +351,12 @@ export default function BillingSettingsPage() {
           <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2 dark:border-white/[0.07] dark:bg-zinc-900">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
-                {currentPlan === "free" ? "Estimated cost" : "Monthly cost"}
+                {currentPlan === "free" ? "Estimated cost" : isTrial ? "Trial cost" : "Monthly cost"}
               </p>
               <p className="text-sm font-black text-zinc-900 dark:text-zinc-50">
                 {currentPlan === "free"
+                  ? "₹0"
+                  : isTrial
                   ? "₹0"
                   : `₹${totalMonthly.toLocaleString("en-IN")}/mo`}
               </p>
@@ -370,7 +395,7 @@ export default function BillingSettingsPage() {
           >
             Yearly
             <span className="rounded-full bg-[var(--app-primary)] px-2 py-0.5 text-[10px] font-black text-white leading-tight">
-              −17%
+              −19%
             </span>
           </button>
         </div>
@@ -413,14 +438,16 @@ export default function BillingSettingsPage() {
             Forever free · no credit card required.
           </p>
 
-          <button
-            type="button"
-            disabled={currentPlan === "free"}
-            id="free-plan-cta"
-            className="mt-6 w-full rounded-2xl border border-zinc-200 bg-white py-3 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-50 disabled:cursor-default disabled:opacity-60 dark:border-white/[0.08] dark:bg-zinc-800 dark:text-zinc-300"
-          >
-            {currentPlan === "free" ? "Current Plan" : "Downgrade to Free"}
-          </button>
+          {currentPlan === "free" && (
+            <button
+              type="button"
+              disabled
+              id="free-plan-cta"
+              className="mt-6 w-full rounded-2xl border border-zinc-200 bg-white py-3 text-sm font-bold text-zinc-700 disabled:cursor-default disabled:opacity-60 dark:border-white/[0.08] dark:bg-zinc-800 dark:text-zinc-300"
+            >
+              Current Plan
+            </button>
+          )}
 
           <ul className="mt-6 space-y-2.5">
             {[
@@ -429,7 +456,6 @@ export default function BillingSettingsPage() {
               "2 workspace members",
               "Brain Board included",
               "Kanban & table views",
-              "5 MB file uploads",
               "No Team Space or advanced analytics",
             ].map((f) => (
               <li key={f} className="flex items-start gap-2.5 text-sm">
@@ -537,7 +563,7 @@ export default function BillingSettingsPage() {
                   exit={{ opacity: 0 }}
                   className="mt-2 text-xs text-zinc-500"
                 >
-                  Switch to yearly to save 17% per user.
+                  Switch to yearly to save 19% per user.
                 </motion.p>
               )}
             </AnimatePresence>
@@ -571,13 +597,11 @@ export default function BillingSettingsPage() {
               "Add team members based on paid seats",
               "Team Space channels & DMs",
               "Brain Board included",
-              "250 MB file uploads",
               "Advanced analytics & reports",
               "Custom roles & permissions",
               "Priority email & chat support",
-              "Slack, GitHub & more integrations",
-              "Activity audit log",
-              "CSV / PDF export",
+              "Activity audit log (Soon)",
+              "CSV / PDF export (Soon)",
             ].map((f) => (
               <li key={f} className="flex items-start gap-2.5 text-sm">
                 <SparklesIcon className="mt-0.5 h-4 w-4 shrink-0 text-teal-400" />
@@ -629,18 +653,6 @@ export default function BillingSettingsPage() {
             Get Pro <ArrowRightIcon className="h-3.5 w-3.5" />
           </button>
         </div>
-      </div>
-
-      {/* ── Trust footer ── */}
-      <div className="rounded-2xl border border-zinc-100 bg-zinc-50/60 px-6 py-5 dark:border-white/[0.05] dark:bg-white/[0.02]">
-        <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-          Flexible billing, no lock-in.
-        </p>
-        <p className="mt-1 text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
-          Upgrade, downgrade, or cancel at any time. Unused time on a paid plan is
-          credited proportionally. Payments are processed securely via Razorpay —
-          your card details are never stored on our servers.
-        </p>
       </div>
 
       {/* ── Checkout Upgrade Modal ── */}

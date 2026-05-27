@@ -11,6 +11,8 @@ import {
 
 export function useWorkspacePlan() {
   const [plan, setPlan] = useState<WorkspacePlan>("free");
+  const [isTrial, setIsTrial] = useState(false);
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
   const refreshPlan = useCallback(async () => {
@@ -22,12 +24,18 @@ export function useWorkspacePlan() {
       const json = await res.json();
       if (res.ok && json?.success) {
         setPlan(json.plan === "pro" ? "pro" : "free");
+        setIsTrial(Boolean(json.isTrial));
+        setTrialEndsAt(json.trialEndsAt || null);
       } else {
         setPlan("free");
+        setIsTrial(false);
+        setTrialEndsAt(null);
       }
     } catch (error) {
       console.error("Error loading workspace plan:", error);
       setPlan("free");
+      setIsTrial(false);
+      setTrialEndsAt(null);
     } finally {
       setReady(true);
     }
@@ -64,8 +72,19 @@ export function useWorkspacePlan() {
     [guardPlanFeature]
   );
 
+  const trialDaysLeft =
+    isTrial && trialEndsAt
+      ? Math.max(
+          0,
+          Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+        )
+      : null;
+
   return {
     plan,
+    isTrial,
+    trialEndsAt,
+    trialDaysLeft,
     ready,
     isPro: plan === "pro",
     refreshPlan,

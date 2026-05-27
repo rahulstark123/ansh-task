@@ -52,8 +52,6 @@ const PRICING_PLANS = [
       { label: "Team Space not included", included: false },
       { label: "Advanced Analytics not included", included: false },
     ],
-    ctaLabel: "Start Free",
-    ctaHref: "/signup",
     highlighted: false,
   },
   {
@@ -72,9 +70,7 @@ const PRICING_PLANS = [
       { label: "Team Space channels and DMs", included: true },
       { label: "Advanced Analytics included", included: true },
     ],
-    ctaLabel: "Upgrade to Pro",
-    ctaHref: "/signup",
-    note: "Yearly billing saves 17%",
+    note: "Yearly billing saves 19%",
     highlighted: true,
   },
 ] as const;
@@ -705,21 +701,10 @@ export function LandingPageClient() {
                   ))}
                 </div>
 
-                <div className="mt-8 flex items-center justify-between gap-4 border-t border-zinc-200/10 pt-6">
-                  <div className={`text-xs font-semibold ${plan.highlighted ? "text-teal-300" : "text-zinc-500 dark:text-zinc-400"}`}>
-                    {plan.highlighted ? plan.note : "No credit card needed to start"}
-                  </div>
-                  <Link
-                    href={plan.ctaHref}
-                    className={`inline-flex items-center gap-2 rounded-xl px-5 py-3 text-sm font-bold transition-all ${
-                      plan.highlighted
-                        ? "bg-teal-500 text-zinc-950 hover:bg-teal-400"
-                        : "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
-                    }`}
-                  >
-                    {plan.ctaLabel}
-                    <ArrowRightIcon className="h-4 w-4" />
-                  </Link>
+                <div className="mt-8 border-t border-zinc-200/10 pt-6">
+                  <p className={`text-xs font-semibold ${plan.highlighted ? "text-teal-300" : "text-zinc-500 dark:text-zinc-400"}`}>
+                    {"note" in plan ? plan.note : "No credit card needed to start"}
+                  </p>
                 </div>
               </div>
             ))}

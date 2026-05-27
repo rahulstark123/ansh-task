@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { AuthMarketingPanel } from "@/components/auth/AuthMarketingPanel";
+import posthog from "posthog-js";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setErrorMsg("");
     setShowConnecting(true);
+    posthog.capture("google_auth_started", { source: "login" });
     try {
       setTimeout(async () => {
         const { error } = await supabase.auth.signInWithOAuth({
@@ -135,6 +137,10 @@ export default function LoginPage() {
                 }
 
                 const signedInEmail = data.user?.email || email;
+                if (data.user?.id) {
+                  posthog.identify(data.user.id, { email: signedInEmail });
+                  posthog.capture("user_logged_in", { method: "email", email: signedInEmail });
+                }
                 const profileRes = await fetch(`/api/profile?email=${encodeURIComponent(signedInEmail)}`);
                 const profileJson = await profileRes.json();
 

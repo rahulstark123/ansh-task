@@ -18,8 +18,9 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useId, useRef, useState, useMemo } from "react";
 
-import type { NewTaskPayload, TaskPriority, TaskStatus } from "@/types/task";
+import type { NewTaskPayload, Task, TaskPriority, TaskStatus } from "@/types/task";
 import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
+import posthog from "posthog-js";
 
 /* ─── constants ──────────────────────────────────────────── */
 
@@ -339,12 +340,34 @@ function StyledMultiDropdown({
   );
 }
 
+function parseDueFromLabel(dueLabel: string): { mode: "none" | "date"; date: string } {
+  if (!dueLabel || dueLabel === "No date") {
+    return { mode: "none", date: "" };
+  }
+  const parsed = new Date(dueLabel);
+  if (!Number.isNaN(parsed.getTime())) {
+    return { mode: "date", date: parsed.toISOString().slice(0, 10) };
+  }
+  return { mode: "none", date: "" };
+}
+
+function attachmentsFromUrls(urls?: string[]): { name: string; size: number; dataUrl: string }[] {
+  return (urls ?? []).map((dataUrl, index) => ({
+    name: `attachment-${index + 1}`,
+    size: 0,
+    dataUrl,
+  }));
+}
+
 /* ─── types ──────────────────────────────────────────────── */
 
 type AddTaskModalProps = {
   open: boolean;
   onClose: () => void;
-  onCreate: (payload: NewTaskPayload) => void;
+  onCreate?: (payload: NewTaskPayload) => void;
+  onUpdate?: (taskId: string, payload: NewTaskPayload) => void;
+  /** When set, modal opens in edit mode with fields pre-filled */
+  taskToEdit?: Task | null;
   assignees?: string[];
   /** Pre-selected project id (e.g. when opened from a project drawer) */
   defaultProjectId?: string | null;
@@ -361,6 +384,8 @@ export function AddTaskModal({
   open,
   onClose,
   onCreate,
+  onUpdate,
+  taskToEdit,
   assignees,
   defaultProjectId,
   defaultStatus: defaultStatusProp,
@@ -368,6 +393,7 @@ export function AddTaskModal({
   defaultAssignees,
 }: AddTaskModalProps) {
   const titleId = useId();
+  const isEditMode = Boolean(taskToEdit?.id);
 
   const {
     priority: defaultPriority,
@@ -428,17 +454,55 @@ export function AddTaskModal({
       .finally(() => setProjectsLoading(false));
   }, [open, fetchDefaults]);
 
-  // Sync workspace defaults to state on modal open or when defaults load
+  // Sync form on open — edit task or create defaults
   useEffect(() => {
-    if (open) {
-      setCategory(defaultCategory || "General");
-      const pKey = PRIORITY_OPTIONS.find((p) => p.value === defaultPriority)?.key || "normal";
+    if (!open) return;
+
+    if (taskToEdit) {
+      setTitle(taskToEdit.title);
+      setDescription(taskToEdit.description || "");
+      setCategory(taskToEdit.category || "General");
+      const pKey =
+        PRIORITY_OPTIONS.find((p) => p.value === taskToEdit.priority)?.key || "normal";
       setPriorityKey(pKey);
-      setStatus(defaultStatusProp || (defaultStatus as TaskStatus) || "todo");
-      setLabels(defaultLabels || []);
-      setSelectedAssignees(defaultAssignees ?? (defaultAssignee ? [defaultAssignee] : []));
+      setStatus(
+        (taskToEdit.status as TaskStatus) ||
+          (taskToEdit.done ? "done" : "todo")
+      );
+      setLabels(taskToEdit.labels || []);
+      setSelectedAssignees(
+        taskToEdit.assignees?.length
+          ? taskToEdit.assignees
+          : taskToEdit.assignee
+            ? [taskToEdit.assignee]
+            : []
+      );
+      const due = parseDueFromLabel(taskToEdit.due);
+      setDueMode(due.mode);
+      setDueDate(due.date);
+      setAttachments(attachmentsFromUrls(taskToEdit.attachmentUrls));
+      setDesignation("");
+      setRole("");
+      return;
     }
-  }, [open, defaultPriority, defaultStatus, defaultCategory, defaultLabels, defaultStatusProp, defaultAssignee, defaultAssignees]);
+
+    setCategory(defaultCategory || "General");
+    const pKey = PRIORITY_OPTIONS.find((p) => p.value === defaultPriority)?.key || "normal";
+    setPriorityKey(pKey);
+    setStatus(defaultStatusProp || (defaultStatus as TaskStatus) || "todo");
+    setLabels(defaultLabels || []);
+    setSelectedAssignees(defaultAssignees ?? (defaultAssignee ? [defaultAssignee] : []));
+  }, [
+    open,
+    taskToEdit,
+    defaultPriority,
+    defaultStatus,
+    defaultCategory,
+    defaultLabels,
+    defaultStatusProp,
+    defaultAssignee,
+    defaultAssignees,
+  ]);
 
   // Sync defaultProjectId when it changes
   useEffect(() => {
@@ -488,7 +552,7 @@ export function AddTaskModal({
   function submit() {
     const t = title.trim();
     if (!t) return;
-    onCreate({
+    const payload: NewTaskPayload = {
       title: t,
       description: description.trim(),
       category,
@@ -501,7 +565,37 @@ export function AddTaskModal({
       role,
       projectId: projectId === "__none__" ? null : projectId,
       attachmentUrls: attachments.map((a) => a.dataUrl),
+    };
+
+    if (isEditMode && taskToEdit?.id && onUpdate) {
+      posthog.capture("task_updated", {
+        task_id: taskToEdit.id,
+        priority: payload.priority,
+        status: payload.status,
+        category: payload.category,
+        has_due_date: payload.dueLabel !== "No date",
+        assignee_count: payload.assignees?.length ?? 0,
+        has_project: Boolean(payload.projectId),
+        label_count: payload.labels?.length ?? 0,
+      });
+      onUpdate(taskToEdit.id, payload);
+      onClose();
+      return;
+    }
+
+    if (!onCreate) return;
+    posthog.capture("task_created", {
+      priority: payload.priority,
+      status: payload.status,
+      category: payload.category,
+      has_due_date: payload.dueLabel !== "No date",
+      assignee_count: payload.assignees?.length ?? 0,
+      has_project: Boolean(payload.projectId),
+      label_count: payload.labels?.length ?? 0,
+      has_description: Boolean(payload.description),
+      attachment_count: payload.attachmentUrls?.length ?? 0,
     });
+    onCreate(payload);
     // reset to defaults
     setTitle("");
     setDescription("");
@@ -633,10 +727,12 @@ export function AddTaskModal({
                     id={titleId}
                     className="text-sm font-bold text-zinc-900 dark:text-zinc-50"
                   >
-                    Create New Task
+                    {isEditMode ? "Edit Task" : "Create New Task"}
                   </h2>
                   <p className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
-                    Fill in the details below to add a task
+                    {isEditMode
+                      ? "Update task details below"
+                      : "Fill in the details below to add a task"}
                   </p>
                 </div>
               </div>
@@ -962,7 +1058,7 @@ export function AddTaskModal({
                   disabled={!title.trim()}
                   className="rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  Create Task
+                  {isEditMode ? "Save Changes" : "Create Task"}
                 </button>
               </div>
             </div>

@@ -7,19 +7,22 @@ import {
   getWorkspaceMemberCount,
 } from "@/lib/planLimits";
 import { UPGRADE_REQUIRED_CODE } from "@/lib/plans";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export const dynamic = "force-dynamic";
 
-const FIXED_TEAM_ROLES = ["Admin", "Editor", "Observer"] as const;
+const FIXED_TEAM_ROLES = ["Owner", "Admin", "Editor", "Observer"] as const;
 
-function normalizeRole(role: unknown): "admin" | "editor" | "observer" {
+function normalizeRole(role: unknown): "owner" | "admin" | "editor" | "observer" {
   const value = typeof role === "string" ? role.trim().toLowerCase() : "";
+  if (value === "owner") return "owner";
   if (value === "admin") return "admin";
   if (value === "observer") return "observer";
   return "editor";
 }
 
-function toRoleLabel(role: "admin" | "editor" | "observer") {
+function toRoleLabel(role: "owner" | "admin" | "editor" | "observer") {
+  if (role === "owner") return "Owner";
   return role === "admin" ? "Admin" : role === "observer" ? "Observer" : "Editor";
 }
 
@@ -260,7 +263,7 @@ export async function POST(request: Request) {
         id: supabaseUserId || undefined,
         email,
         password: password || null,
-        phone: phone || null,
+        phone: phone?.trim() ? phone.trim() : null,
         firstName,
         lastName,
         jobTitle: designation || "Member",
@@ -272,6 +275,17 @@ export async function POST(request: Request) {
       },
     });
  
+    await captureServerEvent({
+      distinctId: `workspace_${wid}`,
+      event: "team_member_added",
+      properties: {
+        workspace_id: wid,
+        member_role: safeRole,
+        member_department: dept || "Engineering",
+        has_password: Boolean(password),
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "Team member added successfully",
@@ -336,7 +350,12 @@ export async function PATCH(request: Request) {
         department: dept || undefined,
         reportsTo: reportsTo || undefined,
         password: password || undefined,
-        phone: phone !== undefined ? phone : undefined,
+        phone:
+          phone !== undefined
+            ? phone?.trim()
+              ? phone.trim()
+              : null
+            : undefined,
       },
     });
  
@@ -368,6 +387,12 @@ export async function DELETE(request: Request) {
 
     await prisma.user.delete({
       where: { id },
+    });
+
+    await captureServerEvent({
+      distinctId: `member_${id}`,
+      event: "team_member_removed",
+      properties: { member_id: id },
     });
 
     return NextResponse.json({

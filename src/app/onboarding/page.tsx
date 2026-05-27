@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import {
   UserIcon,
   BriefcaseIcon,
@@ -35,7 +36,7 @@ export default function OnboardingPage() {
   const [department, setDepartment] = useState("Product");
   
   const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceSize, setWorkspaceSize] = useState("2-9 people");
+  const [workspaceSize, setWorkspaceSize] = useState("2-10 people");
   const [workspaceIndustry, setWorkspaceIndustry] = useState("Technology");
   
   const [projectName, setProjectName] = useState("");
@@ -134,6 +135,7 @@ export default function OnboardingPage() {
       if (result?.success && typeof window !== "undefined") {
         const createdWorkspaceId = result?.data?.workspace?.id;
         const createdUserRole = result?.data?.user?.role;
+        const userId = sessionStorage.getItem("ansh_onboarding_uid");
 
         if (createdWorkspaceId) {
           sessionStorage.setItem("ansh_onboarding_wid", String(createdWorkspaceId));
@@ -143,6 +145,24 @@ export default function OnboardingPage() {
         } else {
           sessionStorage.setItem("ansh_user_role", "owner");
         }
+
+        if (userId) {
+          posthog.identify(userId, {
+            email,
+            name: fullName,
+            job_title: jobTitle === "Other" ? customJobTitle : jobTitle,
+            department,
+            workspace_industry: workspaceIndustry,
+            workspace_size: workspaceSize,
+          });
+        }
+        posthog.capture("onboarding_completed", {
+          workspace_name: workspaceName,
+          workspace_industry: workspaceIndustry,
+          workspace_size: workspaceSize,
+          project_name: projName,
+          tasks_seeded: taskList.filter(Boolean).length,
+        });
       }
       
       // Keep loader spinning for 3.5 seconds to make the UI transition extremely premium and clear
@@ -412,9 +432,11 @@ export default function OnboardingPage() {
                         className="w-full h-11 rounded-xl border border-zinc-200 bg-white pl-9 pr-10 text-xs font-semibold text-zinc-700 outline-none focus:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-900 dark:text-zinc-200 appearance-none relative"
                       >
                         <option className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100" value="Only me">Only me</option>
-                        <option className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100" value="2-9 people">2-9 people</option>
-                        <option className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100" value="10-49 people">10-49 people</option>
-                        <option className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100" value="50+ people">50+ people</option>
+                        <option className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100" value="2-10 people">2-10 people</option>
+                        <option className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100" value="11-50 people">11-50 people</option>
+                        <option className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100" value="51-100 people">51-100 people</option>
+                        <option className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100" value="101-200 people">101-200 people</option>
+                        <option className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100" value="200+ people">200+ people</option>
                       </select>
                       <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
                     </div>

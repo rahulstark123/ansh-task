@@ -72,7 +72,7 @@ type Member = {
   activities: ActivityMock[];
 };
 
-const FIXED_TEAM_ROLES = ["Admin", "Editor", "Observer"] as const;
+const FIXED_TEAM_ROLES = ["Owner", "Admin", "Editor", "Observer"] as const;
 const DEFAULT_DESIGNATIONS = ["Senior Engineer", "Product Manager", "Team Lead", "Member"] as const;
 
 const INITIAL_MEMBERS: Member[] = [
@@ -322,10 +322,17 @@ const INITIAL_MEMBERS: Member[] = [
   },
 ];
 
+function formatMemberPhone(phone?: string | null) {
+  const trimmed = phone?.trim();
+  return trimmed || "";
+}
+
 const mapDbUserToMember = (user: any): Member => {
   const normalizedRole = (user.role || "").toString().toLowerCase();
   const roleLabel =
-    normalizedRole === "admin"
+    normalizedRole === "owner"
+      ? "Owner"
+      : normalizedRole === "admin"
       ? "Admin"
       : normalizedRole === "observer"
       ? "Observer"
@@ -335,7 +342,7 @@ const mapDbUserToMember = (user: any): Member => {
     id: user.id,
     name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email.split("@")[0],
     email: user.email,
-    phone: user.phone || "+1 (555) 000-0000",
+    phone: formatMemberPhone(user.phone),
     role: roleLabel,
     designation: user.designation || user.jobTitle || "Member",
     dept: user.department || "Engineering",
@@ -580,7 +587,7 @@ export function TeamsManagementView() {
     if (!enforceTeamMemberLimit()) return;
     if (!name.trim()) return;
     const digits = (phone || "").replace(/\D/g, "");
-    if (phone && (digits.length < 8 || digits.length > 15)) {
+    if (digits.length > 0 && (digits.length < 8 || digits.length > 15)) {
       showToast("Please enter a valid phone number.", "error");
       return;
     }
@@ -592,7 +599,7 @@ export function TeamsManagementView() {
         body: JSON.stringify({
           name,
           email: email.trim(),
-          phone: phone || "",
+          phone: phone?.trim() || null,
           role,
           designation: designation || "",
           dept,
@@ -645,7 +652,7 @@ export function TeamsManagementView() {
     if (!enforcePermission(canManageMembers)) return;
     if (!editingMember || !editName.trim()) return;
     const editDigits = (editPhone || "").replace(/\D/g, "");
-    if (editPhone && (editDigits.length < 8 || editDigits.length > 15)) {
+    if (editDigits.length > 0 && (editDigits.length < 8 || editDigits.length > 15)) {
       showToast("Please enter a valid phone number.", "error");
       return;
     }
@@ -658,7 +665,7 @@ export function TeamsManagementView() {
           id: editingMember.id,
           name: editName,
           email: editEmail,
-          phone: editPhone || "",
+          phone: editPhone?.trim() || null,
           role: editRole,
           designation: editDesignation,
           dept: editDept,
@@ -916,10 +923,12 @@ export function TeamsManagementView() {
                             <EnvelopeIcon className="h-3 w-3 text-zinc-400" />
                             {m.email}
                           </span>
-                          <span className="flex items-center gap-1 text-zinc-400 dark:text-zinc-500">
-                            <PhoneIcon className="h-3 w-3 text-zinc-500/80" />
-                            {m.phone}
-                          </span>
+                          {m.phone ? (
+                            <span className="flex items-center gap-1 text-zinc-400 dark:text-zinc-500">
+                              <PhoneIcon className="h-3 w-3 text-zinc-500/80" />
+                              {m.phone}
+                            </span>
+                          ) : null}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -1133,10 +1142,12 @@ export function TeamsManagementView() {
                           <span className="text-zinc-400">Email Address</span>
                           <span className="font-semibold text-zinc-700 dark:text-zinc-200">{selectedMember.email}</span>
                         </div>
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-zinc-400">Phone Number</span>
-                          <span className="font-semibold text-zinc-700 dark:text-zinc-200">{selectedMember.phone}</span>
-                        </div>
+                        {selectedMember.phone ? (
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-zinc-400">Phone Number</span>
+                            <span className="font-semibold text-zinc-700 dark:text-zinc-200">{selectedMember.phone}</span>
+                          </div>
+                        ) : null}
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-zinc-400">Joined Date</span>
                           <div className="flex items-center gap-1 font-semibold text-zinc-700 dark:text-zinc-200">
@@ -1432,8 +1443,7 @@ export function TeamsManagementView() {
                       countryCodeEditable={false}
                       inputProps={{
                         name: "phone",
-                        required: true,
-                        placeholder: "Enter phone number",
+                        placeholder: "Enter phone number (optional)",
                       }}
                     />
                   </div>
@@ -1907,8 +1917,7 @@ export function TeamsManagementView() {
                       countryCodeEditable={false}
                       inputProps={{
                         name: "phone",
-                        required: true,
-                        placeholder: "Enter phone number",
+                        placeholder: "Enter phone number (optional)",
                       }}
                     />
                   </div>

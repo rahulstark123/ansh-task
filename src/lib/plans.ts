@@ -16,6 +16,7 @@ export type UpgradeRequiredPayload = {
 export const UPGRADE_REQUIRED_CODE = "UPGRADE_REQUIRED";
 export const PLAN_UPGRADE_EVENT = "ansh:plan-upgrade-required";
 
+export const FREE_TRIAL_DAYS = 14;
 export const FREE_PLAN_TEAM_MEMBERS_LIMIT = 2;
 export const FREE_PLAN_PROJECTS_LIMIT = 3;
 export const FREE_PLAN_TASKS_PER_MONTH_LIMIT = 50;
@@ -29,6 +30,12 @@ export function resolveWorkspaceIdFromSession() {
   const raw = window.sessionStorage.getItem("ansh_onboarding_wid") ?? "1";
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) ? parsed : 1;
+}
+
+export function getTrialEndsAt(fromDate: Date = new Date()) {
+  const trialEndsAt = new Date(fromDate);
+  trialEndsAt.setDate(trialEndsAt.getDate() + FREE_TRIAL_DAYS);
+  return trialEndsAt;
 }
 
 export function getUpgradeTitle(feature: ProFeatureKey) {

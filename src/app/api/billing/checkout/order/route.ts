@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { supabase } from "@/lib/supabase";
 import { getRazorpayConfig, getRazorpayInstance } from "@/lib/billing/razorpay";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
       const monthlyPaisa = cfg.proPlanAmountPaisa ?? 19900; // per seat per month (default ₹199)
       const subtotal =
         billingCycle === "yearly"
-          ? Math.round(monthlyPaisa * seats * 12 * 0.83)
+          ? Math.round(monthlyPaisa * seats * 12 * 0.81)
           : monthlyPaisa * seats;
       const gst = Math.round(subtotal * 0.18);
       amountPaisa = subtotal + gst;
@@ -100,6 +101,18 @@ export async function POST(request: Request) {
         status: "CREATED",
         amountPaisa,
         razorpayOrderId: order.id,
+      },
+    });
+
+    await captureServerEvent({
+      distinctId: email,
+      event: "payment_order_created",
+      properties: {
+        workspace_id: wid,
+        billing_cycle: billingCycle,
+        seat_count: seats,
+        amount_paisa: amountPaisa,
+        razorpay_order_id: order.id,
       },
     });
 

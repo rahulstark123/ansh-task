@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 
 const SLIDES = [
   {
@@ -92,6 +93,7 @@ export default function SignupPage() {
   const handleGoogleSignup = async () => {
     setErrorMsg("");
     setShowConnecting(true);
+    posthog.capture("google_auth_started", { source: "signup" });
     try {
       setTimeout(async () => {
         const { error } = await supabase.auth.signInWithOAuth({
@@ -347,8 +349,10 @@ export default function SignupPage() {
                 sessionStorage.setItem("ansh_onboarding_email", email);
                 if (data?.user?.id) {
                   sessionStorage.setItem("ansh_onboarding_uid", data.user.id);
+                  posthog.identify(data.user.id, { email, name: fullName });
                 }
-                
+                posthog.capture("user_signed_up", { method: "email", name: fullName, email });
+
                 router.push("/onboarding");
               } catch (err: any) {
                 setErrorMsg(err.message || "An unexpected error occurred during registration");

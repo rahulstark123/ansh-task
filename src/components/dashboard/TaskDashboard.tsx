@@ -610,6 +610,9 @@ export function TaskDashboard({
 
   // Modal & inline states
   const [addOpen, setAddOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editModalTask, setEditModalTask] = useState<Task | null>(null);
+  const [editModalSession, setEditModalSession] = useState(0);
   const [addModalSession, setAddModalSession] = useState(0);
   const [addModalDefaultStatus, setAddModalDefaultStatus] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -1078,6 +1081,56 @@ export function TaskDashboard({
   }
 
   // ── Create task (modal) ────────────────────────────────────
+  function openTableTaskEdit(task: Task) {
+    if (!enforcePermission(canEditTasks)) return;
+    setEditModalTask(task);
+    setEditModalSession((s) => s + 1);
+    setEditOpen(true);
+  }
+
+  async function handleUpdateTaskFromModal(taskId: string, payload: NewTaskPayload) {
+    if (!enforcePermission(canEditTasks)) return;
+
+    const updates: Partial<Task> = {
+      title: payload.title,
+      description: payload.description || undefined,
+      status: payload.status,
+      priority: payload.priority,
+      assignee: payload.assignees.length > 0 ? payload.assignees[0] : "Unassigned",
+      assignees: payload.assignees,
+      category: payload.category,
+      labels: payload.labels.length ? payload.labels : undefined,
+      due: payload.dueLabel,
+      done: payload.status === "done",
+      attachmentUrls: payload.attachmentUrls || [],
+    };
+
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+    );
+    if (selectedTask?.id === taskId) {
+      setSelectedTask((prev) => (prev ? { ...prev, ...updates } : null));
+    }
+
+    const ok = await patchTask(taskId, {
+      title: updates.title,
+      description: updates.description,
+      status: updates.status,
+      priority: updates.priority,
+      assignee: updates.assignee,
+      assignees: updates.assignees,
+      category: updates.category,
+      labels: updates.labels,
+      due: updates.due,
+      done: updates.done,
+      attachmentUrls: updates.attachmentUrls,
+    });
+
+    if (ok) {
+      showToast(`Task "${payload.title}" updated`, "success");
+    }
+  }
+
   async function handleAddTaskFromModal(payload: NewTaskPayload) {
     if (!enforcePermission(canCreateTasks)) return;
     if (!enforceTaskCreationLimit()) return;
@@ -1766,7 +1819,7 @@ export function TaskDashboard({
                             </span>
                             <button
                               type="button"
-                              onClick={() => setSelectedTask(task)}
+                              onClick={() => openTableTaskEdit(task)}
                               className="opacity-0 group-hover:opacity-100 p-0.5 rounded text-zinc-400 hover:bg-zinc-100 hover:text-zinc-750 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-all ml-1"
                               title="Edit task details"
                             >
@@ -1963,9 +2016,7 @@ export function TaskDashboard({
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setSelectedTask(task);
-                                  if (!enforcePermission(canEditTasks)) return;
-                                  setIsEditingTaskDetails(true);
+                                  openTableTaskEdit(task);
                                   setActiveDropdown(null);
                                 }}
                                 className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-705 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
@@ -2056,19 +2107,11 @@ export function TaskDashboard({
                   <button
                     type="button"
                     onClick={() => {
-                      if (isEditingTaskDetails) {
-                        handleCancelTaskEdits();
-                      } else {
-                        if (!enforcePermission(canEditTasks)) return;
-                        setIsEditingTaskDetails(true);
-                      }
+                      if (!enforcePermission(canEditTasks)) return;
+                      openTableTaskEdit(selectedTask);
                     }}
-                    className={`rounded-lg p-1.5 transition-colors ${
-                      isEditingTaskDetails 
-                        ? "bg-indigo-50 text-indigo-650 dark:bg-indigo-950/40 dark:text-indigo-400" 
-                        : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                    }`}
-                    title={isEditingTaskDetails ? "Viewing Mode" : "Edit Task"}
+                    className="rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                    title="Edit Task"
                   >
                     <PencilIcon className="h-4.5 w-4.5" />
                   </button>
@@ -2753,6 +2796,18 @@ export function TaskDashboard({
         onCreate={handleAddTaskFromModal}
         assignees={assigneesList}
         defaultStatus={addModalDefaultStatus as import("@/types/task").TaskStatus | null}
+      />
+
+      <AddTaskModal
+        key={editModalSession}
+        open={editOpen}
+        onClose={() => {
+          setEditOpen(false);
+          setEditModalTask(null);
+        }}
+        taskToEdit={editModalTask}
+        onUpdate={handleUpdateTaskFromModal}
+        assignees={assigneesList}
       />
 
       {/* Dynamic Filters Modal */}

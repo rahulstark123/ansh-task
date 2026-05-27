@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRazorpayConfig } from "@/lib/billing/razorpay";
 import { verifyRazorpaySignature } from "@/lib/billing/razorpay-signature";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,19 @@ export async function POST(request: Request) {
         },
       }),
     ]);
+
+    await captureServerEvent({
+      distinctId: `workspace_${wid}`,
+      event: "payment_verified",
+      properties: {
+        workspace_id: wid,
+        billing_cycle: billingCycle,
+        razorpay_order_id: razorpay_order_id,
+        razorpay_payment_id: razorpay_payment_id,
+        plan: "pro",
+        expires_at: expiresAt.toISOString(),
+      },
+    });
 
     return NextResponse.json({
       success: true,

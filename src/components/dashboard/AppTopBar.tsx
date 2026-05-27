@@ -25,6 +25,7 @@ import { useAppearance } from "@/context/AppearanceContext";
 import { supabase } from "@/lib/supabase";
 import { usePermissionAccess } from "@/lib/usePermissionAccess";
 import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
+import posthog from "posthog-js";
 
 type SearchItem = {
   id: string;
@@ -50,7 +51,7 @@ export function AppTopBar() {
   const { setTheme, theme } = useTheme();
   const { setIsAppearanceOpen } = useAppearance();
   const { guardPathAccess } = usePermissionAccess();
-  const { plan, ready: planReady, guardPlanPathAccess } = useWorkspacePlan();
+  const { plan, isTrial, trialDaysLeft, ready: planReady, guardPlanPathAccess } = useWorkspacePlan();
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
     {
@@ -595,12 +596,19 @@ export function AppTopBar() {
             <Link
               href="/settings/billing"
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer ${
-                plan === "pro"
+                isTrial
+                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/10 hover:brightness-110"
+                  : plan === "pro"
                   ? "bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-white shadow-md shadow-teal-500/10 hover:brightness-110"
                   : "border border-zinc-200 bg-zinc-50/50 text-zinc-550 hover:bg-zinc-100 hover:text-zinc-700 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-400 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-300"
               }`}
             >
-              {plan === "pro" ? (
+              {isTrial ? (
+                <>
+                  <SparklesIcon className="h-3 w-3 animate-pulse text-amber-100" />
+                  Free Trial - {trialDaysLeft ?? 0} {trialDaysLeft === 1 ? "day" : "days"} left
+                </>
+              ) : plan === "pro" ? (
                 <>
                   <SparklesIcon className="h-3 w-3 animate-pulse text-teal-200" />
                   PRO
@@ -813,6 +821,7 @@ export function AppTopBar() {
             onClick={async () => {
               setIsLoggingOut(true);
               setTimeout(async () => {
+                posthog.reset();
                 await supabase.auth.signOut();
                 router.push("/login");
               }, 1200);

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import posthog from "posthog-js";
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
 
 export default function AuthCallbackPage() {
@@ -39,6 +40,16 @@ export default function AuthCallbackPage() {
           router.push("/login");
           return;
         }
+
+        // Identify OAuth users and track successful callback login.
+        posthog.identify(currentUser.id, {
+          email,
+          provider: "google",
+        });
+        posthog.capture("user_logged_in", {
+          method: "google_oauth",
+          email,
+        });
 
         // Fetch user from DB to check if they have a workspace
         const res = await fetch(`/api/profile?email=${encodeURIComponent(email)}`);

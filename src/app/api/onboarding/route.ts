@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_PERMISSION_MATRIX } from "@/lib/permissions";
+import { getTrialEndsAt } from "@/lib/plans";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,8 @@ export async function POST(request: Request) {
 
     // Database is configured! Let's persist using a Prisma transaction.
     const result = await prisma.$transaction(async (tx: any) => {
+      const trialEndsAt = getTrialEndsAt();
+
       // 1. Create Workspace
       const createdWorkspace = await tx.workspace.create({
         data: {
@@ -35,6 +39,8 @@ export async function POST(request: Request) {
           industry: workspace.industry,
           size: workspace.size,
           domain: workspace.domain || null,
+          plan: "pro",
+          planExpiresAt: trialEndsAt,
         }
       });
 
@@ -127,8 +133,23 @@ export async function POST(request: Request) {
         user: createdUser,
         workspace: createdWorkspace,
         project: createdProject,
-        tasksCount: tasksData.length
+        tasksCount: tasksData.length,
+        trialEndsAt,
       };
+    });
+
+    await captureServerEvent({
+      distinctId: result.user.id || result.user.email,
+      event: "workspace_created",
+      properties: {
+        workspace_id: result.workspace.id,
+        workspace_name: result.workspace.name,
+        workspace_industry: workspace.industry,
+        workspace_size: workspace.size,
+        tasks_seeded: result.tasksCount,
+        user_email: result.user.email,
+        user_job_title: user.jobTitle,
+      },
     });
 
     return NextResponse.json({
