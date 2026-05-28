@@ -104,6 +104,12 @@ const STATUS_OPTIONS: {
     color: "text-rose-700 dark:text-rose-300",
   },
   {
+    value: "overdue",
+    label: "Overdue",
+    dot: "bg-red-600",
+    color: "text-red-700 dark:text-red-300",
+  },
+  {
     value: "on_hold",
     label: "On Hold",
     dot: "bg-amber-500",
@@ -615,12 +621,13 @@ export function AddTaskModal({
   const dynamicStatusOptions = useMemo(() => {
     const order = kanbanColumnOrder && kanbanColumnOrder.length > 0
       ? kanbanColumnOrder
-      : ["todo", "in_progress", "blocked", "done"];
+      : ["todo", "in_progress", "blocked", "overdue", "done"];
     return order.map((id, index) => {
       if (id === "todo") return { value: "todo", label: "To Do", dot: "bg-zinc-400" };
       if (id === "in_progress") return { value: "in_progress", label: "In Progress", dot: "bg-teal-500" };
       if (id === "on_hold") return { value: "on_hold", label: "On Hold", dot: "bg-amber-500" };
       if (id === "blocked") return { value: "blocked", label: "Blocked", dot: "bg-rose-500" };
+      if (id === "overdue") return { value: "overdue", label: "Overdue", dot: "bg-red-600" };
       if (id === "done") return { value: "done", label: "Done", dot: "bg-emerald-500" };
 
       const label = id.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());

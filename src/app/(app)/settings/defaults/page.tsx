@@ -30,6 +30,9 @@ function getStatusOption(statusId: string, index: number) {
   if (statusId === "blocked") {
     return { value: "blocked", label: "Blocked", dot: "bg-rose-500", activeColor: "border-rose-300 bg-rose-50/50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300" };
   }
+  if (statusId === "overdue") {
+    return { value: "overdue", label: "Overdue", dot: "bg-red-600", activeColor: "border-red-300 bg-red-50/50 text-red-700 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300" };
+  }
   if (statusId === "done") {
     return { value: "done", label: "Done", dot: "bg-emerald-500", activeColor: "border-emerald-300 bg-emerald-50/50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300" };
   }
@@ -79,7 +82,7 @@ export default function WorkspaceDefaultsPage() {
   const dynamicStatusOptions = useMemo(() => {
     const order = kanbanColumnOrder && kanbanColumnOrder.length > 0
       ? kanbanColumnOrder
-      : ["todo", "in_progress", "blocked", "done"];
+      : ["todo", "in_progress", "blocked", "overdue", "done"];
     return order.map((id, index) => getStatusOption(id, index));
   }, [kanbanColumnOrder]);
 

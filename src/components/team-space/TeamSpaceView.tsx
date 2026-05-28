@@ -25,11 +25,16 @@ import { useTheme } from "next-themes";
 import dynamic from "next/dynamic";
 import { usePermissionAccess } from "@/lib/usePermissionAccess";
 import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
+import { useToast } from "@/context/ToastContext";
 
 const EmojiPicker = dynamic(
   () => import("emoji-picker-react").then((mod) => mod.default),
   { ssr: false }
 );
+
+const MAX_MESSAGE_ATTACHMENTS = 10;
+const MAX_SINGLE_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB per file
+const MAX_TOTAL_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB total
 
 const getAvatarHsl = (name: string) => {
   let hash = 0;
@@ -71,6 +76,7 @@ const SEED_CHANNELS: ChatTarget[] = [
 export function TeamSpaceView() {
   const { can, alertNoPermission } = usePermissionAccess();
   const { ready: planReady, isPro } = useWorkspacePlan();
+  const { showToast } = useToast();
   const canCreateChannels = can("create_channels");
   const canDeleteChannels = can("delete_channels");
   const canPostMessages = can("post_messages");
@@ -637,6 +643,33 @@ export function TeamSpaceView() {
   // File Attachment handler
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    if (files.length === 0) {
+      e.target.value = "";
+      return;
+    }
+
+    const oversizedFiles = files.filter((file) => file.size > MAX_SINGLE_ATTACHMENT_SIZE_BYTES);
+    if (oversizedFiles.length > 0) {
+      showToast("Each file must be 10 MB or less.", "error");
+      e.target.value = "";
+      return;
+    }
+
+    const availableSlots = Math.max(0, MAX_MESSAGE_ATTACHMENTS - attachments.length);
+    if (availableSlots <= 0 || files.length > availableSlots) {
+      showToast(`You can attach up to ${MAX_MESSAGE_ATTACHMENTS} files per message.`, "error");
+      e.target.value = "";
+      return;
+    }
+
+    const existingTotalSize = attachments.reduce((total, att) => total + att.size, 0);
+    const selectedTotalSize = files.reduce((total, file) => total + file.size, 0);
+    if (existingTotalSize + selectedTotalSize > MAX_TOTAL_ATTACHMENT_SIZE_BYTES) {
+      showToast("Total attachments must be 10 MB or less per message.", "error");
+      e.target.value = "";
+      return;
+    }
+
     files.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -647,6 +680,7 @@ export function TeamSpaceView() {
       };
       reader.readAsDataURL(file);
     });
+
     e.target.value = "";
   };
 
@@ -1123,9 +1157,6 @@ export function TeamSpaceView() {
           </div>
           
           <div className="flex items-center gap-1">
-            <button className="rounded p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-650 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 transition-colors cursor-pointer">
-              <MagnifyingGlassIcon className="h-4.5 w-4.5" />
-            </button>
             <button 
               type="button"
               onClick={() => setShowRightDrawer(!showRightDrawer)}

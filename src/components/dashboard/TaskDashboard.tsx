@@ -159,8 +159,23 @@ const COLUMNS: { id: TaskStatus; label: string; bg: string; dot: string; border:
   { id: "in_progress", label: "In Progress", bg: "bg-teal-50/40 dark:bg-teal-950/10", dot: "bg-teal-500", border: "border-teal-100", darkBorder: "dark:border-teal-900/20" },
   { id: "on_hold", label: "On Hold", bg: "bg-amber-50/40 dark:bg-amber-950/10", dot: "bg-amber-500", border: "border-amber-100", darkBorder: "dark:border-amber-900/20" },
   { id: "blocked", label: "Blocked", bg: "bg-rose-50/40 dark:bg-rose-950/10", dot: "bg-rose-500", border: "border-rose-100", darkBorder: "dark:border-rose-900/20" },
+  { id: "overdue", label: "Overdue", bg: "bg-red-50/40 dark:bg-red-950/10", dot: "bg-red-600", border: "border-red-100", darkBorder: "dark:border-red-900/20" },
   { id: "done", label: "Done", bg: "bg-emerald-50/40 dark:bg-emerald-950/10", dot: "bg-emerald-500", border: "border-emerald-100", darkBorder: "dark:border-emerald-900/20" },
 ];
+
+function isTaskOverdue(due?: string, done?: boolean) {
+  if (done || !due || due === "No date") return false;
+  const parsed = new Date(due);
+  if (Number.isNaN(parsed.getTime())) return false;
+  parsed.setHours(23, 59, 59, 999);
+  return parsed.getTime() < Date.now();
+}
+
+function getEffectiveStatus(task: Task): TaskStatus {
+  if (task.done || task.status === "done") return "done";
+  if (isTaskOverdue(task.due, task.done)) return "overdue";
+  return (task.status as TaskStatus) || "todo";
+}
 
 const CATEGORIES = ["Product", "Engineering", "Design", "Operations", "Marketing", "General"];
 const PRIORITIES: TaskPriority[] = ["low", "medium", "high"];
@@ -461,6 +476,7 @@ export function TaskDashboard({
 
   const [assigneesList, setAssigneesList] = useState<string[]>(ASSIGNEES);
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+  const [currentUserAssigneeKeys, setCurrentUserAssigneeKeys] = useState<string[]>(["me"]);
 
   const {
     priority: defaultPriority,
@@ -475,7 +491,7 @@ export function TaskDashboard({
 
   const currentColumnOrder = kanbanColumnOrder && kanbanColumnOrder.length > 0
     ? kanbanColumnOrder
-    : ["todo", "in_progress", "on_hold", "blocked", "done"];
+    : ["todo", "in_progress", "on_hold", "blocked", "overdue", "done"];
 
   // Helper function to resolve column properties dynamically
   function getColumnDetails(statusId: string, index: number) {
@@ -580,9 +596,17 @@ export function TaskDashboard({
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          setCurrentUserEmail(user.email || null);
+          const safeEmail = user.email || "";
+          setCurrentUserEmail(safeEmail || null);
+
+          const baseKeys = [
+            "Me",
+            safeEmail,
+            safeEmail.includes("@") ? safeEmail.split("@")[0] : "",
+          ].filter(Boolean);
+
           const wid = getWid();
-          const res = await fetch(`/api/team?email=${encodeURIComponent(user.email || "")}&wid=${wid}`);
+          const res = await fetch(`/api/team?email=${encodeURIComponent(safeEmail)}&wid=${wid}`);
           const json = await res.json();
           if (json.success && json.members) {
             const memberNames = json.members.map((u: any) => {
@@ -590,7 +614,19 @@ export function TaskDashboard({
             });
             const combined = Array.from(new Set(["Unassigned", "Me", ...memberNames]));
             setAssigneesList(combined);
+
+            const currentMember = json.members.find(
+              (u: any) => (u.email || "").toLowerCase() === safeEmail.toLowerCase()
+            );
+            if (currentMember) {
+              const fullName = `${currentMember.firstName || ""} ${currentMember.lastName || ""}`.trim();
+              if (fullName) baseKeys.push(fullName);
+            }
           }
+
+          setCurrentUserAssigneeKeys(
+            Array.from(new Set(baseKeys.map((k) => k.toLowerCase())))
+          );
         }
       } catch (err) {
         console.error("Error loading team in TaskDashboard:", err);
@@ -720,10 +756,16 @@ export function TaskDashboard({
   // Filter tasks relative to the selected workspace type (My tasks, All tasks, etc.)
   const moduleTasks = useMemo(() => {
     if (taskModule === "my") {
-      return tasks.filter((t) => t.assignee === "Me" || (t.assignees && t.assignees.includes("Me")));
+      const identityKeys = new Set(currentUserAssigneeKeys);
+      return tasks.filter((t) => {
+        const assigneeCandidates = [t.assignee, ...(t.assignees || [])]
+          .filter((value): value is string => Boolean(value))
+          .map((value) => value.toLowerCase());
+        return assigneeCandidates.some((candidate) => identityKeys.has(candidate));
+      });
     }
     return tasks;
-  }, [tasks, taskModule]);
+  }, [tasks, taskModule, currentUserAssigneeKeys]);
 
   // Apply search query and multi-filters
   const filteredTasks = useMemo(() => {
@@ -747,9 +789,9 @@ export function TaskDashboard({
 
   // Aggregate columns counts
   const columnsCounts = useMemo(() => {
-    const counts: Record<string, number> = { todo: 0, in_progress: 0, blocked: 0, done: 0 };
+    const counts: Record<string, number> = { todo: 0, in_progress: 0, on_hold: 0, blocked: 0, overdue: 0, done: 0 };
     filteredTasks.forEach((t) => {
-      const status = t.status || "todo";
+      const status = getEffectiveStatus(t);
       counts[status] = (counts[status] || 0) + 1;
     });
     return counts;
@@ -819,6 +861,7 @@ export function TaskDashboard({
     in_progress: "In Progress",
     on_hold: "On Hold",
     blocked: "Blocked",
+    overdue: "Overdue",
     done: "Done"
   };
 
@@ -1522,7 +1565,7 @@ export function TaskDashboard({
               className="flex h-full w-full overflow-x-auto p-6 items-start gap-4 scrollbar-thin select-none"
             >
               {dynamicColumns.map((col) => {
-                const columnTasks = filteredTasks.filter((t) => t.status === col.id);
+                const columnTasks = filteredTasks.filter((t) => getEffectiveStatus(t) === col.id);
                 const isOver = dragOverColumn === col.id;
 
                 return (
@@ -2245,25 +2288,28 @@ export function TaskDashboard({
                             { value: "in_progress", label: "In Progress", colorDot: "bg-teal-500" },
                             { value: "on_hold", label: "On Hold", colorDot: "bg-amber-500" },
                             { value: "blocked", label: "Blocked", colorDot: "bg-rose-505" },
+                            { value: "overdue", label: "Overdue", colorDot: "bg-red-600" },
                             { value: "done", label: "Done", colorDot: "bg-emerald-500" }
                           ]}
                         />
                       ) : (
                         <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${
-                          selectedTask.status === "done" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40" :
-                          selectedTask.status === "in_progress" ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40" :
-                          selectedTask.status === "on_hold" ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40" :
-                          selectedTask.status === "blocked" ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40" :
+                          getEffectiveStatus(selectedTask) === "done" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40" :
+                          getEffectiveStatus(selectedTask) === "in_progress" ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40" :
+                          getEffectiveStatus(selectedTask) === "on_hold" ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40" :
+                          getEffectiveStatus(selectedTask) === "blocked" ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40" :
+                          getEffectiveStatus(selectedTask) === "overdue" ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/40" :
                           "bg-zinc-50 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
                         }`}>
                           <span className={`h-1.5 w-1.5 rounded-full ${
-                            selectedTask.status === "done" ? "bg-emerald-500" :
-                            selectedTask.status === "in_progress" ? "bg-teal-500" :
-                            selectedTask.status === "on_hold" ? "bg-amber-500" :
-                            selectedTask.status === "blocked" ? "bg-rose-500" :
+                            getEffectiveStatus(selectedTask) === "done" ? "bg-emerald-500" :
+                            getEffectiveStatus(selectedTask) === "in_progress" ? "bg-teal-500" :
+                            getEffectiveStatus(selectedTask) === "on_hold" ? "bg-amber-500" :
+                            getEffectiveStatus(selectedTask) === "blocked" ? "bg-rose-500" :
+                            getEffectiveStatus(selectedTask) === "overdue" ? "bg-red-600" :
                             "bg-zinc-400"
                           }`} />
-                          {statusLabelMap[selectedTask.status || "todo"] || "To Do"}
+                          {statusLabelMap[getEffectiveStatus(selectedTask)] || "To Do"}
                         </span>
                       )}
                     </div>

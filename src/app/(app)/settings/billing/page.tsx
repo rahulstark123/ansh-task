@@ -403,6 +403,10 @@ export default function BillingSettingsPage() {
 
       {/* ── Plan cards ── */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        {(() => {
+          const isProActive = currentPlan === "pro";
+          return (
+            <>
 
         {/* ─ Free card ─ */}
         <motion.div
@@ -470,7 +474,7 @@ export default function BillingSettingsPage() {
         <motion.div
           layout
           className={`relative flex flex-col rounded-3xl border p-7 ${
-            currentPlan === "pro"
+            isProActive
               ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] shadow-[0_0_0_4px_rgba(13,148,136,0.1)] dark:border-teal-600/60 dark:bg-teal-950/10"
               : "border-transparent bg-zinc-900 shadow-xl shadow-zinc-900/20 dark:bg-zinc-800/80"
           }`}
@@ -493,8 +497,8 @@ export default function BillingSettingsPage() {
               <BoltIcon className="h-5 w-5 text-white" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-teal-400">Plan</p>
-              <h2 className="font-heading text-xl font-extrabold text-white">Pro</h2>
+              <p className={`text-[10px] font-bold uppercase tracking-widest ${isProActive ? "text-teal-600" : "text-teal-400"}`}>Plan</p>
+              <h2 className={`font-heading text-xl font-extrabold ${isProActive ? "text-zinc-900 dark:text-zinc-50" : "text-white"}`}>Pro</h2>
             </div>
           </div>
 
@@ -508,12 +512,12 @@ export default function BillingSettingsPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.16 }}
-                  className="font-heading text-4xl font-black text-white"
+                  className={`font-heading text-4xl font-black ${isProActive ? "text-zinc-900 dark:text-zinc-50" : "text-white"}`}
                 >
                   ₹{pricePerUser.toLocaleString("en-IN")}
                 </motion.span>
               </AnimatePresence>
-              <span className="mb-1 text-sm font-medium text-zinc-400">/ user / month</span>
+              <span className={`mb-1 text-sm font-medium ${isProActive ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-400"}`}>/ user / month</span>
             </div>
 
             {!loadingUsers && userCount > 0 && (
@@ -523,16 +527,16 @@ export default function BillingSettingsPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="mt-2 inline-flex items-center gap-2 rounded-xl bg-white/10 px-3 py-1.5"
+                  className={`mt-2 inline-flex items-center gap-2 rounded-xl px-3 py-1.5 ${isProActive ? "bg-teal-500/10" : "bg-white/10"}`}
                 >
-                  <UsersIcon className="h-3.5 w-3.5 text-teal-300" />
-                  <span className="text-xs font-semibold text-zinc-200">
+                  <UsersIcon className={`h-3.5 w-3.5 ${isProActive ? "text-teal-600" : "text-teal-300"}`} />
+                  <span className={`text-xs font-semibold ${isProActive ? "text-zinc-700 dark:text-zinc-200" : "text-zinc-200"}`}>
                     {userCount} {userCount === 1 ? "user" : "users"} ={" "}
-                    <span className="font-black text-white">
+                    <span className={`font-black ${isProActive ? "text-zinc-900 dark:text-white" : "text-white"}`}>
                       ₹{totalMonthly.toLocaleString("en-IN")}/mo
                     </span>
                     {billing === "yearly" && (
-                      <span className="ml-1 text-teal-300">
+                      <span className={`ml-1 ${isProActive ? "text-teal-700 dark:text-teal-300" : "text-teal-300"}`}>
                         · ₹{totalYearlyFull.toLocaleString("en-IN")}/yr
                       </span>
                     )}
@@ -548,10 +552,10 @@ export default function BillingSettingsPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="mt-2 text-xs font-semibold text-teal-400"
+                  className={`mt-2 text-xs font-semibold ${isProActive ? "text-teal-700 dark:text-teal-400" : "text-teal-400"}`}
                 >
                   Billed annually — save&nbsp;
-                  <span className="rounded bg-teal-500/20 px-1.5 py-0.5 text-teal-300">
+                  <span className={`rounded px-1.5 py-0.5 ${isProActive ? "bg-teal-500/15 text-teal-700 dark:text-teal-300" : "bg-teal-500/20 text-teal-300"}`}>
                     ₹{(MONTHLY_PRICE * 12 - YEARLY_PRICE).toLocaleString("en-IN")} per user
                   </span>
                 </motion.p>
@@ -561,7 +565,7 @@ export default function BillingSettingsPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="mt-2 text-xs text-zinc-500"
+                  className={`mt-2 text-xs ${isProActive ? "text-zinc-600 dark:text-zinc-400" : "text-zinc-500"}`}
                 >
                   Switch to yearly to save 19% per user.
                 </motion.p>
@@ -576,8 +580,8 @@ export default function BillingSettingsPage() {
             onClick={handleOpenCheckout}
             disabled={currentPlan === "pro" || planLoading}
             className={`mt-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-all active:scale-[0.98] disabled:cursor-default disabled:opacity-60 ${
-              currentPlan === "pro"
-                ? "bg-teal-500/20 text-teal-300"
+              isProActive
+                ? "bg-teal-500/20 text-teal-700 dark:text-teal-300"
                 : "bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-white shadow-lg shadow-teal-600/25 hover:brightness-110"
             }`}
           >
@@ -604,12 +608,15 @@ export default function BillingSettingsPage() {
               "CSV / PDF export (Soon)",
             ].map((f) => (
               <li key={f} className="flex items-start gap-2.5 text-sm">
-                <SparklesIcon className="mt-0.5 h-4 w-4 shrink-0 text-teal-400" />
-                <span className="text-zinc-300">{f}</span>
+                <SparklesIcon className={`mt-0.5 h-4 w-4 shrink-0 ${isProActive ? "text-teal-600 dark:text-teal-400" : "text-teal-400"}`} />
+                <span className={isProActive ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-300"}>{f}</span>
               </li>
             ))}
           </ul>
         </motion.div>
+            </>
+          );
+        })()}
       </div>
 
       {/* ── Feature comparison table ── */}

@@ -339,6 +339,7 @@ export function ProjectsListView() {
   // Drawer & Modal States
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Edit Drawer Form States
@@ -649,10 +650,71 @@ export function ProjectsListView() {
     }
   };
 
+  const resetProjectForm = () => {
+    setName("");
+    setDescription("");
+    setCategory("Engineering");
+    setOwner(availableUsers[0]?.name || "Aisha Khan");
+    setStartDate("");
+    setDue("");
+    setPriority("Normal");
+    setStatus("Discovery");
+    setHealth("good");
+    setEstimatedHours("80");
+    setSelectedMembers([]);
+    setIsTeamDropdownOpen(false);
+  };
+
+  const openCreateProjectModal = () => {
+    setEditingProjectId(null);
+    resetProjectForm();
+    setIsAddModalOpen(true);
+  };
+
+  const openEditProjectModal = (project: Project) => {
+    setEditingProjectId(project.id);
+    setName(project.name || "");
+    setDescription(project.description || "");
+    setCategory(project.category || "Engineering");
+    setOwner(project.owner || availableUsers[0]?.name || "Aisha Khan");
+    setStartDate(project.startDate || "");
+    setDue(project.due || "");
+    setPriority(project.priority || "Normal");
+    setStatus(project.status || "Discovery");
+    setHealth(project.health || "good");
+    setEstimatedHours(String(project.estimatedHours || 80));
+    setSelectedMembers(project.members || []);
+    setIsTeamDropdownOpen(false);
+    setIsAddModalOpen(true);
+  };
+
   const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!enforceProjectLimit()) return;
     if (!name.trim()) return;
+
+    if (editingProjectId) {
+      const updates: Partial<Project> = {
+        name: name.trim(),
+        description: description.trim() || "No description provided.",
+        category,
+        owner,
+        startDate: startDate || new Date().toISOString().split("T")[0],
+        due: due || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        priority,
+        status,
+        health,
+        estimatedHours: parseInt(estimatedHours) || 80,
+        members: selectedMembers,
+      };
+      await handleUpdateProject(editingProjectId, updates);
+      showToast(`Project "${name.trim()}" updated successfully!`, "success");
+      setEditingProjectId(null);
+      resetProjectForm();
+      setIsAddModalOpen(false);
+      return;
+    }
+
+    if (!enforceProjectLimit()) return;
 
     try {
       const res = await fetch("/api/project", {
@@ -680,18 +742,7 @@ export function ProjectsListView() {
         await fetchProjects(activeWorkspaceId, user?.email || "");
         
         // Reset Form
-        setName("");
-        setDescription("");
-        setCategory("Engineering");
-        setOwner(availableUsers[0]?.name || "Aisha Khan");
-        setStartDate("");
-        setDue("");
-        setPriority("Normal");
-        setStatus("Discovery");
-        setHealth("good");
-        setEstimatedHours("80");
-        setSelectedMembers([]);
-        setIsTeamDropdownOpen(false);
+        resetProjectForm();
         setIsAddModalOpen(false);
       } else {
         if (isUpgradeRequiredError(json)) {
@@ -816,7 +867,7 @@ export function ProjectsListView() {
             <button
               onClick={() => {
                 if (!enforceProjectLimit()) return;
-                setIsAddModalOpen(true);
+                openCreateProjectModal();
               }}
               className="flex h-9 items-center gap-2 rounded-lg bg-[var(--app-primary)] px-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-95 transition-all"
             >
@@ -885,7 +936,7 @@ export function ProjectsListView() {
                           >
                             <button
                               onClick={() => {
-                                setSelectedProject(p);
+                                openEditProjectModal(p);
                                 setActiveMenuId(null);
                               }}
                               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
@@ -1083,13 +1134,13 @@ export function ProjectsListView() {
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setIsEditing(!isEditing)}
-                    className={`rounded-lg p-1.5 transition-colors ${
-                      isEditing 
-                        ? "bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400" 
-                        : "text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                    }`}
-                    title={isEditing ? "Viewing Mode" : "Edit Project"}
+                    onClick={() => {
+                      openEditProjectModal(selectedProject);
+                      setSelectedProject(null);
+                      setIsEditing(false);
+                    }}
+                    className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                    title="Edit Project"
                   >
                     <PencilSquareIcon className="h-5 w-5" />
                   </button>
@@ -1667,11 +1718,15 @@ export function ProjectsListView() {
                 <div className="flex items-center gap-2">
                   <FolderIcon className="h-5 w-5 text-indigo-500" />
                   <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
-                    Add New Project
+                    {editingProjectId ? "Edit Project" : "Add New Project"}
                   </h3>
                 </div>
                 <button
-                  onClick={() => setIsAddModalOpen(false)}
+                  onClick={() => {
+                    setIsAddModalOpen(false);
+                    setEditingProjectId(null);
+                    resetProjectForm();
+                  }}
                   className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 >
                   <XMarkIcon className="h-5 w-5" />
@@ -1911,7 +1966,11 @@ export function ProjectsListView() {
                 <div className="flex gap-3 pt-4 border-t border-zinc-100 dark:border-white/5 shrink-0">
                   <button
                     type="button"
-                    onClick={() => setIsAddModalOpen(false)}
+                    onClick={() => {
+                      setIsAddModalOpen(false);
+                      setEditingProjectId(null);
+                      resetProjectForm();
+                    }}
                     className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
                   >
                     Cancel
@@ -1920,7 +1979,7 @@ export function ProjectsListView() {
                     type="submit"
                     className="flex-1 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all"
                   >
-                    Create Project
+                    {editingProjectId ? "Save Changes" : "Create Project"}
                   </button>
                 </div>
               </form>

@@ -21,6 +21,9 @@ function getStatusOption(statusId: string, index: number) {
   if (statusId === "blocked") {
     return { label: "Blocked", dot: "bg-rose-500" };
   }
+  if (statusId === "overdue") {
+    return { label: "Overdue", dot: "bg-red-600" };
+  }
   if (statusId === "done") {
     return { label: "Done", dot: "bg-emerald-500" };
   }
@@ -70,7 +73,7 @@ export default function StatusesSettingsPage() {
 
   const currentOrder = kanbanColumnOrder && kanbanColumnOrder.length > 0
     ? kanbanColumnOrder
-    : ["todo", "in_progress", "blocked", "done"];
+    : ["todo", "in_progress", "blocked", "overdue", "done"];
 
   const handleAddStatus = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -3,6 +3,19 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const DEFAULT_KANBAN_ORDER = ["todo", "in_progress", "blocked", "overdue", "done"];
+
+function normalizeKanbanOrder(order?: string[] | null) {
+  const base = Array.isArray(order) && order.length > 0 ? order : DEFAULT_KANBAN_ORDER;
+  const deduped = Array.from(new Set(base));
+  if (!deduped.includes("overdue")) {
+    const doneIndex = deduped.indexOf("done");
+    if (doneIndex === -1) deduped.push("overdue");
+    else deduped.splice(doneIndex, 0, "overdue");
+  }
+  return deduped;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -40,7 +53,15 @@ export async function GET(request: Request) {
         },
         customCategories: ["General", "Product", "Engineering", "Design", "Operations", "Marketing"],
         customLabels: ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"],
-        kanbanColumnOrder: ["todo", "in_progress", "blocked", "done"],
+        kanbanColumnOrder: DEFAULT_KANBAN_ORDER,
+      });
+    }
+
+    const normalizedOrder = normalizeKanbanOrder(workspace.kanbanColumnOrder);
+    if (normalizedOrder.join("|") !== (workspace.kanbanColumnOrder || []).join("|")) {
+      await prisma.workspace.update({
+        where: { id: workspaceId },
+        data: { kanbanColumnOrder: normalizedOrder },
       });
     }
 
@@ -54,7 +75,7 @@ export async function GET(request: Request) {
       },
       customCategories: workspace.customCategories,
       customLabels: workspace.customLabels,
-      kanbanColumnOrder: workspace.kanbanColumnOrder,
+      kanbanColumnOrder: normalizedOrder,
     });
   } catch (error: any) {
     console.error("Workspace defaults GET API Error:", error);
@@ -97,7 +118,7 @@ export async function PATCH(request: Request) {
         defaultLabels: labels !== undefined ? labels : undefined,
         customCategories: customCategories !== undefined ? customCategories : undefined,
         customLabels: customLabels !== undefined ? customLabels : undefined,
-        kanbanColumnOrder: kanbanColumnOrder !== undefined ? kanbanColumnOrder : undefined,
+        kanbanColumnOrder: kanbanColumnOrder !== undefined ? normalizeKanbanOrder(kanbanColumnOrder) : undefined,
       },
     });
 
@@ -112,7 +133,7 @@ export async function PATCH(request: Request) {
       },
       customCategories: updatedWorkspace.customCategories,
       customLabels: updatedWorkspace.customLabels,
-      kanbanColumnOrder: updatedWorkspace.kanbanColumnOrder,
+      kanbanColumnOrder: normalizeKanbanOrder(updatedWorkspace.kanbanColumnOrder),
     });
   } catch (error: any) {
     console.error("Workspace defaults PATCH API Error:", error);

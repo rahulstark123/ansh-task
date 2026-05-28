@@ -20,6 +20,11 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "ANSH Tasks",
   description: "Premium task workspace — ANSH Tasks",
+  icons: {
+    icon: "/anshFavicon.png",
+    shortcut: "/anshFavicon.png",
+    apple: "/anshFavicon.png",
+  },
 };
 
 export default function RootLayout({

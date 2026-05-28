@@ -1,6 +1,6 @@
 export type TaskPriority = "low" | "medium" | "high";
 
-export type TaskStatus = "todo" | "in_progress" | "on_hold" | "blocked" | "done" | (string & {});
+export type TaskStatus = "todo" | "in_progress" | "on_hold" | "blocked" | "overdue" | "done" | (string & {});
 
 export type TaskNote = {
   id: string;

@@ -150,7 +150,7 @@ export function LandingPageClient() {
             <img 
               src="/logoAnshapps.png" 
               alt="ANSH Logo" 
-              className="h-10 w-10 shrink-0 object-contain group-hover:scale-105 transition-transform duration-200 -mr-1.5" 
+              className="h-12 w-12 shrink-0 object-contain group-hover:scale-105 transition-transform duration-200 -mr-1.5 mt-1" 
             />
             <span className="font-heading text-xl font-bold tracking-tight bg-gradient-to-r from-zinc-900 to-zinc-700 bg-clip-text text-transparent dark:from-zinc-50 dark:to-zinc-300">
               ANSH Task
@@ -162,8 +162,6 @@ export function LandingPageClient() {
             <a href="#features" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Features</a>
             <a href="#pricing" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Pricing</a>
             <a href="#compare" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Why ANSH</a>
-            <a href="#preview" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Interactive Hub</a>
-            <a href="#customization" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Themes</a>
             <a href="#faq" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">FAQ</a>
           </nav>
 
@@ -228,8 +226,6 @@ export function LandingPageClient() {
               <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Features</a>
               <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Pricing</a>
               <a href="#compare" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Why ANSH</a>
-              <a href="#preview" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Interactive Hub</a>
-              <a href="#customization" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Themes</a>
               <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">FAQ</a>
             </nav>
             <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-4" />

@@ -1,5 +1,18 @@
 import { create } from "zustand";
 
+const DEFAULT_KANBAN_ORDER = ["todo", "in_progress", "blocked", "overdue", "done"];
+
+function normalizeKanbanOrder(order?: string[]) {
+  const base = Array.isArray(order) && order.length > 0 ? order : DEFAULT_KANBAN_ORDER;
+  const deduped = Array.from(new Set(base));
+  if (!deduped.includes("overdue")) {
+    const doneIndex = deduped.indexOf("done");
+    if (doneIndex === -1) deduped.push("overdue");
+    else deduped.splice(doneIndex, 0, "overdue");
+  }
+  return deduped;
+}
+
 interface WorkspaceDefaultsState {
   priority: string;
   status: string;
@@ -32,7 +45,7 @@ export const useWorkspaceDefaultsStore = create<WorkspaceDefaultsState>((set, ge
   labels: [],
   customCategories: ["General", "Product", "Engineering", "Design", "Operations", "Marketing"],
   customLabels: ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"],
-  kanbanColumnOrder: ["todo", "in_progress", "blocked", "done"],
+  kanbanColumnOrder: DEFAULT_KANBAN_ORDER,
   loading: false,
   initialized: false,
 
@@ -51,7 +64,7 @@ export const useWorkspaceDefaultsStore = create<WorkspaceDefaultsState>((set, ge
           labels: json.defaults?.labels || [],
           customCategories: json.customCategories || ["General", "Product", "Engineering", "Design", "Operations", "Marketing"],
           customLabels: json.customLabels || ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"],
-          kanbanColumnOrder: json.kanbanColumnOrder || ["todo", "in_progress", "blocked", "done"],
+          kanbanColumnOrder: normalizeKanbanOrder(json.kanbanColumnOrder),
           initialized: true,
         });
       }
@@ -82,7 +95,7 @@ export const useWorkspaceDefaultsStore = create<WorkspaceDefaultsState>((set, ge
           labels: json.defaults?.labels || [],
           customCategories: json.customCategories || ["General", "Product", "Engineering", "Design", "Operations", "Marketing"],
           customLabels: json.customLabels || ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"],
-          kanbanColumnOrder: json.kanbanColumnOrder || ["todo", "in_progress", "blocked", "done"],
+          kanbanColumnOrder: normalizeKanbanOrder(json.kanbanColumnOrder),
         });
         return true;
       }
