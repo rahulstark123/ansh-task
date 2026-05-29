@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { supabase } from "@/lib/supabase";
-import {
-  FREE_PLAN_TEAM_MEMBERS_LIMIT,
-  getEffectiveWorkspacePlan,
-  getWorkspaceMemberCount,
-} from "@/lib/planLimits";
+import { assertCanAddTeamMember } from "@/lib/billing/seats";
+import { getWorkspaceMemberCount } from "@/lib/planLimits";
 import { UPGRADE_REQUIRED_CODE } from "@/lib/plans";
 import { captureServerEvent } from "@/lib/posthog-server";
 
@@ -188,20 +185,17 @@ export async function POST(request: Request) {
  
     const wid = workspaceId ? parseInt(workspaceId, 10) : 1;
 
-    const currentPlan = await getEffectiveWorkspacePlan(wid);
-    if (currentPlan === "free") {
-      const memberCount = await getWorkspaceMemberCount(wid);
-      if (memberCount >= FREE_PLAN_TEAM_MEMBERS_LIMIT) {
-        return NextResponse.json(
-          {
-            success: false,
-            code: UPGRADE_REQUIRED_CODE,
-            feature: "teamMembersLimit",
-            error: `Free plan workspaces can have up to ${FREE_PLAN_TEAM_MEMBERS_LIMIT} team members. Upgrade to PRO to add more teammates.`,
-          },
-          { status: 403 }
-        );
-      }
+    const seatCheck = await assertCanAddTeamMember(wid);
+    if (!seatCheck.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: seatCheck.code === "SEATS_LIMIT" ? "SEATS_LIMIT" : UPGRADE_REQUIRED_CODE,
+          feature: "teamMembersLimit",
+          error: seatCheck.error,
+        },
+        { status: 403 }
+      );
     }
  
     // Check if user already exists

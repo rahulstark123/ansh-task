@@ -60,12 +60,10 @@ export async function POST(request: Request) {
     let amountPaisa = body.amountPaisa ?? body.amount;
     if (!amountPaisa || typeof amountPaisa !== "number" || amountPaisa <= 0) {
       const monthlyPaisa = cfg.proPlanAmountPaisa ?? 19900; // per seat per month (default ₹199)
-      const subtotal =
+      amountPaisa =
         billingCycle === "yearly"
           ? Math.round(monthlyPaisa * seats * 12 * 0.81)
           : monthlyPaisa * seats;
-      const gst = Math.round(subtotal * 0.18);
-      amountPaisa = subtotal + gst;
     }
 
     // 6. Create Razorpay order

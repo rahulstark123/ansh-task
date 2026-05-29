@@ -64,18 +64,89 @@ export async function POST(request: Request) {
       ? parseInt(workspaceId, 10)
       : transaction.workspaceId;
 
+    if (transaction.status === "SUCCESS") {
+      return NextResponse.json({
+        success: true,
+        message: "Payment already verified.",
+        plan: "pro",
+      });
+    }
+
     const now = new Date();
+    const subscription = transaction.subscription;
+
+    if (subscription.plan === "seat_addon") {
+      const activeSubscription = await prisma.subscription.findFirst({
+        where: {
+          workspaceId: wid,
+          status: "ACTIVE",
+          plan: "pro",
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (!activeSubscription) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "No active Pro subscription to add seats to.",
+          },
+          { status: 400 }
+        );
+      }
+
+      const newSeatTotal =
+        activeSubscription.seatsCount + subscription.seatsCount;
+
+      await prisma.$transaction([
+        prisma.transaction.update({
+          where: { id: transaction.id },
+          data: {
+            status: "SUCCESS",
+            razorpayPaymentId: razorpay_payment_id,
+            razorpaySignature: razorpay_signature,
+          },
+        }),
+        prisma.subscription.update({
+          where: { id: subscription.id },
+          data: { status: "CANCELLED" },
+        }),
+        prisma.subscription.update({
+          where: { id: activeSubscription.id },
+          data: { seatsCount: newSeatTotal },
+        }),
+      ]);
+
+      await captureServerEvent({
+        distinctId: `workspace_${wid}`,
+        event: "add_seats_verified",
+        properties: {
+          workspace_id: wid,
+          additional_seats: subscription.seatsCount,
+          seats_total: newSeatTotal,
+          razorpay_order_id: razorpay_order_id,
+          razorpay_payment_id: razorpay_payment_id,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Added ${subscription.seatsCount} seat${subscription.seatsCount === 1 ? "" : "s"} to your plan.`,
+        mode: "add_seats",
+        seatsPurchased: newSeatTotal,
+      });
+    }
+
     const expiresAt = new Date(now);
-    const billingCycle = transaction.subscription.billingCycle;
+    const billingCycle = subscription.billingCycle;
     if (billingCycle === "yearly") {
       expiresAt.setFullYear(expiresAt.getFullYear() + 1);
     } else {
       expiresAt.setMonth(expiresAt.getMonth() + 1);
     }
 
-    // 4. Update DB atomically
     await prisma.$transaction([
-      // Mark transaction SUCCESS
       prisma.transaction.update({
         where: { id: transaction.id },
         data: {
@@ -84,7 +155,6 @@ export async function POST(request: Request) {
           razorpaySignature: razorpay_signature,
         },
       }),
-      // Mark subscription ACTIVE
       prisma.subscription.update({
         where: { id: transaction.subscriptionId },
         data: {
@@ -93,7 +163,6 @@ export async function POST(request: Request) {
           expiresAt,
         },
       }),
-      // Upgrade workspace plan
       prisma.workspace.update({
         where: { id: wid },
         data: {

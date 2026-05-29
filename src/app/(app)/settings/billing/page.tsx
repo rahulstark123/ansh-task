@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { calculateProratedAddSeats } from "@/lib/billing/proration";
 import { supabase } from "@/lib/supabase";
 import posthog from "@/lib/posthog-noop";
 import { motion, AnimatePresence } from "framer-motion";
@@ -87,9 +88,18 @@ export default function BillingSettingsPage() {
   const [isTrial, setIsTrial] = useState(false);
   const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null);
   const [planLoading, setPlanLoading] = useState(true);
+  const [seatsUsed, setSeatsUsed] = useState(0);
+  const [seatsPurchased, setSeatsPurchased] = useState<number | null>(null);
+  const [seatsVacant, setSeatsVacant] = useState<number | null>(null);
+  const [canAddSeats, setCanAddSeats] = useState(false);
+  const [subscriptionBilling, setSubscriptionBilling] = useState<"monthly" | "yearly">("monthly");
+  const [subscriptionStartsAt, setSubscriptionStartsAt] = useState<string | null>(null);
+  const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
 
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [checkoutMode, setCheckoutMode] = useState<"upgrade" | "add_seats">("upgrade");
   const [checkoutUsers, setCheckoutUsers] = useState<number>(1);
+  const [additionalSeats, setAdditionalSeats] = useState(1);
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
   const [paymentError, setPaymentError] = useState<string>("");
 
@@ -105,15 +115,45 @@ export default function BillingSettingsPage() {
         setCurrentPlan(json.plan as "free" | "pro");
         setPlanExpiresAt(json.planExpiresAt);
         setIsTrial(Boolean(json.isTrial));
+        setSeatsUsed(typeof json.seatsUsed === "number" ? json.seatsUsed : 0);
+        setSeatsPurchased(
+          typeof json.seatsPurchased === "number" ? json.seatsPurchased : null
+        );
+        setSeatsVacant(
+          typeof json.seatsVacant === "number" ? json.seatsVacant : null
+        );
+        setCanAddSeats(Boolean(json.canAddSeats));
+        setSubscriptionStartsAt(json.subscriptionStartsAt ?? null);
+        setSubscriptionExpiresAt(
+          json.subscriptionExpiresAt ?? json.planExpiresAt ?? null
+        );
+        if (json.billingCycle === "yearly") {
+          setSubscriptionBilling("yearly");
+          setBilling("yearly");
+        } else if (json.billingCycle === "monthly") {
+          setSubscriptionBilling("monthly");
+        }
       } else {
         setCurrentPlan("free");
         setPlanExpiresAt(null);
         setIsTrial(false);
+        setSeatsUsed(0);
+        setSeatsPurchased(null);
+        setSeatsVacant(null);
+        setCanAddSeats(false);
+        setSubscriptionStartsAt(null);
+        setSubscriptionExpiresAt(null);
       }
     } catch {
       setCurrentPlan("free");
       setPlanExpiresAt(null);
       setIsTrial(false);
+      setSeatsUsed(0);
+      setSeatsPurchased(null);
+      setSeatsVacant(null);
+      setCanAddSeats(false);
+      setSubscriptionStartsAt(null);
+      setSubscriptionExpiresAt(null);
     } finally {
       setPlanLoading(false);
     }
@@ -140,18 +180,56 @@ export default function BillingSettingsPage() {
     loadRazorpayScript(); // pre-load in background
   }, [fetchPlan]);
 
-  const pricePerUser = billing === "monthly" ? MONTHLY_PRICE : YEARLY_PER_MONTH;
-  const totalMonthly = pricePerUser * userCount;
-  const totalYearlyFull = YEARLY_PRICE * userCount;
+  const billableSeatCount =
+    currentPlan === "pro" && !isTrial && seatsPurchased != null
+      ? seatsPurchased
+      : userCount;
 
-  const subtotal = billing === "monthly"
-    ? MONTHLY_PRICE * checkoutUsers
-    : YEARLY_PRICE * checkoutUsers;
-  const gst = Math.round(subtotal * 0.18);
-  const grandTotal = subtotal + gst;
-  const grandTotalPaisa = grandTotal * 100;
+  const pricePerUser = billing === "monthly" ? MONTHLY_PRICE : YEARLY_PER_MONTH;
+  const totalMonthly = pricePerUser * billableSeatCount;
+  const totalYearlyFull = YEARLY_PRICE * billableSeatCount;
+
+  const addSeatsProration = useMemo(() => {
+    const expiryIso = subscriptionExpiresAt ?? planExpiresAt;
+    if (!expiryIso) return null;
+    try {
+      return calculateProratedAddSeats({
+        billingCycle: subscriptionBilling,
+        additionalSeats,
+        periodExpiresAt: new Date(expiryIso),
+        periodStartsAt: subscriptionStartsAt
+          ? new Date(subscriptionStartsAt)
+          : null,
+      });
+    } catch {
+      return null;
+    }
+  }, [
+    subscriptionExpiresAt,
+    planExpiresAt,
+    subscriptionStartsAt,
+    subscriptionBilling,
+    additionalSeats,
+  ]);
+
+  const subtotal =
+    checkoutMode === "add_seats"
+      ? addSeatsProration?.amountInr ?? 0
+      : billing === "monthly"
+        ? MONTHLY_PRICE * checkoutUsers
+        : YEARLY_PRICE * checkoutUsers;
+
+  const totalPaisa = subtotal * 100;
+
+  const renewalDateLabel = (subscriptionExpiresAt ?? planExpiresAt)
+    ? new Date(subscriptionExpiresAt ?? planExpiresAt!).toLocaleDateString(
+        "en-IN",
+        { day: "numeric", month: "short", year: "numeric" }
+      )
+    : null;
 
   const handleOpenCheckout = () => {
+    setCheckoutMode("upgrade");
     setCheckoutUsers(userCount || 1);
     setPaymentStatus("idle");
     setPaymentError("");
@@ -160,6 +238,18 @@ export default function BillingSettingsPage() {
       billing_cycle: billing,
       seat_count: userCount || 1,
       current_plan: currentPlan,
+    });
+  };
+
+  const handleOpenAddSeats = () => {
+    setCheckoutMode("add_seats");
+    setAdditionalSeats(1);
+    setPaymentStatus("idle");
+    setPaymentError("");
+    setIsCheckoutOpen(true);
+    posthog.capture("add_seats_checkout_opened", {
+      seats_used: seatsUsed,
+      seats_purchased: seatsPurchased,
     });
   };
 
@@ -185,20 +275,33 @@ export default function BillingSettingsPage() {
         throw new Error("You must be logged in to proceed with payment.");
       }
 
-      // Step 1: Create Razorpay order on server
-      const orderRes = await fetch("/api/billing/checkout/order", {
+      const orderEndpoint =
+        checkoutMode === "add_seats"
+          ? "/api/billing/checkout/add-seats"
+          : "/api/billing/checkout/order";
+
+      const orderBody =
+        checkoutMode === "add_seats"
+          ? {
+              workspaceId: parseInt(wid, 10),
+              additionalSeats,
+              email,
+            }
+          : {
+              workspaceId: parseInt(wid, 10),
+              billingCycle: billing,
+              seats: checkoutUsers,
+              amountPaisa: totalPaisa,
+              email,
+            };
+
+      const orderRes = await fetch(orderEndpoint, {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          ...(accessToken ? { "Authorization": `Bearer ${accessToken}` } : {}),
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         },
-        body: JSON.stringify({
-          workspaceId: parseInt(wid, 10),
-          billingCycle: billing,
-          seats: checkoutUsers,
-          amountPaisa: grandTotalPaisa,
-          email,
-        }),
+        body: JSON.stringify(orderBody),
       });
       const orderJson = await orderRes.json();
 
@@ -216,7 +319,10 @@ export default function BillingSettingsPage() {
           amount,
           currency: currency || "INR",
           name: "Ansh Task",
-          description: `Pro Plan — ${billing === "yearly" ? "Yearly" : "Monthly"} (${checkoutUsers} seat${checkoutUsers > 1 ? "s" : ""})`,
+          description:
+            checkoutMode === "add_seats"
+              ? `Additional seats — ${subscriptionBilling === "yearly" ? "Yearly" : "Monthly"} (${additionalSeats} seat${additionalSeats > 1 ? "s" : ""})`
+              : `Pro Plan — ${billing === "yearly" ? "Yearly" : "Monthly"} (${checkoutUsers} seat${checkoutUsers > 1 ? "s" : ""})`,
           image: "/favicon.ico",
           prefill: {},
           theme: { color: "#0d9488" },
@@ -257,11 +363,16 @@ export default function BillingSettingsPage() {
       });
 
       // Payment + verification succeeded — reload so billing + app chrome show Pro
-      posthog.capture("upgrade_completed", {
-        billing_cycle: billing,
-        seat_count: checkoutUsers,
-        amount_inr: grandTotal,
-      });
+      posthog.capture(
+        checkoutMode === "add_seats" ? "add_seats_completed" : "upgrade_completed",
+        {
+          billing_cycle:
+            checkoutMode === "add_seats" ? subscriptionBilling : billing,
+          seat_count:
+            checkoutMode === "add_seats" ? additionalSeats : checkoutUsers,
+          amount_inr: subtotal,
+        }
+      );
       setPaymentStatus("success");
       setCurrentPlan("pro");
 
@@ -337,11 +448,18 @@ export default function BillingSettingsPage() {
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
                 Seats
               </p>
-              {loadingUsers ? (
-                <div className="mt-0.5 h-4 w-8 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
+              {loadingUsers || planLoading ? (
+                <div className="mt-0.5 h-4 w-16 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
               ) : (
                 <p className="text-sm font-black text-zinc-900 dark:text-zinc-50">
-                  {userCount}
+                  {seatsPurchased != null
+                    ? `${seatsUsed} / ${seatsPurchased}`
+                    : userCount}
+                </p>
+              )}
+              {!planLoading && seatsVacant != null && (
+                <p className="text-[10px] font-medium text-teal-600 dark:text-teal-400">
+                  {seatsVacant} vacant
                 </p>
               )}
             </div>
@@ -364,6 +482,29 @@ export default function BillingSettingsPage() {
           </div>
         </div>
       </div>
+
+      {canAddSeats && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-teal-200/80 bg-gradient-to-r from-teal-50/80 to-emerald-50/40 px-5 py-4 dark:border-teal-900/50 dark:from-teal-950/30 dark:to-emerald-950/20 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold text-zinc-900 dark:text-zinc-50">
+              Need more team members?
+            </p>
+            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+              {seatsPurchased != null
+                ? `You have ${seatsVacant ?? 0} vacant seat${(seatsVacant ?? 0) === 1 ? "" : "s"} of ${seatsPurchased} purchased. New seats are charged at a prorated rate until your plan renews${renewalDateLabel ? ` on ${renewalDateLabel}` : ""} — same as your workspace owner.`
+                : "Purchase additional seats for your active Pro subscription (prorated until renewal)."}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleOpenAddSeats}
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 px-4 py-2.5 text-xs font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]"
+          >
+            <UsersIcon className="h-4 w-4" />
+            Add more users
+          </button>
+        </div>
+      )}
 
       {/* ── Billing cycle switcher ── */}
       <div className="flex items-center justify-center">
@@ -693,7 +834,9 @@ export default function BillingSettingsPage() {
                       </div>
                       <div className="text-left">
                         <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
-                          Upgrade to Pro Plan
+                          {checkoutMode === "add_seats"
+                            ? "Add more team seats"
+                            : "Upgrade to Pro Plan"}
                         </h3>
                         <p className="text-[10px] text-zinc-400">Secure checkout powered by Razorpay</p>
                       </div>
@@ -712,14 +855,26 @@ export default function BillingSettingsPage() {
                     <div className="flex items-center justify-between rounded-xl bg-zinc-50 dark:bg-zinc-900/50 px-4 py-3">
                       <span className="text-xs font-semibold text-zinc-550 dark:text-zinc-400">Billing Cycle</span>
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-500/10 px-3 py-1 text-xs font-bold text-teal-600 dark:text-teal-300 capitalize">
-                        {billing}
+                        {checkoutMode === "add_seats" ? subscriptionBilling : billing}
                       </span>
                     </div>
+
+                    {checkoutMode === "add_seats" && seatsPurchased != null && (
+                      <p className="rounded-xl bg-teal-500/10 px-3 py-2 text-[11px] font-medium text-teal-800 dark:text-teal-200">
+                        Current plan: {seatsUsed} of {seatsPurchased} seats used
+                        {seatsVacant != null ? ` · ${seatsVacant} vacant` : ""}
+                        {renewalDateLabel
+                          ? ` · Renews ${renewalDateLabel} (new seats align to this date)`
+                          : ""}
+                      </p>
+                    )}
 
                     {/* Seats */}
                     <div className="text-left">
                       <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">
-                        Number of Seats / Users
+                        {checkoutMode === "add_seats"
+                          ? "Additional seats to purchase"
+                          : "Number of Seats / Users"}
                       </label>
                       <div className="relative mt-1">
                         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -729,10 +884,14 @@ export default function BillingSettingsPage() {
                           type="number"
                           min={1}
                           max={500}
-                          value={checkoutUsers}
-                          onChange={(e) =>
-                            setCheckoutUsers(Math.max(1, parseInt(e.target.value) || 1))
+                          value={
+                            checkoutMode === "add_seats" ? additionalSeats : checkoutUsers
                           }
+                          onChange={(e) => {
+                            const n = Math.max(1, parseInt(e.target.value, 10) || 1);
+                            if (checkoutMode === "add_seats") setAdditionalSeats(n);
+                            else setCheckoutUsers(n);
+                          }}
                           className="block w-full h-11 rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-3 text-xs font-semibold text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
                         />
                       </div>
@@ -740,30 +899,67 @@ export default function BillingSettingsPage() {
 
                     {/* Pricing Breakdown */}
                     <div className="rounded-2xl border border-zinc-150 bg-zinc-50/50 p-4 dark:border-white/5 dark:bg-zinc-900/30 space-y-2.5 text-left">
-                      <div className="flex justify-between text-xs text-zinc-500 font-semibold">
-                        <span>Price per seat</span>
-                        <span>₹{billing === "monthly" ? `${MONTHLY_PRICE} / mo` : `${YEARLY_PER_MONTH} / mo`}</span>
-                      </div>
-                      <div className="flex justify-between text-xs text-zinc-500 font-semibold">
-                        <span>Subtotal ({checkoutUsers} {checkoutUsers === 1 ? "user" : "users"})</span>
-                        <span>₹{subtotal.toLocaleString("en-IN")}</span>
-                      </div>
-                      <div className="flex justify-between text-xs text-zinc-500 font-semibold">
-                        <span>GST (18%)</span>
-                        <span>₹{gst.toLocaleString("en-IN")}</span>
-                      </div>
-                      <div className="h-[1px] bg-zinc-200 dark:bg-white/5 my-1" />
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">Grand Total</span>
-                        <div className="text-right">
-                          <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">
-                            ₹{grandTotal.toLocaleString("en-IN")}
-                          </span>
-                          <span className="block text-[9px] text-zinc-400 font-medium">
-                            {billing === "monthly" ? "billed monthly" : "billed annually"}
-                          </span>
-                        </div>
-                      </div>
+                      {checkoutMode === "add_seats" && addSeatsProration ? (
+                        <>
+                          <div className="flex justify-between text-xs text-zinc-500 font-semibold">
+                            <span>Full period ({additionalSeats} seat{additionalSeats === 1 ? "" : "s"})</span>
+                            <span className="line-through text-zinc-400">
+                              ₹{addSeatsProration.fullPeriodAmountInr.toLocaleString("en-IN")}
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-xs text-zinc-500 font-semibold">
+                            <span>Time remaining</span>
+                            <span>
+                              {addSeatsProration.remainingDays} of {addSeatsProration.totalDays} days
+                              {" "}
+                              ({Math.round(addSeatsProration.prorationFactor * 100)}%)
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-baseline pt-1 border-t border-zinc-200/80 dark:border-white/5">
+                            <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                              Prorated total (until renewal)
+                            </span>
+                            <div className="text-right">
+                              <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">
+                                ₹{addSeatsProration.amountInr.toLocaleString("en-IN")}
+                              </span>
+                              <span className="block text-[9px] text-zinc-400 font-medium">
+                                {renewalDateLabel ? `renews ${renewalDateLabel}` : "aligned to owner plan"}
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      ) : checkoutMode === "add_seats" ? (
+                        <p className="text-xs text-rose-600 dark:text-rose-400">
+                          Cannot calculate prorated price — renew your subscription first.
+                        </p>
+                      ) : (
+                        <>
+                          <div className="flex justify-between text-xs text-zinc-500 font-semibold">
+                            <span>Price per seat</span>
+                            <span>
+                              ₹
+                              {billing === "monthly"
+                                ? `${MONTHLY_PRICE} / mo`
+                                : `${YEARLY_PER_MONTH} / mo`}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-baseline pt-1">
+                            <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                              Total ({checkoutUsers}{" "}
+                              {checkoutUsers === 1 ? "user" : "users"})
+                            </span>
+                            <div className="text-right">
+                              <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">
+                                ₹{subtotal.toLocaleString("en-IN")}
+                              </span>
+                              <span className="block text-[9px] text-zinc-400 font-medium">
+                                {billing === "monthly" ? "billed monthly" : "billed annually"}
+                              </span>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -779,9 +975,12 @@ export default function BillingSettingsPage() {
                     <button
                       type="button"
                       onClick={handleProceedToPay}
-                      className="flex-1 inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer"
+                      disabled={
+                        checkoutMode === "add_seats" && !addSeatsProration
+                      }
+                      className="flex-1 inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Proceed to Pay ₹{grandTotal.toLocaleString("en-IN")}
+                      Proceed to Pay ₹{subtotal.toLocaleString("en-IN")}
                     </button>
                   </div>
                 </>
@@ -813,10 +1012,14 @@ export default function BillingSettingsPage() {
                   </div>
                   <div className="text-center">
                     <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
-                      Upgrade Successful! 🎉
+                      {checkoutMode === "add_seats"
+                        ? "Seats added successfully!"
+                        : "Upgrade Successful! 🎉"}
                     </h3>
                     <p className="text-xs text-zinc-500 mt-1">
-                      Your workspace has been upgraded to the Pro plan.
+                      {checkoutMode === "add_seats"
+                        ? "Your subscription now includes more team seats."
+                        : "Your workspace has been upgraded to the Pro plan."}
                     </p>
                   </div>
                 </div>

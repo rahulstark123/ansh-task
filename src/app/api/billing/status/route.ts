@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getWorkspaceSeatsInfo } from "@/lib/billing/seats";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,6 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const wid = parseInt(searchParams.get("wid") ?? "1", 10);
-    const now = new Date();
 
     const workspace = await prisma.workspace.findUnique({
       where: { id: wid },
@@ -21,30 +21,38 @@ export async function GET(request: Request) {
       );
     }
 
-    const isPro =
-      workspace.plan === "pro" &&
-      (workspace.planExpiresAt === null || workspace.planExpiresAt > now);
+    const seats = await getWorkspaceSeatsInfo(wid);
 
     const activeSubscription = await prisma.subscription.findFirst({
       where: {
         workspaceId: wid,
         status: "ACTIVE",
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: now } },
-        ],
+        plan: "pro",
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
-      select: { id: true },
+      orderBy: { createdAt: "desc" },
+      select: { startsAt: true, expiresAt: true },
     });
 
-    const isTrial = isPro && !activeSubscription;
+    const subscriptionExpiresAt =
+      activeSubscription?.expiresAt ?? workspace.planExpiresAt;
 
     return NextResponse.json({
       success: true,
-      plan: isPro ? "pro" : "free",
+      plan: seats.plan,
       planExpiresAt: workspace.planExpiresAt?.toISOString() ?? null,
-      isTrial,
-      trialEndsAt: isTrial ? workspace.planExpiresAt?.toISOString() ?? null : null,
+      subscriptionStartsAt:
+        activeSubscription?.startsAt?.toISOString() ?? null,
+      subscriptionExpiresAt: subscriptionExpiresAt?.toISOString() ?? null,
+      isTrial: seats.isTrial,
+      trialEndsAt: seats.isTrial
+        ? workspace.planExpiresAt?.toISOString() ?? null
+        : null,
+      seatsUsed: seats.seatsUsed,
+      seatsPurchased: seats.seatsPurchased,
+      seatsVacant: seats.seatsVacant,
+      billingCycle: seats.billingCycle,
+      canAddSeats: seats.plan === "pro" && !seats.isTrial,
     });
   } catch (error: any) {
     console.error("[billing/status] Error:", error);

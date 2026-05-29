@@ -2836,7 +2836,7 @@ export function TaskDashboard({
 
       {/* Modern AddTaskModal component integrated */}
       <AddTaskModal
-        key={addModalSession}
+        key={`add-${addModalSession}`}
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onCreate={handleAddTaskFromModal}
@@ -2845,7 +2845,7 @@ export function TaskDashboard({
       />
 
       <AddTaskModal
-        key={editModalSession}
+        key={`edit-${editModalSession}`}
         open={editOpen}
         onClose={() => {
           setEditOpen(false);

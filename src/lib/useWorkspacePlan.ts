@@ -13,6 +13,13 @@ export function useWorkspacePlan() {
   const [plan, setPlan] = useState<WorkspacePlan>("free");
   const [isTrial, setIsTrial] = useState(false);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+  const [seatsUsed, setSeatsUsed] = useState(0);
+  const [seatsPurchased, setSeatsPurchased] = useState<number | null>(null);
+  const [seatsVacant, setSeatsVacant] = useState<number | null>(null);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly" | null>(
+    null
+  );
+  const [canAddSeats, setCanAddSeats] = useState(false);
   const [ready, setReady] = useState(false);
 
   const refreshPlan = useCallback(async () => {
@@ -26,16 +33,37 @@ export function useWorkspacePlan() {
         setPlan(json.plan === "pro" ? "pro" : "free");
         setIsTrial(Boolean(json.isTrial));
         setTrialEndsAt(json.trialEndsAt || null);
+        setSeatsUsed(typeof json.seatsUsed === "number" ? json.seatsUsed : 0);
+        setSeatsPurchased(
+          typeof json.seatsPurchased === "number" ? json.seatsPurchased : null
+        );
+        setSeatsVacant(
+          typeof json.seatsVacant === "number" ? json.seatsVacant : null
+        );
+        setBillingCycle(
+          json.billingCycle === "yearly" ? "yearly" : json.billingCycle === "monthly" ? "monthly" : null
+        );
+        setCanAddSeats(Boolean(json.canAddSeats));
       } else {
         setPlan("free");
         setIsTrial(false);
         setTrialEndsAt(null);
+        setSeatsUsed(0);
+        setSeatsPurchased(null);
+        setSeatsVacant(null);
+        setBillingCycle(null);
+        setCanAddSeats(false);
       }
     } catch (error) {
       console.error("Error loading workspace plan:", error);
       setPlan("free");
       setIsTrial(false);
       setTrialEndsAt(null);
+      setSeatsUsed(0);
+      setSeatsPurchased(null);
+      setSeatsVacant(null);
+      setBillingCycle(null);
+      setCanAddSeats(false);
     } finally {
       setReady(true);
     }
@@ -85,6 +113,11 @@ export function useWorkspacePlan() {
     isTrial,
     trialEndsAt,
     trialDaysLeft,
+    seatsUsed,
+    seatsPurchased,
+    seatsVacant,
+    billingCycle,
+    canAddSeats,
     ready,
     isPro: plan === "pro",
     refreshPlan,

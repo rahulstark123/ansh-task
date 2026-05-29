@@ -35,6 +35,7 @@ import {
   isUpgradeRequiredError,
 } from "@/lib/plans";
 import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
+import Link from "next/link";
 
 type TaskMock = {
   id?: string;
@@ -393,7 +394,14 @@ function priorityBadgeColor(p: string) {
 export function TeamsManagementView() {
   const { showToast } = useToast();
   const { can, alertNoPermission } = usePermissionAccess();
-  const { ready: planReady, isPro, guardPlanFeature } = useWorkspacePlan();
+  const {
+    ready: planReady,
+    isPro,
+    isTrial,
+    seatsPurchased,
+    seatsVacant,
+    guardPlanFeature,
+  } = useWorkspacePlan();
   const canManageMembers = can("manage_members");
   const canCreateTasks = can("create_tasks");
 
@@ -404,10 +412,41 @@ export function TeamsManagementView() {
   };
 
   const [members, setMembers] = useState<Member[]>([]);
-  const canAddMoreMembers = isPro || members.length < FREE_PLAN_TEAM_MEMBERS_LIMIT;
+
+  const canAddMoreMembers = useMemo(() => {
+    if (!planReady) return true;
+    if (!isPro) return members.length < FREE_PLAN_TEAM_MEMBERS_LIMIT;
+    if (isTrial) return true;
+    if (seatsPurchased != null) return members.length < seatsPurchased;
+    return true;
+  }, [planReady, isPro, isTrial, members.length, seatsPurchased]);
+
+  const seatStatusLine = useMemo(() => {
+    if (!planReady) return `${members.length} team members active`;
+    if (isPro && isTrial) {
+      return `${members.length} member${members.length === 1 ? "" : "s"} · Pro trial active`;
+    }
+    if (seatsPurchased != null) {
+      const vacant =
+        seatsVacant ?? Math.max(0, seatsPurchased - members.length);
+      return `${members.length} of ${seatsPurchased} seats used · ${vacant} vacant`;
+    }
+    if (!isPro) {
+      const vacant = Math.max(0, FREE_PLAN_TEAM_MEMBERS_LIMIT - members.length);
+      return `${members.length} of ${FREE_PLAN_TEAM_MEMBERS_LIMIT} seats used · ${vacant} vacant`;
+    }
+    return `${members.length} team members active`;
+  }, [planReady, isPro, isTrial, members.length, seatsPurchased, seatsVacant]);
 
   const enforceTeamMemberLimit = () => {
     if (!planReady || canAddMoreMembers) return true;
+    if (isPro && !isTrial && seatsPurchased != null) {
+      showToast(
+        `All ${seatsPurchased} paid seats are in use. Add more seats in Billing to invite another teammate.`,
+        "error"
+      );
+      return false;
+    }
     return guardPlanFeature("teamMembersLimit");
   };
 
@@ -622,6 +661,10 @@ export function TeamsManagementView() {
         setPassword("");
         setIsAddModalOpen(false);
       } else {
+        if (json.code === "SEATS_LIMIT") {
+          showToast(json.error || "No vacant seats. Add more in Billing.", "error");
+          return;
+        }
         if (isUpgradeRequiredError(json)) {
           guardPlanFeature(json.feature || "teamMembersLimit", json.error);
           return;
@@ -826,9 +869,15 @@ export function TeamsManagementView() {
               <h1 className="font-heading text-lg font-bold text-zinc-900 dark:text-zinc-50">
                 Teams Management
               </h1>
-              <p className="text-[11px] font-medium text-zinc-500">
-                {members.length} team members active
-              </p>
+              <p className="text-[11px] font-medium text-zinc-500">{seatStatusLine}</p>
+              {planReady && isPro && !isTrial && seatsVacant === 0 && seatsPurchased != null && (
+                <Link
+                  href="/settings/billing"
+                  className="mt-0.5 inline-flex text-[10px] font-semibold text-[var(--app-primary)] hover:underline"
+                >
+                  Add more seats in Billing →
+                </Link>
+              )}
             </div>
           </div>
 
