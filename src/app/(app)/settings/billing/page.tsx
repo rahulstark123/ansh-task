@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import posthog from "posthog-js";
+import posthog from "@/lib/posthog-noop";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckIcon,

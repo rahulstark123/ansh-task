@@ -20,7 +20,7 @@ import { useEffect, useId, useRef, useState, useMemo } from "react";
 
 import type { NewTaskPayload, Task, TaskPriority, TaskStatus } from "@/types/task";
 import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
-import posthog from "posthog-js";
+import posthog from "@/lib/posthog-noop";
 
 /* ─── constants ──────────────────────────────────────────── */
 

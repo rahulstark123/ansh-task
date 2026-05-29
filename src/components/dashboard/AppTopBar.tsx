@@ -25,7 +25,7 @@ import { useAppearance } from "@/context/AppearanceContext";
 import { supabase } from "@/lib/supabase";
 import { usePermissionAccess } from "@/lib/usePermissionAccess";
 import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
-import posthog from "posthog-js";
+import posthog from "@/lib/posthog-noop";
 
 type SearchItem = {
   id: string;

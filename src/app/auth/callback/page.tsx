@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import posthog from "posthog-js";
+import posthog from "@/lib/posthog-noop";
 import { ArrowPathIcon } from "@heroicons/react/24/outline";
 
 export default function AuthCallbackPage() {

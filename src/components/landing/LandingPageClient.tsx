@@ -1130,9 +1130,10 @@ export function LandingPageClient() {
           {/* Copyrights */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
             <p>© {new Date().getFullYear()} ANSH Task. All rights reserved.</p>
-            <div className="flex gap-4">
-              <a href="#" className="hover:text-zinc-700 dark:hover:text-zinc-300">Privacy Policy</a>
-              <a href="#" className="hover:text-zinc-700 dark:hover:text-zinc-300">Terms of Service</a>
+            <div className="flex flex-wrap justify-center sm:justify-end gap-x-4 gap-y-2">
+              <Link href="/privacy" className="hover:text-zinc-700 dark:hover:text-zinc-300">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-zinc-700 dark:hover:text-zinc-300">Terms of Service</Link>
+              <Link href="/contact" className="hover:text-zinc-700 dark:hover:text-zinc-300">Contact Us</Link>
             </div>
           </div>
         </div>

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import posthog from "posthog-js";
+import posthog from "@/lib/posthog-noop";
 
 const SLIDES = [
   {

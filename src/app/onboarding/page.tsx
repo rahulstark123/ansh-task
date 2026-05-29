@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import posthog from "posthog-js";
+import posthog from "@/lib/posthog-noop";
 import {
   UserIcon,
   BriefcaseIcon,

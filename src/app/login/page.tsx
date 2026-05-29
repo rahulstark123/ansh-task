@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { AuthMarketingPanel } from "@/components/auth/AuthMarketingPanel";
-import posthog from "posthog-js";
+import posthog from "@/lib/posthog-noop";
 
 export default function LoginPage() {
   const router = useRouter();
