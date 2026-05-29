@@ -15,7 +15,7 @@ import {
   MoonIcon,
   SunIcon,
   SparklesIcon,
-  ArrowLeftOnRectangleIcon,
+  ArrowRightOnRectangleIcon,
   ArrowPathIcon,
   BellIcon,
   ChatBubbleLeftRightIcon,
@@ -44,6 +44,9 @@ type AppNotification = {
   read: boolean;
   link?: string;
 };
+
+/** Set to true when notification bell UI is ready to ship. */
+const SHOW_NOTIFICATION_BELL = false;
 
 export function AppTopBar() {
   const pathname = usePathname();
@@ -623,6 +626,7 @@ export function AppTopBar() {
           )}
 
           {/* Notification Bell Menu */}
+          {SHOW_NOTIFICATION_BELL && (
           <div className="relative" ref={notificationsRef}>
             <button
               onClick={() => setIsNotificationOpen(!isNotificationOpen)}
@@ -748,6 +752,7 @@ export function AppTopBar() {
               )}
             </AnimatePresence>
           </div>
+          )}
 
           {/* Profile Popover Menu */}
           <div 
@@ -829,7 +834,7 @@ export function AppTopBar() {
             className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200/90 bg-white/90 text-rose-600 shadow-[0_1px_0_rgba(0,0,0,0.04)] transition-colors hover:border-rose-300 hover:bg-rose-50 dark:border-white/[0.08] dark:bg-zinc-900/50 dark:text-rose-400 dark:hover:bg-rose-950/20 cursor-pointer"
             title="Logout"
           >
-            <ArrowLeftOnRectangleIcon className="h-5 w-5" />
+            <ArrowRightOnRectangleIcon className="h-5 w-5" />
           </button>
         </div>
       </header>

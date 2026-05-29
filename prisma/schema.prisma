@@ -201,6 +201,21 @@ model Ticket {
   // Relationships
   workspaceId   Int
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  replies       TicketReply[]
+}
+
+model TicketReply {
+  id          String   @id @default(uuid())
+  message     String
+  authorRole  String   // "admin" | "user"
+  authorName  String?
+  authorEmail String?
+  createdAt   DateTime @default(now())
+
+  ticketId    String
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
 }
 
 model Channel {

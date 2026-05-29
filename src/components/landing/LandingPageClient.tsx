@@ -24,6 +24,8 @@ import {
   ComputerDesktopIcon,
   CheckIcon,
   EnvelopeIcon,
+  HashtagIcon,
+  LockClosedIcon,
 } from "@heroicons/react/24/outline";
 
 // Define accent options to showcase the app's dynamic styling
@@ -75,6 +77,39 @@ const PRICING_PLANS = [
   },
 ] as const;
 
+const TEAM_SPACE_PREVIEW = [
+  {
+    id: "general",
+    name: "general",
+    isPrivate: false,
+    topic: "Company-wide announcements and work-based matters",
+    messages: [
+      { author: "Ansh K.", initials: "AK", time: "10:24 AM", text: "Sprint kickoff is at 2 PM — please review the Kanban board before we sync." },
+      { author: "Priya S.", initials: "PS", time: "10:31 AM", text: "Shared the updated spec in Documents. Flag any blockers in #engineering." },
+      { author: "Jay D.", initials: "JD", time: "10:45 AM", text: "On it. I'll post deployment updates here once staging is green." },
+    ],
+  },
+  {
+    id: "engineering",
+    name: "engineering",
+    isPrivate: false,
+    topic: "Tech discussions, PRs, and deployments",
+    messages: [
+      { author: "Jay D.", initials: "JD", time: "9:12 AM", text: "Staging deploy finished. QA can start the regression pass now." },
+      { author: "Riya M.", initials: "RM", time: "9:18 AM", text: "Found a permissions edge case on channel invites — logging a task." },
+    ],
+  },
+  {
+    id: "exec-updates",
+    name: "exec-updates",
+    isPrivate: true,
+    topic: "Leadership alignment",
+    messages: [
+      { author: "Ansh K.", initials: "AK", time: "8:05 AM", text: "Q2 roadmap draft is ready for review. Please add comments by EOD." },
+    ],
+  },
+] as const;
+
 const COMPETITOR_COMPARISONS = [
   {
     title: "Compared to Zoho Projects",
@@ -108,6 +143,7 @@ export function LandingPageClient() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<"kanban" | "brain" | "docs">("kanban");
   const [selectedAccent, setSelectedAccent] = useState("teal");
+  const [selectedTeamChannel, setSelectedTeamChannel] = useState("general");
   const [faqOpen, setFaqOpen] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
@@ -122,6 +158,9 @@ export function LandingPageClient() {
     const accent = ACCENTS.find((a) => a.id === selectedAccent);
     return accent ? accent.color : "#0d9488";
   };
+
+  const activeTeamChannel =
+    TEAM_SPACE_PREVIEW.find((channel) => channel.id === selectedTeamChannel) ?? TEAM_SPACE_PREVIEW[0];
 
   if (!mounted) {
     return (
@@ -573,11 +612,11 @@ export function LandingPageClient() {
             {/* Feature 3 */}
             <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
-                <DocumentDuplicateIcon className="h-6 w-6" />
+                <ChatBubbleLeftRightIcon className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Document Workspace</h3>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Team Space</h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                Create specifications, process docs, and guidelines directly inside the project context. Built-in editing keeps knowledge readily accessible to all.
+                Chat in shared channels, private rooms, and direct messages without leaving your workspace. Keep project updates, decisions, and team coordination in one place.
               </p>
             </div>
 
@@ -784,14 +823,14 @@ export function LandingPageClient() {
         </div>
       </section>
 
-      {/* Visual Accent Customization Feature (Section 3) */}
-      <section id="customization" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24">
+      {/* Team Space Feature (Section 3) */}
+      <section id="team-space" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
             {/* Image/Mockup Showcase */}
             <div className="relative order-2 lg:order-1">
-              <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500/10 to-teal-500/10 rounded-2xl blur-3xl pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-teal-500/10 to-indigo-500/10 rounded-2xl blur-3xl pointer-events-none" />
               <div className="relative border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl p-6 overflow-hidden">
                 <div className="flex items-center justify-between pb-4 mb-4 border-b border-zinc-100 dark:border-zinc-800">
                   <div className="flex items-center gap-1.5">
@@ -799,85 +838,110 @@ export function LandingPageClient() {
                     <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block" />
                     <span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block" />
                   </div>
-                  <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-500">Appearance Settings</span>
+                  <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-500">Team Space</span>
                 </div>
 
-                <div className="space-y-6">
-                  {/* Theme buttons showcase */}
-                  <div>
-                    <h5 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Accent Color</h5>
-                    <div className="flex flex-wrap gap-2">
-                      {ACCENTS.map((accent) => (
+                <div className="flex gap-3 min-h-[320px]">
+                  {/* Channel sidebar */}
+                  <div className="w-[38%] shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-950/40 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-2">Channels</p>
+                    <div className="space-y-1">
+                      {TEAM_SPACE_PREVIEW.map((channel) => (
                         <button
-                          key={accent.id}
-                          onClick={() => setSelectedAccent(accent.id)}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${selectedAccent === accent.id ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border-zinc-900 dark:border-zinc-100 scale-105" : "bg-zinc-50 dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100"}`}
+                          key={channel.id}
+                          onClick={() => setSelectedTeamChannel(channel.id)}
+                          className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[11px] font-semibold transition-all ${
+                            selectedTeamChannel === channel.id
+                              ? "bg-teal-500/15 text-teal-700 dark:text-teal-300"
+                              : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                          }`}
                         >
-                          <span className="w-3.5 h-3.5 rounded-full inline-block" style={{ backgroundColor: accent.color }} />
-                          {accent.name}
+                          {channel.isPrivate ? (
+                            <LockClosedIcon className="h-3.5 w-3.5 shrink-0" />
+                          ) : (
+                            <HashtagIcon className="h-3.5 w-3.5 shrink-0" />
+                          )}
+                          {channel.name}
                         </button>
                       ))}
                     </div>
+
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-4 mb-2">Direct Messages</p>
+                    <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[8px] font-bold text-white">PS</div>
+                      Priya Sharma
+                    </div>
                   </div>
 
-                  {/* UI Preview Card */}
-                  <div className="border border-zinc-200 dark:border-zinc-800 rounded-xl p-4 bg-zinc-50/50 dark:bg-zinc-950/30">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white" style={{ backgroundColor: getAccentColor() }}>
-                          <CheckCircleIcon className="h-5 w-5" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">Task Action Complete</p>
-                          <p className="text-[10px] text-zinc-500">Workspace dynamic state</p>
-                        </div>
+                  {/* Chat preview */}
+                  <div className="flex-1 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/30 p-3 flex flex-col">
+                    <div className="border-b border-zinc-200 dark:border-zinc-800 pb-2 mb-3">
+                      <div className="flex items-center gap-1.5">
+                        {activeTeamChannel.isPrivate ? (
+                          <LockClosedIcon className="h-4 w-4 text-zinc-500" />
+                        ) : (
+                          <HashtagIcon className="h-4 w-4 text-zinc-500" />
+                        )}
+                        <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{activeTeamChannel.name}</p>
                       </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: `${getAccentColor()}15`, color: getAccentColor() }}>Active</span>
+                      <p className="mt-1 text-[10px] text-zinc-500 leading-snug">{activeTeamChannel.topic}</p>
                     </div>
 
-                    <div className="h-2 rounded-full w-full bg-zinc-200 dark:bg-zinc-800 overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-500" style={{ backgroundColor: getAccentColor(), width: "70%" }} />
+                    <div className="space-y-3 flex-1">
+                      {activeTeamChannel.messages.map((message) => (
+                        <div key={`${message.author}-${message.time}`} className="flex gap-2">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-500 text-[9px] font-bold text-white">
+                            {message.initials}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100">{message.author}</span>
+                              <span className="text-[10px] text-zinc-400">{message.time}</span>
+                            </div>
+                            <p className="text-[11px] text-zinc-600 dark:text-zinc-300 leading-relaxed">{message.text}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
 
-                    <div className="flex justify-between items-center mt-3 text-[10px] text-zinc-500">
-                      <span>Tasks: 7/10 completed</span>
-                      <span className="font-bold" style={{ color: getAccentColor() }}>70% efficiency</span>
+                    <div className="mt-3 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-3 py-2 text-[10px] text-zinc-400">
+                      Message #{activeTeamChannel.name}...
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Left Content Column */}
+            {/* Right Content Column */}
             <div className="space-y-6 order-1 lg:order-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-xs font-semibold tracking-wide border border-indigo-500/20">
-                <PaintBrushIcon className="h-3.5 w-3.5" />
-                Themeable Workspace
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-400 text-xs font-semibold tracking-wide border border-teal-500/20">
+                <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" />
+                Team Space
               </div>
               <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white leading-tight">
-                A Customizable Workspace That Fits Your Project Workflows
+                Built-In Channels and DMs for Real Team Collaboration
               </h2>
               <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg leading-relaxed">
-                ANSH Task includes a global, theme-aware appearance controller. Instantly toggle light, system default, or true midnight dark modes. Update the primary accent token to dynamically restyle the sidebar highlight pills, progress trackers, buttons, and custom badges.
+                Keep conversations next to your tasks, docs, and Brain Boards. Team Space gives every workspace shared channels, private rooms, and direct messages so updates stay in context instead of scattered across external chat apps.
               </p>
               <div className="space-y-3.5 pt-2">
                 <div className="flex items-center gap-3">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
                     <CheckIcon className="h-4 w-4 stroke-[3]" />
                   </div>
-                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Synchronized dark mode presets with system checks</span>
+                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Public and private channels with role-based access</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
                     <CheckIcon className="h-4 w-4 stroke-[3]" />
                   </div>
-                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">5+ dynamic accent colors integrated globally</span>
+                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Direct messages for quick 1:1 coordination</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
                     <CheckIcon className="h-4 w-4 stroke-[3]" />
                   </div>
-                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Clean visual consistency with custom HSL values</span>
+                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Included on Pro — no extra Slack subscription required</span>
                 </div>
               </div>
             </div>
@@ -1030,7 +1094,7 @@ export function LandingPageClient() {
                 <li><a href="#pricing" className="hover:text-teal-600">Pricing</a></li>
                 <li><a href="#features" className="hover:text-teal-600">Brain Board</a></li>
                 <li><a href="#features" className="hover:text-teal-600">Doc Sharing</a></li>
-                <li><a href="#features" className="hover:text-teal-600">Team Spaces</a></li>
+                <li><a href="#team-space" className="hover:text-teal-600">Team Spaces</a></li>
               </ul>
             </div>
 
@@ -1051,11 +1115,11 @@ export function LandingPageClient() {
                 Have questions or need custom business plans? Talk to our creators.
               </p>
               <a
-                href="mailto:support@ansh-task.com"
+                href="mailto:hello@anshapps.com"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
               >
                 <EnvelopeIcon className="h-4 w-4" />
-                support@ansh-task.com
+                hello@anshapps.com
               </a>
             </div>
 
