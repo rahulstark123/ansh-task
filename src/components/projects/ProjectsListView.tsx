@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useId, useEffect, useRef } from "react";
+import { useState, useId, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MagnifyingGlassIcon,
@@ -139,7 +139,7 @@ const CATEGORIES = ["Engineering", "Design", "Product", "Operations", "Security"
 const projectModalLabel =
   "text-[11px] font-medium text-zinc-600 dark:text-zinc-400";
 const projectModalInput =
-  "mt-1.5 block w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-100 dark:placeholder:text-zinc-500";
+  "mt-1.5 block w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 outline-none transition-[border-color,box-shadow] placeholder:text-zinc-400 focus:border-[var(--app-primary)] focus:shadow-[0_0_0_3px_var(--app-ring)] dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-100 dark:placeholder:text-zinc-500";
 
 const AVAILABLE_USERS = [
   { name: "Aisha Khan", initial: "A" },
@@ -446,6 +446,17 @@ export function ProjectsListView() {
     }
   }, [selectedProject]);
 
+  useEffect(() => {
+    if (activeTab === "tasks" && selectedProject?.id) {
+      fetchProjectTasks(selectedProject.id);
+    }
+  }, [activeTab, selectedProject?.id]);
+
+  const visibleProjectTasks = useMemo(() => {
+    if (!selectedProject) return [];
+    return projectTasks.filter((task) => task.projectId === selectedProject.id);
+  }, [projectTasks, selectedProject]);
+
   const handleSaveDrawerEdits = async () => {
     if (!selectedProject) return;
     if (!tempName.trim()) {
@@ -497,7 +508,7 @@ export function ProjectsListView() {
       const json = await res.json();
       if (json.success) {
         showToast(`Task "${payload.title}" created successfully!`, "success");
-        // Refresh tasks panel if this task belongs to the open project
+        setIsAddTaskModalOpen(false);
         if (selectedProject && effectiveProjectId === selectedProject.id) {
           await fetchProjectTasks(selectedProject.id);
         }
@@ -1296,13 +1307,13 @@ export function ProjectsListView() {
               </div>
 
               {/* Tab Switcher */}
-              <div className="flex border-b border-zinc-100 px-6 dark:border-white/5 bg-zinc-50/50 dark:bg-[#121418] shrink-0">
+              <div className="flex border-b border-zinc-100 px-6 dark:border-white/5 bg-zinc-50/50 dark:bg-zinc-950/40 shrink-0">
                 <button
                   type="button"
                   onClick={() => setActiveTab("details")}
                   className={`relative py-3 text-xs font-bold transition-all border-b-2 px-1 ${
                     activeTab === "details"
-                      ? "border-indigo-500 text-indigo-600 dark:text-indigo-405 font-black"
+                      ? "border-[var(--app-primary)] text-[var(--app-primary)]"
                       : "border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                   }`}
                 >
@@ -1313,11 +1324,11 @@ export function ProjectsListView() {
                   onClick={() => setActiveTab("tasks")}
                   className={`relative py-3 text-xs font-bold transition-all border-b-2 px-1 ml-6 ${
                     activeTab === "tasks"
-                      ? "border-indigo-500 text-indigo-600 dark:text-indigo-405 font-black"
+                      ? "border-[var(--app-primary)] text-[var(--app-primary)]"
                       : "border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
                   }`}
                 >
-                  Tasks ({projectTasks.length})
+                  Tasks ({visibleProjectTasks.length})
                 </button>
               </div>
 
@@ -1624,12 +1635,12 @@ export function ProjectsListView() {
 
                   {/* Tasks Tab Header with Add Button */}
                   <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-white/5 shrink-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                        {projectTasks.length} task{projectTasks.length !== 1 ? "s" : ""}
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="text-xs font-bold text-zinc-700 dark:text-zinc-200">
+                        {visibleProjectTasks.length} task{visibleProjectTasks.length !== 1 ? "s" : ""}
                       </span>
                       {selectedProject && (
-                        <span className="rounded-md bg-indigo-50 px-2 py-0.5 text-[9px] font-bold text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400 uppercase tracking-wider">
+                        <span className="max-w-[180px] truncate rounded-md border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-[var(--app-primary-soft-text)]">
                           {selectedProject.name}
                         </span>
                       )}
@@ -1637,7 +1648,7 @@ export function ProjectsListView() {
                     <button
                       type="button"
                       onClick={() => setIsAddTaskModalOpen(true)}
-                      className="flex items-center gap-1.5 rounded-lg bg-indigo-500 px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-indigo-600 active:scale-95 transition-all"
+                      className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--app-primary)] px-3 py-1.5 text-[11px] font-bold text-[var(--app-primary-foreground)] shadow-sm transition-all hover:bg-[var(--app-primary-hover)] active:scale-95"
                     >
                       <PlusIcon className="h-3.5 w-3.5" />
                       Add Task
@@ -1648,27 +1659,27 @@ export function ProjectsListView() {
                   <div className="flex-1 overflow-y-auto p-4 scrollbar-thin space-y-2">
                     {tasksLoading ? (
                       <div className="flex flex-col items-center justify-center py-16">
-                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--app-primary)] border-t-transparent" />
                         <span className="mt-3 text-[11px] font-semibold text-zinc-400">Loading project tasks...</span>
                       </div>
-                    ) : projectTasks.length === 0 ? (
+                    ) : visibleProjectTasks.length === 0 ? (
                       <div className="flex flex-col items-center justify-center text-center py-16">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-900 mb-3">
-                          <CheckIcon className="h-6 w-6 text-zinc-350 dark:text-zinc-600" />
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800 mb-3">
+                          <CheckIcon className="h-6 w-6 text-zinc-400 dark:text-zinc-500" />
                         </div>
-                        <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-300">No tasks yet</h4>
-                        <p className="mt-1 text-[11px] text-zinc-450 dark:text-zinc-550 max-w-[200px]">Click "Add Task" to build the project backlog.</p>
+                        <h4 className="text-xs font-bold text-zinc-700 dark:text-zinc-200">No tasks yet</h4>
+                        <p className="mt-1 max-w-[200px] text-[11px] text-zinc-500 dark:text-zinc-400">Click &quot;Add Task&quot; to build the project backlog.</p>
                         <button
                           type="button"
                           onClick={() => setIsAddTaskModalOpen(true)}
-                          className="mt-4 flex items-center gap-1.5 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-1.5 text-[11px] font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-950/20 dark:border-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-950/40 transition-colors"
+                          className="mt-4 flex items-center gap-1.5 rounded-lg border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-3 py-1.5 text-[11px] font-bold text-[var(--app-primary)] transition-colors hover:opacity-90"
                         >
                           <PlusIcon className="h-3.5 w-3.5" />
                           Add first task
                         </button>
                       </div>
                     ) : (
-                      projectTasks.map((task) => {
+                      visibleProjectTasks.map((task) => {
                         const priorityStyle =
                           task.priority === "high"
                             ? { badge: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30", dot: "bg-rose-500" }
@@ -1683,11 +1694,14 @@ export function ProjectsListView() {
                             ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30"
                             : task.status === "blocked"
                             ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
-                            : "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800/60 dark:text-zinc-400 dark:border-zinc-700";
+                            : task.status === "on_hold"
+                            ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30"
+                            : "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800/60 dark:text-zinc-300 dark:border-zinc-700";
 
                         const statusLabel =
                           task.status === "in_progress" ? "In Progress" :
                           task.status === "blocked" ? "Blocked" :
+                          task.status === "on_hold" ? "On Hold" :
                           task.status === "done" ? "Done" : "To Do";
 
                         const assigneeInitials = task.assignee && task.assignee !== "Unassigned"
@@ -1697,17 +1711,17 @@ export function ProjectsListView() {
                         return (
                           <div
                             key={task.id}
-                            className="group rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/50 hover:border-zinc-300 dark:hover:border-white/10 transition-all"
+                            className="group rounded-xl border border-zinc-200/80 bg-white p-3.5 shadow-sm dark:border-white/[0.08] dark:bg-zinc-900/80 hover:border-zinc-300 dark:hover:border-white/15 transition-all"
                           >
                             {/* Top row: status dot + title + priority badge */}
                             <div className="flex items-start gap-2.5">
                               <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${priorityStyle.dot}`} />
                               <div className="min-w-0 flex-1">
-                                <p className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-150 leading-snug truncate">
+                                <p className="truncate text-[12px] font-semibold leading-snug text-zinc-900 dark:text-zinc-50">
                                   {task.title}
                                 </p>
                                 {task.description && (
-                                  <p className="mt-0.5 text-[10px] leading-relaxed text-zinc-450 dark:text-zinc-550 line-clamp-1">
+                                  <p className="mt-0.5 line-clamp-1 text-[10px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                                     {task.description}
                                   </p>
                                 )}
@@ -1723,10 +1737,10 @@ export function ProjectsListView() {
                                 {statusLabel}
                               </span>
 
-                              {task.projectId && (
-                                <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 text-[9px] font-semibold text-indigo-500 dark:bg-indigo-950/20 dark:border-indigo-900/30 dark:text-indigo-400">
-                                  <FolderIcon className="h-2.5 w-2.5" />
-                                  {selectedProject?.name || task.projectId}
+                              {selectedProject && (
+                                <span className="inline-flex max-w-full items-center gap-1 truncate rounded-md border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-1.5 py-0.5 text-[9px] font-semibold text-[var(--app-primary-soft-text)]">
+                                  <FolderIcon className="h-2.5 w-2.5 shrink-0" />
+                                  <span className="truncate">{selectedProject.name}</span>
                                 </span>
                               )}
 
@@ -1736,7 +1750,7 @@ export function ProjectsListView() {
                                     {task.assignees.slice(0, 3).map((a: string) => {
                                       const initials = a === "Unassigned" ? "??" : a.trim().split(/\s+/).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
                                       return (
-                                        <div key={a} className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[7px] font-black text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300 ring-1 ring-white dark:ring-zinc-900 shrink-0" title={a}>
+                                        <div key={a} className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--app-primary-soft)] text-[7px] font-black text-[var(--app-primary)] ring-1 ring-white dark:ring-zinc-900" title={a}>
                                           {initials}
                                         </div>
                                       );
@@ -1748,7 +1762,7 @@ export function ProjectsListView() {
                                     )}
                                   </div>
                                 ) : assigneeInitials ? (
-                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-100 text-[8px] font-black text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300" title={task.assignee}>
+                                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--app-primary-soft)] text-[8px] font-black text-[var(--app-primary)]" title={task.assignee}>
                                     {assigneeInitials}
                                   </div>
                                 ) : (
@@ -1757,7 +1771,7 @@ export function ProjectsListView() {
                                   </div>
                                 )}
                                 {task.due && task.due !== "No date" && (
-                                  <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-450 dark:text-zinc-500">
+                                  <div className="flex items-center gap-1 text-[10px] font-semibold text-zinc-500 dark:text-zinc-400">
                                     <CalendarDaysIcon className="h-3 w-3" />
                                     <span>{task.due}</span>
                                   </div>
@@ -1846,8 +1860,8 @@ export function ProjectsListView() {
               <div className="flex shrink-0 items-start justify-between gap-4 border-b border-zinc-100 px-6 py-5 dark:border-white/5">
                 <div>
                   <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10">
-                      <FolderIcon className="h-5 w-5 text-indigo-500" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--app-primary-soft)]">
+                      <FolderIcon className="h-5 w-5 text-[var(--app-primary)]" />
                     </div>
                     <div>
                       <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
@@ -2046,7 +2060,7 @@ export function ProjectsListView() {
                       <button
                         type="button"
                         onClick={() => setIsTeamDropdownOpen((prev) => !prev)}
-                        className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-700 outline-none transition-colors hover:bg-zinc-50 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-700 outline-none transition-[border-color,box-shadow] hover:bg-zinc-50 focus:border-[var(--app-primary)] focus:shadow-[0_0_0_3px_var(--app-ring)] dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800"
                       >
                         <div className="flex min-w-0 flex-1 flex-wrap gap-1.5 text-left">
                           {selectedMembers.length === 0 ? (
@@ -2058,9 +2072,9 @@ export function ProjectsListView() {
                               return (
                                 <span
                                   key={memberName}
-                                  className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-indigo-200/80 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-950/40 dark:text-indigo-200"
+                                  className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--app-primary-soft-text)]"
                                 >
-                                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-200/60 text-[8px] font-bold text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--app-primary)]/20 text-[8px] font-bold text-[var(--app-primary)]">
                                     {initial}
                                   </span>
                                   <span className="truncate">{memberName}</span>
@@ -2141,7 +2155,7 @@ export function ProjectsListView() {
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]"
+                    className="flex-1 rounded-xl bg-[var(--app-primary)] py-2.5 text-sm font-semibold text-[var(--app-primary-foreground)] shadow-md transition-all hover:bg-[var(--app-primary-hover)] active:scale-[0.98]"
                   >
                     {editingProjectId ? "Save changes" : "Create project"}
                   </button>

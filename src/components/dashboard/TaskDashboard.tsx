@@ -29,7 +29,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { CheckCircleIcon as CheckCircleSolid } from "@heroicons/react/24/solid";
 import { motion, AnimatePresence } from "framer-motion";
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 
 import { AddTaskModal } from "@/components/tasks/AddTaskModal";
@@ -43,6 +43,7 @@ import {
   isUpgradeRequiredError,
 } from "@/lib/plans";
 import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
+import { DEFAULT_TASK_PAGE_SIZE } from "@/lib/task-list-query";
 
 
 
@@ -148,7 +149,7 @@ function mapApiTask(t: any): Task {
     id: t.id,
     title: t.title,
     description: t.description ?? undefined,
-    due: t.due ?? "No date",
+    due: normalizeTaskDue(t.due),
     priority: (t.priority as Task["priority"]) ?? "medium",
     category: t.category ?? undefined,
     labels: t.labels ?? [],
@@ -158,6 +159,7 @@ function mapApiTask(t: any): Task {
     estimate: t.estimate ?? undefined,
     done: t.done ?? false,
     attachmentUrls: t.attachmentUrls ?? [],
+    projectId: t.projectId ?? null,
     createdAt: t.createdAt ? new Date(t.createdAt).toISOString() : undefined,
   };
 }
@@ -179,10 +181,20 @@ function isTaskOverdue(due?: string, done?: boolean) {
   return parsed.getTime() < Date.now();
 }
 
+/** Legacy onboarding seeds used a bare "May 30" due string that always parsed as overdue. */
+function normalizeTaskDue(due?: string | null): string {
+  if (!due || due.trim() === "May 30") return "No date";
+  return due;
+}
+
+/** Kanban column placement uses the stored status so user updates are respected. */
 function getEffectiveStatus(task: Task): TaskStatus {
   if (task.done || task.status === "done") return "done";
-  if (isTaskOverdue(task.due, task.done)) return "overdue";
   return (task.status as TaskStatus) || "todo";
+}
+
+function taskShowsOverdueBadge(task: Task): boolean {
+  return getEffectiveStatus(task) !== "done" && isTaskOverdue(task.due, task.done);
 }
 
 const CATEGORIES = ["Product", "Engineering", "Design", "Operations", "Marketing", "General"];
@@ -480,6 +492,11 @@ export function TaskDashboard({
   };
   const [tasksLoading, setTasksLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"kanban" | "table">("kanban");
+  const [tablePage, setTablePage] = useState(1);
+  const [tableTasks, setTableTasks] = useState<Task[]>([]);
+  const [tableTasksLoading, setTableTasksLoading] = useState(false);
+  const [tableTotal, setTableTotal] = useState(0);
+  const [tableTotalPages, setTableTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
 
   const [assigneesList, setAssigneesList] = useState<string[]>(ASSIGNEES);
@@ -578,26 +595,6 @@ export function TaskDashboard({
     fetchDefaults(wid);
   }, [fetchDefaults]);
 
-  // ── Load tasks from API ────────────────────────────────────
-  useEffect(() => {
-    async function loadTasks() {
-      setTasksLoading(true);
-      try {
-        const wid = getWid();
-        const res = await fetch(`/api/task?wid=${wid}`);
-        const json = await res.json();
-        if (json.success && Array.isArray(json.tasks)) {
-          setTasks(json.tasks.map(mapApiTask));
-        }
-      } catch (err) {
-        console.error("Error loading tasks:", err);
-      } finally {
-        setTasksLoading(false);
-      }
-    }
-    loadTasks();
-  }, []);
-
   // ── Load team members ──────────────────────────────────────
   useEffect(() => {
     async function loadTeam() {
@@ -651,6 +648,96 @@ export function TaskDashboard({
   const [filterLabels, setFilterLabels] = useState<string[]>([]);
   const [openFilterDropdown, setOpenFilterDropdown] = useState<"assignee" | "category" | "label" | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+
+  const buildTableTaskQuery = useCallback(
+    (page: number) => {
+      const params = new URLSearchParams();
+      params.set("wid", String(getWid()));
+      params.set("page", String(page));
+      params.set("limit", String(DEFAULT_TASK_PAGE_SIZE));
+      if (searchQuery.trim()) params.set("search", searchQuery.trim());
+      if (filterPriority !== "All") params.set("priority", filterPriority);
+      if (filterAssignees.length > 0) params.set("assignees", filterAssignees.join(","));
+      if (filterCategories.length > 0) params.set("categories", filterCategories.join(","));
+      if (filterLabels.length > 0) params.set("labels", filterLabels.join(","));
+      if (taskModule === "my" && currentUserEmail) {
+        params.set("scope", "my");
+        params.set("email", currentUserEmail);
+      }
+      return params.toString();
+    },
+    [
+      searchQuery,
+      filterPriority,
+      filterAssignees,
+      filterCategories,
+      filterLabels,
+      taskModule,
+      currentUserEmail,
+    ]
+  );
+
+  const loadAllTasks = useCallback(async () => {
+    setTasksLoading(true);
+    try {
+      const wid = getWid();
+      const res = await fetch(`/api/task?wid=${wid}`);
+      const json = await res.json();
+      if (json.success && Array.isArray(json.tasks)) {
+        setTasks(json.tasks.map(mapApiTask));
+      }
+    } catch (err) {
+      console.error("Error loading tasks:", err);
+    } finally {
+      setTasksLoading(false);
+    }
+  }, []);
+
+  const loadTableTasks = useCallback(
+    async (page: number) => {
+      setTableTasksLoading(true);
+      try {
+        const res = await fetch(`/api/task?${buildTableTaskQuery(page)}`);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.tasks)) {
+          setTableTasks(json.tasks.map(mapApiTask));
+          const total = json.pagination?.total ?? json.tasks.length;
+          const totalPages = json.pagination?.totalPages ?? 1;
+          setTableTotal(total);
+          setTableTotalPages(totalPages);
+          if (page > totalPages && totalPages > 0) {
+            setTablePage(totalPages);
+          }
+        }
+      } catch (err) {
+        console.error("Error loading table tasks:", err);
+      } finally {
+        setTableTasksLoading(false);
+      }
+    },
+    [buildTableTaskQuery]
+  );
+
+  const updateTaskInLists = useCallback((id: string, updater: (task: Task) => Task) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? updater(t) : t)));
+    setTableTasks((prev) => prev.map((t) => (t.id === id ? updater(t) : t)));
+  }, []);
+
+  useEffect(() => {
+    loadAllTasks();
+  }, [loadAllTasks]);
+
+  useEffect(() => {
+    if (viewMode !== "table") return;
+    loadTableTasks(tablePage);
+  }, [viewMode, tablePage, loadTableTasks]);
+
+  useEffect(() => {
+    setTablePage(1);
+  }, [searchQuery, filterPriority, filterAssignees, filterCategories, filterLabels, taskModule]);
+
+  const tableStartIndex = tableTotal === 0 ? 0 : (tablePage - 1) * DEFAULT_TASK_PAGE_SIZE + 1;
+  const tableEndIndex = Math.min(tablePage * DEFAULT_TASK_PAGE_SIZE, tableTotal);
 
   // Modal & inline states
   const [addOpen, setAddOpen] = useState(false);
@@ -825,9 +912,7 @@ export function TaskDashboard({
   }
 
   function applyTaskComplete(id: string) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: true, status: "done" as TaskStatus } : t))
-    );
+    updateTaskInLists(id, (t) => ({ ...t, done: true, status: "done" as TaskStatus }));
     if (selectedTask?.id === id) {
       setSelectedTask((prev) => (prev ? { ...prev, done: true, status: "done" } : null));
       setTempStatus("done");
@@ -837,9 +922,7 @@ export function TaskDashboard({
   }
 
   function applyTaskIncomplete(id: string) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, done: false, status: "todo" as TaskStatus } : t))
-    );
+    updateTaskInLists(id, (t) => ({ ...t, done: false, status: "todo" as TaskStatus }));
     if (selectedTask?.id === id) {
       setSelectedTask((prev) => (prev ? { ...prev, done: false, status: "todo" } : null));
       setTempStatus("todo");
@@ -855,7 +938,7 @@ export function TaskDashboard({
 
   function handleToggleDone(id: string) {
     if (!enforcePermission(canEditTasks)) return;
-    const task = tasks.find((t) => t.id === id);
+    const task = tasks.find((t) => t.id === id) ?? tableTasks.find((t) => t.id === id);
     if (!task) return;
     if (task.done) {
       applyTaskIncomplete(id);
@@ -875,14 +958,12 @@ export function TaskDashboard({
 
   function handleStatusChange(id: string, newStatus: TaskStatus) {
     if (!enforcePermission(canEditTasks)) return;
-    const task = tasks.find((t) => t.id === id);
+    const task = tasks.find((t) => t.id === id) ?? tableTasks.find((t) => t.id === id);
     if (newStatus === "done" && task && !task.done) {
       requestMarkComplete(task);
       return;
     }
-    setTasks((prev) =>
-      prev.map((t) => t.id === id ? { ...t, status: newStatus, done: newStatus === "done" } : t)
-    );
+    updateTaskInLists(id, (t) => ({ ...t, status: newStatus, done: newStatus === "done" }));
     if (selectedTask && selectedTask.id === id) {
       setSelectedTask((prev) => (prev ? { ...prev, status: newStatus, done: newStatus === "done" } : null));
       if (isEditingTaskDetails) setTempStatus(newStatus);
@@ -908,7 +989,7 @@ export function TaskDashboard({
 
   function handlePriorityChange(id: string, newPriority: TaskPriority) {
     if (!enforcePermission(canEditTasks)) return;
-    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, priority: newPriority } : t));
+    updateTaskInLists(id, (t) => ({ ...t, priority: newPriority }));
     if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, priority: newPriority } : null);
     patchTask(id, { priority: newPriority });
@@ -917,7 +998,7 @@ export function TaskDashboard({
 
   function handleAssigneeChange(id: string, newAssignee: string) {
     if (!enforcePermission(canEditTasks)) return;
-    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, assignee: newAssignee } : t));
+    updateTaskInLists(id, (t) => ({ ...t, assignee: newAssignee }));
     if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, assignee: newAssignee } : null);
     patchTask(id, { assignee: newAssignee });
@@ -926,7 +1007,7 @@ export function TaskDashboard({
 
   function handleCategoryChange(id: string, newCategory: string) {
     if (!enforcePermission(canEditTasks)) return;
-    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, category: newCategory } : t));
+    updateTaskInLists(id, (t) => ({ ...t, category: newCategory }));
     if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, category: newCategory } : null);
     patchTask(id, { category: newCategory });
@@ -1119,15 +1200,25 @@ export function TaskDashboard({
   async function handleTaskDelete(id: string) {
     if (!enforcePermission(canDeleteTasks)) return;
     setTasks((prev) => prev.filter((t) => t.id !== id));
+    setTableTasks((prev) => prev.filter((t) => t.id !== id));
     setSelectedTask(null);
     try {
       const res = await fetch(`/api/task?id=${id}`, { method: "DELETE" });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       showToast("Task deleted successfully.", "info");
+      if (viewMode === "table") {
+        const nextPage =
+          tableTasks.length <= 1 && tablePage > 1 ? tablePage - 1 : tablePage;
+        if (nextPage !== tablePage) setTablePage(nextPage);
+        else await loadTableTasks(tablePage);
+      }
+      await loadAllTasks();
     } catch (err) {
       console.error("Task DELETE error:", err);
       showToast("Failed to delete task", "error" as any);
+      await loadAllTasks();
+      if (viewMode === "table") await loadTableTasks(tablePage);
     }
   }
 
@@ -1154,9 +1245,13 @@ export function TaskDashboard({
       due: payload.dueLabel,
       done: payload.status === "done",
       attachmentUrls: payload.attachmentUrls || [],
+      projectId: payload.projectId ?? null,
     };
 
     setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+    );
+    setTableTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
     );
     if (selectedTask?.id === taskId) {
@@ -1175,10 +1270,13 @@ export function TaskDashboard({
       due: updates.due,
       done: updates.done,
       attachmentUrls: updates.attachmentUrls,
+      projectId: payload.projectId ?? null,
     });
 
     if (ok) {
       showToast(`Task "${payload.title}" updated`, "success");
+      if (viewMode === "table") await loadTableTasks(tablePage);
+      await loadAllTasks();
     }
   }
 
@@ -1201,6 +1299,7 @@ export function TaskDashboard({
       status: payload.status,
       done: payload.status === "done",
       attachmentUrls: payload.attachmentUrls || [],
+      projectId: payload.projectId ?? null,
       createdAt: new Date().toISOString(),
     };
     setTasks((prev) => [optimisticTask, ...prev]);
@@ -1231,6 +1330,11 @@ export function TaskDashboard({
           prev.map((t) => (t.id === tempId ? mapApiTask(json.task) : t))
         );
         showToast(`Task "${payload.title}" created successfully!`, "success");
+        if (viewMode === "table") {
+          setTablePage(1);
+          await loadTableTasks(1);
+        }
+        await loadAllTasks();
       } else {
         if (isUpgradeRequiredError(json)) {
           setTasks((prev) => prev.filter((t) => t.id !== tempId));
@@ -1292,6 +1396,8 @@ export function TaskDashboard({
           prev.map((t) => (t.id === tempId ? mapApiTask(json.task) : t))
         );
         showToast(`Task "${text}" added successfully!`, "success");
+        if (viewMode === "table") await loadTableTasks(tablePage);
+        await loadAllTasks();
       } else {
         if (isUpgradeRequiredError(json)) {
           setTasks((prev) => prev.filter((t) => t.id !== tempId));
@@ -1370,7 +1476,7 @@ export function TaskDashboard({
             </span>
             <span className="h-1 w-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
             <span className="text-xs font-semibold text-[var(--app-primary)] bg-[var(--app-primary-soft)] px-2 py-0.5 rounded-full dark:bg-teal-950/40 dark:text-teal-200">
-              Active: {filteredTasks.length}
+              Active: {viewMode === "table" ? tableTotal : filteredTasks.length}
             </span>
           </div>
           <h1 className="mt-1 font-heading text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
@@ -1856,8 +1962,14 @@ export function TaskDashboard({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="h-full w-full overflow-auto px-6 py-4 scrollbar-thin select-none"
+              className="flex h-full w-full flex-col overflow-hidden select-none"
             >
+              <div className="relative flex-1 overflow-auto px-6 py-4 scrollbar-thin">
+                {tableTasksLoading && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/60 dark:bg-zinc-900/60">
+                    <ArrowPathIcon className="h-7 w-7 animate-spin text-zinc-400" />
+                  </div>
+                )}
               <div className="min-w-[950px] inline-block align-middle w-full rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/60">
                 <table className="w-full text-left border-collapse table-fixed">
                   <thead>
@@ -1874,7 +1986,7 @@ export function TaskDashboard({
                   </thead>
                   
                   <tbody className="divide-y divide-zinc-200/50 dark:divide-white/[0.04]">
-                    {filteredTasks.map((task) => (
+                    {tableTasks.map((task) => (
                       <tr
                         key={task.id}
                         className="group text-[13px] hover:bg-stone-50/50 dark:hover:bg-zinc-900/30 transition-colors h-12"
@@ -2022,11 +2134,11 @@ export function TaskDashboard({
                                           newAssignees = [...currentAssignees.filter(a => a !== "Unassigned"), assignee];
                                         }
                                       }
-                                      setTasks((prev) => prev.map((t) => t.id === task.id ? {
+                                      updateTaskInLists(task.id, (t) => ({
                                         ...t,
                                         assignees: newAssignees,
-                                        assignee: newAssignees.length > 0 ? newAssignees[0] : "Unassigned"
-                                      } : t));
+                                        assignee: newAssignees.length > 0 ? newAssignees[0] : "Unassigned",
+                                      }));
                                       patchTask(task.id, {
                                         assignees: newAssignees,
                                         assignee: newAssignees.length > 0 ? newAssignees[0] : "Unassigned"
@@ -2131,7 +2243,7 @@ export function TaskDashboard({
                       </tr>
                     ))}
 
-                    {filteredTasks.length === 0 && (
+                    {!tableTasksLoading && tableTasks.length === 0 && (
                       <tr>
                         <td colSpan={8} className="text-center py-16 text-zinc-400 dark:text-zinc-500">
                           No tasks match the search or filter query.
@@ -2140,6 +2252,46 @@ export function TaskDashboard({
                     )}
                   </tbody>
                 </table>
+              </div>
+              </div>
+
+              <div className="shrink-0 border-t border-zinc-200 bg-zinc-50/50 px-6 py-3.5 flex items-center justify-between dark:border-white/10 dark:bg-zinc-900/50">
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {tableTotal === 0 ? (
+                    "No tasks to show"
+                  ) : (
+                    <>
+                      Showing{" "}
+                      <span className="font-semibold text-zinc-950 dark:text-zinc-50">{tableStartIndex}</span>
+                      {" "}to{" "}
+                      <span className="font-semibold text-zinc-950 dark:text-zinc-50">{tableEndIndex}</span>
+                      {" "}of{" "}
+                      <span className="font-semibold text-zinc-950 dark:text-zinc-50">{tableTotal}</span>
+                      {" "}tasks
+                    </>
+                  )}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                    Page {tablePage} of {tableTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setTablePage((p) => Math.max(p - 1, 1))}
+                    disabled={tablePage === 1 || tableTasksLoading}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 disabled:opacity-40 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTablePage((p) => Math.min(p + 1, tableTotalPages))}
+                    disabled={tablePage >= tableTotalPages || tableTotal === 0 || tableTasksLoading}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-sm transition-all hover:bg-zinc-50 disabled:opacity-40 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
@@ -2348,24 +2500,31 @@ export function TaskDashboard({
                           ]}
                         />
                       ) : (
-                        <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${
-                          getEffectiveStatus(selectedTask) === "done" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40" :
-                          getEffectiveStatus(selectedTask) === "in_progress" ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40" :
-                          getEffectiveStatus(selectedTask) === "on_hold" ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40" :
-                          getEffectiveStatus(selectedTask) === "blocked" ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40" :
-                          getEffectiveStatus(selectedTask) === "overdue" ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/40" :
-                          "bg-zinc-50 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
-                        }`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${
-                            getEffectiveStatus(selectedTask) === "done" ? "bg-emerald-500" :
-                            getEffectiveStatus(selectedTask) === "in_progress" ? "bg-teal-500" :
-                            getEffectiveStatus(selectedTask) === "on_hold" ? "bg-amber-500" :
-                            getEffectiveStatus(selectedTask) === "blocked" ? "bg-rose-500" :
-                            getEffectiveStatus(selectedTask) === "overdue" ? "bg-red-600" :
-                            "bg-zinc-400"
-                          }`} />
-                          {statusLabelMap[getEffectiveStatus(selectedTask)] || "To Do"}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${
+                            getEffectiveStatus(selectedTask) === "done" ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40" :
+                            getEffectiveStatus(selectedTask) === "in_progress" ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/30 dark:text-teal-300 dark:border-teal-900/40" :
+                            getEffectiveStatus(selectedTask) === "on_hold" ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40" :
+                            getEffectiveStatus(selectedTask) === "blocked" ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40" :
+                            getEffectiveStatus(selectedTask) === "overdue" ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/40" :
+                            "bg-zinc-50 text-zinc-700 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700"
+                          }`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${
+                              getEffectiveStatus(selectedTask) === "done" ? "bg-emerald-500" :
+                              getEffectiveStatus(selectedTask) === "in_progress" ? "bg-teal-500" :
+                              getEffectiveStatus(selectedTask) === "on_hold" ? "bg-amber-500" :
+                              getEffectiveStatus(selectedTask) === "blocked" ? "bg-rose-500" :
+                              getEffectiveStatus(selectedTask) === "overdue" ? "bg-red-600" :
+                              "bg-zinc-400"
+                            }`} />
+                            {statusLabelMap[getEffectiveStatus(selectedTask)] || "To Do"}
+                          </span>
+                          {taskShowsOverdueBadge(selectedTask) && (
+                            <span className="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-300">
+                              Past due
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

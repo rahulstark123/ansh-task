@@ -109,14 +109,23 @@ export async function POST(request: Request) {
       });
 
       // 4. Create Tasks
+      const ownerName =
+        `${user.firstName || ""} ${user.lastName || ""}`.trim() ||
+        ownerEmail.split("@")[0];
+      const defaultDueLabel = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(
+        "en-US",
+        { month: "short", day: "numeric", year: "numeric" }
+      );
+
       const tasksData = tasks
         .filter((taskTitle: any) => taskTitle && taskTitle.trim())
         .map((taskTitle: any) => ({
           title: taskTitle.trim(),
-          due: "May 30",
+          due: defaultDueLabel,
           priority: "medium",
           category: project.category || "General",
-          assignee: "Me",
+          assignee: ownerName,
+          assignees: [ownerName],
           status: "todo",
           done: false,
           workspaceId: createdWorkspace.id,

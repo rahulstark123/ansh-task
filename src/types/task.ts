@@ -29,6 +29,7 @@ export type Task = {
   estimate?: string;
   done: boolean;
   attachmentUrls?: string[];
+  projectId?: string | null;
   createdAt?: string;
 };
 

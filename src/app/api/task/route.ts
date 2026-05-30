@@ -6,13 +6,20 @@ import {
   getWorkspaceTaskCountThisMonth,
 } from "@/lib/planLimits";
 import { UPGRADE_REQUIRED_CODE } from "@/lib/plans";
+import {
+  buildTaskWhereInput,
+  parseTaskPagination,
+} from "@/lib/task-list-query";
 
 export const dynamic = "force-dynamic";
 
+const taskInclude = { project: { select: { name: true } } } as const;
+
 /* ─────────────────────────────────────────
    GET  /api/task?wid=<id>&projectId=<id>
-   Returns all tasks for a workspace,
-   optionally filtered by project.
+   Optional pagination: page & limit (default 10)
+   Optional filters: search, priority, assignees,
+   categories, labels, scope=my&email=
 ───────────────────────────────────────── */
 export async function GET(request: Request) {
   try {
@@ -20,6 +27,7 @@ export async function GET(request: Request) {
     const widParam = searchParams.get("wid");
     const projectId = searchParams.get("projectId");
     const emailParam = searchParams.get("email");
+    const pageParam = searchParams.get("page");
 
     let workspaceId: number | null = null;
 
@@ -35,15 +43,62 @@ export async function GET(request: Request) {
 
     if (!workspaceId) workspaceId = 1;
 
-    const tasks = await prisma.task.findMany({
-      where: {
+    const where = await buildTaskWhereInput(
+      {
         workspaceId,
-        ...(projectId ? { projectId } : {}),
+        projectId,
+        search: searchParams.get("search"),
+        priority: searchParams.get("priority"),
+        assignees: searchParams.get("assignees"),
+        categories: searchParams.get("categories"),
+        labels: searchParams.get("labels"),
+        scope: searchParams.get("scope"),
+        email: emailParam,
+        page: pageParam,
+        limit: searchParams.get("limit"),
       },
-      include: {
-        project: { select: { name: true } },
-      },
-      orderBy: { createdAt: "desc" },
+      async (email) =>
+        prisma.user.findUnique({
+          where: { email },
+          select: { firstName: true, lastName: true, email: true },
+        })
+    );
+
+    const orderBy = { createdAt: "desc" as const };
+
+    if (pageParam !== null) {
+      const { page, limit, skip } = parseTaskPagination({
+        page: pageParam,
+        limit: searchParams.get("limit"),
+      });
+
+      const [tasks, total] = await Promise.all([
+        prisma.task.findMany({
+          where,
+          include: taskInclude,
+          orderBy,
+          skip,
+          take: limit,
+        }),
+        prisma.task.count({ where }),
+      ]);
+
+      return NextResponse.json({
+        success: true,
+        tasks,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.max(1, Math.ceil(total / limit)),
+        },
+      });
+    }
+
+    const tasks = await prisma.task.findMany({
+      where,
+      include: taskInclude,
+      orderBy,
     });
 
     return NextResponse.json({ success: true, tasks });

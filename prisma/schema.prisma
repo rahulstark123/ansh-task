@@ -46,6 +46,8 @@ model Workspace {
   size         String?
   website      String?
   billingEmail String?
+  address      String?
+  cityCountry  String?
   plan         String   @default("free") // "free" | "pro"
   planExpiresAt DateTime?
   createdAt    DateTime @default(now())

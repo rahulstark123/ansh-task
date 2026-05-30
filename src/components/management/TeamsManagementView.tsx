@@ -50,7 +50,7 @@ type TaskMock = {
   due?: string;
   assignee?: string | null;
   assignees?: string[];
-  status: "In Progress" | "Completed" | "Todo" | "Blocked";
+  status: "In Progress" | "Completed" | "Todo" | "Blocked" | "On Hold";
   progress: number;
 };
 
@@ -502,6 +502,14 @@ export function TeamsManagementView() {
   }, [members, debouncedQuery]);
 
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
+
+  const activeMember = useMemo(
+    () =>
+      selectedMember
+        ? members.find((m) => m.id === selectedMember.id) ?? selectedMember
+        : null,
+    [members, selectedMember]
+  );
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [memberToDelete, setMemberToDelete] = useState<Member | null>(null);
@@ -641,6 +649,12 @@ export function TeamsManagementView() {
   useEffect(() => {
     fetchTeam();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "tasks" && selectedMember) {
+      fetchTeam();
+    }
+  }, [activeTab, selectedMember?.id]);
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1129,7 +1143,7 @@ export function TeamsManagementView() {
 
       {/* MEMBER DETAILS SIDEBAR DRAWER */}
       <AnimatePresence>
-        {selectedMember && (
+        {activeMember && (
           <>
             {/* Drawer Backdrop */}
             <motion.div
@@ -1152,18 +1166,18 @@ export function TeamsManagementView() {
               <div className="flex items-center justify-between border-b border-zinc-100 p-6 dark:border-white/5 bg-zinc-50/50 dark:bg-zinc-950/20">
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] text-sm font-bold text-white shadow-md">
-                    {selectedMember.name.split(" ").map(n => n[0]).join("")}
+                    {activeMember.name.split(" ").map(n => n[0]).join("")}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-heading text-base font-extrabold text-zinc-900 dark:text-zinc-50" title={selectedMember.name}>
-                      {selectedMember.name}
+                    <h3 className="truncate font-heading text-base font-extrabold text-zinc-900 dark:text-zinc-50" title={activeMember.name}>
+                      {activeMember.name}
                     </h3>
                     <div className="mt-1 flex min-w-0 items-center gap-2">
                       <span className="shrink-0 rounded-md border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-primary-soft-text)] dark:border-teal-500/15 dark:bg-teal-950/35 dark:text-teal-100">
-                        {selectedMember.role}
+                        {activeMember.role}
                       </span>
-                      <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500" title={selectedMember.dept}>
-                        {selectedMember.dept}
+                      <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500" title={activeMember.dept}>
+                        {activeMember.dept}
                       </span>
                     </div>
                   </div>
@@ -1214,25 +1228,25 @@ export function TeamsManagementView() {
                       <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-4 dark:border-white/5 dark:bg-zinc-950/20 space-y-3.5">
                         <div className="flex items-center justify-between gap-3 text-xs">
                           <span className="shrink-0 text-zinc-400">Email Address</span>
-                          <TruncateText text={selectedMember.email} className="font-semibold text-zinc-700 dark:text-zinc-200" />
+                          <TruncateText text={activeMember.email} className="font-semibold text-zinc-700 dark:text-zinc-200" />
                         </div>
-                        {selectedMember.phone ? (
+                        {activeMember.phone ? (
                           <div className="flex items-center justify-between gap-3 text-xs">
                             <span className="shrink-0 text-zinc-400">Phone Number</span>
-                            <TruncateText text={selectedMember.phone} className="font-semibold text-zinc-700 dark:text-zinc-200" />
+                            <TruncateText text={activeMember.phone} className="font-semibold text-zinc-700 dark:text-zinc-200" />
                           </div>
                         ) : null}
                         <div className="flex justify-between items-center text-xs">
                           <span className="text-zinc-400">Joined Date</span>
                           <div className="flex items-center gap-1 font-semibold text-zinc-700 dark:text-zinc-200">
                             <CalendarDaysIcon className="h-3.5 w-3.5 text-zinc-400" />
-                            {selectedMember.joinedDate}
+                            {activeMember.joinedDate}
                           </div>
                         </div>
                         <div className="flex items-center justify-between gap-3 border-t border-zinc-100 pt-3 text-xs dark:border-white/5">
                           <span className="shrink-0 text-zinc-400">Reports To</span>
-                          <span className="max-w-[60%] truncate rounded border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--app-primary-soft-text)] dark:border-teal-500/15 dark:bg-teal-950/35" title={selectedMember.reportsTo}>
-                            {selectedMember.reportsTo}
+                          <span className="max-w-[60%] truncate rounded border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--app-primary-soft-text)] dark:border-teal-500/15 dark:bg-teal-950/35" title={activeMember.reportsTo}>
+                            {activeMember.reportsTo}
                           </span>
                         </div>
                       </div>
@@ -1250,7 +1264,7 @@ export function TeamsManagementView() {
                           </div>
                           <p className="mt-3 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Completed Tasks</p>
                           <p className="mt-1 text-2xl font-black text-zinc-900 dark:text-zinc-50">
-                            {selectedMember.tasks.filter(t => t.status === "Completed").length}
+                            {activeMember.tasks.filter(t => t.status === "Completed").length}
                           </p>
                         </div>
 
@@ -1260,7 +1274,7 @@ export function TeamsManagementView() {
                           </div>
                           <p className="mt-3 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Active Items</p>
                           <p className="mt-1 text-2xl font-black text-zinc-900 dark:text-zinc-50">
-                            {selectedMember.tasks.filter(t => t.status === "In Progress").length}
+                            {activeMember.tasks.filter(t => t.status === "In Progress").length}
                           </p>
                         </div>
                       </div>
@@ -1292,14 +1306,14 @@ export function TeamsManagementView() {
 
                     {/* Task list container */}
                     <div className="flex-1 overflow-y-auto pr-0.5 space-y-3.5 scrollbar-thin">
-                      {selectedMember.tasks.length === 0 ? (
+                      {activeMember.tasks.length === 0 ? (
                         <p className="text-center text-xs text-zinc-400 dark:text-zinc-500 py-8 italic">
                           No tasks assigned to this user.
                         </p>
                       ) : (
-                        selectedMember.tasks.map((task, i) => (
+                        activeMember.tasks.map((task) => (
                           <div 
-                            key={i} 
+                            key={task.id ?? task.title} 
                             className="group relative flex flex-col rounded-xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-200/40 hover:border-zinc-300 dark:border-white/[0.05] dark:bg-[#1c1d22]/90 dark:shadow-none dark:hover:border-zinc-700 transition-[border-color,box-shadow]"
                           >
                             {/* Card Top Row: Category & Priority */}
@@ -1380,10 +1394,10 @@ export function TeamsManagementView() {
                                 </div>
                               ) : (
                                 <div 
-                                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold tracking-wider ring-1 ring-black/5 dark:ring-white/10 ${getAvatarBgColor(task.assignee || selectedMember.name)} text-white`}
-                                  title={task.assignee || selectedMember.name}
+                                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold tracking-wider ring-1 ring-black/5 dark:ring-white/10 ${getAvatarBgColor(task.assignee || activeMember.name)} text-white`}
+                                  title={task.assignee || activeMember.name}
                                 >
-                                  {getAvatarInitials(task.assignee || selectedMember.name)}
+                                  {getAvatarInitials(task.assignee || activeMember.name)}
                                 </div>
                               )}
                             </div>
@@ -1402,7 +1416,7 @@ export function TeamsManagementView() {
                     </h4>
 
                     <div className="relative border-l border-zinc-150 pl-5 ml-2 dark:border-white/5 space-y-6">
-                      {selectedMember.activities.map((act, i) => (
+                      {activeMember.activities.map((act, i) => (
                         <div key={i} className="relative">
                           {/* Timeline dot */}
                           <div className="absolute -left-[26px] top-1 h-3 w-3 rounded-full border-2 border-white bg-zinc-400 dark:border-zinc-900" />

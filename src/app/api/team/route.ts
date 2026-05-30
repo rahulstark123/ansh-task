@@ -5,6 +5,7 @@ import { assertCanAddTeamMember } from "@/lib/billing/seats";
 import { getWorkspaceMemberCount } from "@/lib/planLimits";
 import { UPGRADE_REQUIRED_CODE } from "@/lib/plans";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { getMemberAssigneeKeys, taskAssignedToMember } from "@/lib/task-assignee";
 
 export const dynamic = "force-dynamic";
 
@@ -112,31 +113,35 @@ export async function GET(request: Request) {
       ]);
     }
 
-    // Map tasks to members based on assignee matching name or email
+    // Map tasks to members using assignee name, email, first name, and legacy "Me" for owners
     const membersWithTasks = members.map((member) => {
-      const memberName = `${member.firstName || ""} ${member.lastName || ""}`.trim() || member.email.split("@")[0];
-      const memberTasks = dbTasks.filter(
-        (task) =>
-          task.assignees.some((a) => a.toLowerCase() === memberName.toLowerCase()) ||
-          task.assignees.some((a) => a.toLowerCase() === member.email.toLowerCase()) ||
-          (task.assignee && task.assignee.toLowerCase() === memberName.toLowerCase()) ||
-          (task.assignee && task.assignee.toLowerCase() === member.email.toLowerCase())
+      const memberKeys = getMemberAssigneeKeys(member);
+      const isOwner = (member.role || "").toLowerCase() === "owner";
+      const memberTasks = dbTasks.filter((task) =>
+        taskAssignedToMember(task, memberKeys, { treatMeAsMatch: isOwner })
       );
+
       return {
         ...member,
         tasks: memberTasks.map((t) => ({
           id: t.id,
           title: t.title,
+          description: t.description,
           project: t.project?.name || "General",
           projectId: t.projectId,
           priority: t.priority,
           category: t.category,
+          labels: t.labels || [],
+          due: t.due,
+          estimate: t.estimate,
           assignee: t.assignee,
           assignees: t.assignees || [],
           status: t.status === "done"
             ? "Completed"
             : t.status === "in_progress"
             ? "In Progress"
+            : t.status === "on_hold"
+            ? "On Hold"
             : t.status === "blocked"
             ? "Blocked"
             : "Todo",

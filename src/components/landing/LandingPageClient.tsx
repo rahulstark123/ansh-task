@@ -14,6 +14,7 @@ import {
   ChatBubbleLeftRightIcon,
   SparklesIcon,
   ArrowRightIcon,
+  ArrowTopRightOnSquareIcon,
   PaintBrushIcon,
   Bars3Icon,
   XMarkIcon,
@@ -368,6 +369,15 @@ export function LandingPageClient() {
                   Get Started For Free
                   <ArrowRightIcon className="h-5 w-5" />
                 </Link>
+                <a
+                  href="https://anshapps.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-8 py-4 text-sm font-semibold text-zinc-800 shadow-sm transition-all hover:bg-zinc-50 active:scale-[0.98] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  Visit ANSH
+                  <ArrowTopRightOnSquareIcon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+                </a>
               </div>
 
               {/* Trust Section */}

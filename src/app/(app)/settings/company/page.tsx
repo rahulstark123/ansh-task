@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   BuildingOffice2Icon,
@@ -10,26 +10,156 @@ import {
   UsersIcon,
   BriefcaseIcon,
   CheckIcon,
-  PhotoIcon,
-  SparklesIcon
+  SparklesIcon,
+  ArrowPathIcon,
 } from "@heroicons/react/24/outline";
+import { SettingsSelect } from "@/components/settings/SettingsSelect";
+import { useToast } from "@/context/ToastContext";
+
+const INDUSTRY_OPTIONS = [
+  { value: "Technology", label: "Technology & SaaS" },
+  { value: "Healthcare", label: "Healthcare" },
+  { value: "Finance", label: "Finance & Banking" },
+  { value: "Education", label: "Education" },
+  { value: "Construction", label: "Construction" },
+  { value: "Marketing", label: "Marketing & Sales" },
+  { value: "Retail", label: "Retail & E-commerce" },
+  { value: "General", label: "General / Other" },
+] as const;
+
+/** Matches onboarding workspace size values; legacy employee labels kept for older rows. */
+const COMPANY_SIZE_OPTIONS = [
+  { value: "Only me", label: "Only me" },
+  { value: "2-10 people", label: "2-10 people" },
+  { value: "11-50 people", label: "11-50 people" },
+  { value: "51-100 people", label: "51-100 people" },
+  { value: "101-200 people", label: "101-200 people" },
+  { value: "200+ people", label: "200+ people" },
+  { value: "1-10 employees", label: "1-10 employees" },
+  { value: "11-50 employees", label: "11-50 employees" },
+  { value: "51-200 employees", label: "51-200 employees" },
+  { value: "201-500 employees", label: "201-500 employees" },
+  { value: "500+ employees", label: "500+ employees" },
+] as const;
+
+function getWorkspaceId(): number {
+  if (typeof window === "undefined") return 1;
+  return parseInt(sessionStorage.getItem("ansh_onboarding_wid") ?? "1", 10);
+}
+
+function withSizeOption(size: string, options: { value: string; label: string }[]) {
+  if (!size || options.some((o) => o.value === size)) return options;
+  return [{ value: size, label: size }, ...options];
+}
 
 export default function CompanySettingsPage() {
-  const [companyName, setCompanyName] = useState("Ansh Enterprise");
-  const [domain, setDomain] = useState("ansh.io");
+  const { showToast } = useToast();
+  const [workspaceId, setWorkspaceId] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [companyName, setCompanyName] = useState("");
+  const [domain, setDomain] = useState("");
   const [industry, setIndustry] = useState("Technology");
-  const [companySize, setCompanySize] = useState("51-200 employees");
-  const [address, setAddress] = useState("789 Silicon Blvd, Suite A");
-  const [cityCountry, setCityCountry] = useState("San Francisco, USA");
-  const [website, setWebsite] = useState("https://ansh.io");
-  const [billingEmail, setBillingEmail] = useState("billing@ansh.io");
+  const [companySize, setCompanySize] = useState("");
+  const [address, setAddress] = useState("");
+  const [cityCountry, setCityCountry] = useState("");
+  const [website, setWebsite] = useState("");
+  const [billingEmail, setBillingEmail] = useState("");
   const [companyLogo, setCompanyLogo] = useState("🏢");
-  const [showToast, setShowToast] = useState(false);
+  const [showToastLocal, setShowToastLocal] = useState(false);
 
-  const handleSave = (e: React.FormEvent) => {
+  const sizeOptions = withSizeOption(companySize, [...COMPANY_SIZE_OPTIONS]);
+
+  const applyCompany = useCallback(
+    (c: {
+      name: string;
+      domain: string;
+      logo: string;
+      industry: string;
+      size: string;
+      website: string;
+      billingEmail: string;
+      address: string;
+      cityCountry: string;
+    }) => {
+      setCompanyName(c.name);
+      setDomain(c.domain);
+      setIndustry(c.industry || "Technology");
+      setCompanySize(c.size);
+      setWebsite(c.website);
+      setBillingEmail(c.billingEmail);
+      setAddress(c.address);
+      setCityCountry(c.cityCountry);
+      setCompanyLogo(c.logo || "🏢");
+    },
+    []
+  );
+
+  useEffect(() => {
+    const wid = getWorkspaceId();
+    setWorkspaceId(wid);
+
+    async function loadCompany() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/workspace/company?wid=${wid}`);
+        const json = await res.json();
+        if (json.success && json.company) {
+          applyCompany(json.company);
+        } else if (!json.success) {
+          showToast(json.error || "Could not load company profile", "error");
+        }
+      } catch (error) {
+        console.error("Error loading company profile:", error);
+        showToast("Error loading company profile", "error");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadCompany();
+  }, [applyCompany, showToast]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 4000);
+    if (!companyName.trim()) {
+      showToast("Company name is required", "error");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const res = await fetch("/api/workspace/company", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId,
+          name: companyName.trim(),
+          domain: domain.trim() || null,
+          logo: companyLogo,
+          industry,
+          size: companySize || null,
+          website: website.trim() || null,
+          billingEmail: billingEmail.trim() || null,
+          address: address.trim() || null,
+          cityCountry: cityCountry.trim() || null,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.company) {
+        applyCompany(json.company);
+        setShowToastLocal(true);
+        setTimeout(() => setShowToastLocal(false), 4000);
+        showToast("Company settings saved", "success");
+      } else {
+        showToast(json.error || "Failed to save company settings", "error");
+      }
+    } catch (error) {
+      console.error("Error saving company profile:", error);
+      showToast("Failed to save company settings", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleCycleLogo = () => {
@@ -39,6 +169,14 @@ export default function CompanySettingsPage() {
     setCompanyLogo(emojis[nextIdx]);
   };
 
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <ArrowPathIcon className="h-8 w-8 animate-spin text-zinc-400" />
+      </div>
+    );
+  }
+
   return (
     <div className="relative">
       <div className="flex flex-col gap-1.5 pb-6 border-b border-zinc-200/60 dark:border-white/5">
@@ -46,7 +184,7 @@ export default function CompanySettingsPage() {
           Company Profile
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Configure organization settings, branding identities, and contact defaults.
+          Organization details from onboarding are stored on your workspace and can be updated here.
         </p>
       </div>
 
@@ -104,7 +242,6 @@ export default function CompanySettingsPage() {
               <GlobeAltIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
-                required
                 value={domain}
                 onChange={(e) => setDomain(e.target.value)}
                 placeholder="domain.com"
@@ -120,42 +257,24 @@ export default function CompanySettingsPage() {
             <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">
               Primary Industry
             </label>
-            <div className="relative">
-              <BriefcaseIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-              <select
-                value={industry}
-                onChange={(e) => setIndustry(e.target.value)}
-                className="w-full h-10 rounded-xl border border-zinc-200 bg-stone-50/50 pl-9 pr-3 text-xs font-semibold text-zinc-700 outline-none transition-[border-color,box-shadow] focus:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-900/30 dark:text-zinc-200"
-              >
-                <option value="Technology">Technology & SaaS</option>
-                <option value="Healthcare">Healthcare</option>
-                <option value="Finance">Finance & Banking</option>
-                <option value="Education">Education</option>
-                <option value="Construction">Construction</option>
-                <option value="Marketing">Marketing & Sales</option>
-                <option value="Retail">Retail & E-commerce</option>
-              </select>
-            </div>
+            <SettingsSelect
+              value={industry}
+              onChange={setIndustry}
+              options={[...INDUSTRY_OPTIONS]}
+              icon={<BriefcaseIcon className="h-4 w-4" />}
+            />
           </div>
 
           <div>
             <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">
               Organization Size
             </label>
-            <div className="relative">
-              <UsersIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-              <select
-                value={companySize}
-                onChange={(e) => setCompanySize(e.target.value)}
-                className="w-full h-10 rounded-xl border border-zinc-200 bg-stone-50/50 pl-9 pr-3 text-xs font-semibold text-zinc-700 outline-none transition-[border-color,box-shadow] focus:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-900/30 dark:text-zinc-200"
-              >
-                <option value="1-10 employees">1-10 employees</option>
-                <option value="11-50 employees">11-50 employees</option>
-                <option value="51-200 employees">51-200 employees</option>
-                <option value="201-500 employees">201-500 employees</option>
-                <option value="500+ employees">500+ employees</option>
-              </select>
-            </div>
+            <SettingsSelect
+              value={companySize}
+              onChange={setCompanySize}
+              options={sizeOptions}
+              icon={<UsersIcon className="h-4 w-4" />}
+            />
           </div>
         </div>
 
@@ -204,6 +323,7 @@ export default function CompanySettingsPage() {
                 type="url"
                 value={website}
                 onChange={(e) => setWebsite(e.target.value)}
+                placeholder="https://"
                 className="w-full h-10 rounded-xl border border-zinc-200 bg-stone-50/50 pl-9 pr-3 text-xs font-semibold text-zinc-800 outline-none transition-[border-color,box-shadow] focus:border-zinc-300 focus:shadow-[0_0_0_3px_var(--app-ring)] dark:border-white/[0.08] dark:bg-zinc-900/30 dark:text-zinc-100"
               />
             </div>
@@ -229,16 +349,24 @@ export default function CompanySettingsPage() {
         <div className="pt-4 border-t border-zinc-100 dark:border-white/5">
           <button
             type="submit"
-            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[var(--app-primary)] px-6 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[var(--app-primary-hover)]"
+            disabled={saving}
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl bg-[var(--app-primary)] px-6 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[var(--app-primary-hover)] disabled:opacity-60"
           >
-            Save company changes
+            {saving ? (
+              <>
+                <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              "Save company changes"
+            )}
           </button>
         </div>
       </form>
 
       {/* Floating success toast */}
       <AnimatePresence>
-        {showToast && (
+        {showToastLocal && (
           <motion.div
             initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}

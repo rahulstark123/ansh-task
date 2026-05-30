@@ -487,11 +487,13 @@ export function AddTaskModal({
       setDueMode(due.mode);
       setDueDate(due.date);
       setAttachments(attachmentsFromUrls(taskToEdit.attachmentUrls));
+      setProjectId(taskToEdit.projectId ?? "__none__");
       setDesignation("");
       setRole("");
       return;
     }
 
+    setProjectId(defaultProjectId ?? "__none__");
     setCategory(defaultCategory || "General");
     const pKey = PRIORITY_OPTIONS.find((p) => p.value === defaultPriority)?.key || "normal";
     setPriorityKey(pKey);
@@ -508,6 +510,7 @@ export function AddTaskModal({
     defaultStatusProp,
     defaultAssignee,
     defaultAssignees,
+    defaultProjectId,
   ]);
 
   // Sync defaultProjectId when it changes
@@ -726,8 +729,8 @@ export function AddTaskModal({
             {/* Header */}
             <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-6 py-4 dark:border-white/[0.05] bg-white dark:bg-zinc-900">
               <div className="flex items-center gap-3">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-sm">
-                  <Squares2X2Icon className="h-3.5 w-3.5 text-white" />
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--app-primary)] shadow-sm">
+                  <Squares2X2Icon className="h-3.5 w-3.5 text-[var(--app-primary-foreground)]" />
                 </div>
                 <div>
                   <h2
@@ -764,7 +767,7 @@ export function AddTaskModal({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Task title…"
-                    className="w-full border-b border-transparent bg-transparent py-1.5 text-lg font-bold tracking-tight text-zinc-900 outline-none placeholder:text-zinc-300 transition-colors hover:border-zinc-100 focus:border-indigo-400 dark:text-zinc-50 dark:placeholder:text-zinc-600 dark:hover:border-zinc-800 dark:focus:border-indigo-500"
+                    className="w-full border-b border-transparent bg-transparent py-1.5 text-lg font-bold tracking-tight text-zinc-900 outline-none placeholder:text-zinc-300 transition-colors hover:border-zinc-100 focus:border-[var(--app-primary)] dark:text-zinc-50 dark:placeholder:text-zinc-600 dark:hover:border-zinc-800 dark:focus:border-[var(--app-primary)]"
                   />
                   {!title.trim() && (
                     <p className="text-[10px] font-medium text-rose-400">
@@ -780,7 +783,7 @@ export function AddTaskModal({
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Add a description…"
                     rows={7}
-                    className="w-full flex-1 resize-none rounded-xl border border-zinc-200/80 bg-zinc-50/60 px-3.5 py-3 text-xs leading-relaxed text-zinc-800 outline-none transition-all focus:border-indigo-300 focus:bg-white focus:shadow-[0_0_0_3px_rgba(99,102,241,0.1)] dark:border-white/[0.06] dark:bg-zinc-950/50 dark:text-zinc-200 dark:focus:border-indigo-600/50"
+                    className="w-full flex-1 resize-none rounded-xl border border-zinc-200/80 bg-zinc-50/60 px-3.5 py-3 text-xs leading-relaxed text-zinc-800 outline-none transition-all focus:border-[var(--app-primary)] focus:bg-white focus:shadow-[0_0_0_3px_var(--app-ring)] dark:border-white/[0.06] dark:bg-zinc-950/50 dark:text-zinc-200 dark:focus:border-[var(--app-primary)]"
                   />
                 </div>
 
@@ -890,7 +893,7 @@ export function AddTaskModal({
                     <button
                       type="button"
                       onClick={() => attachInputRef.current?.click()}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-3 text-[11px] font-semibold text-zinc-400 hover:border-indigo-300 hover:bg-indigo-50/40 hover:text-indigo-500 dark:border-white/[0.06] dark:hover:border-indigo-700/50 dark:hover:bg-indigo-950/10 transition-all cursor-pointer"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-3 text-[11px] font-semibold text-zinc-400 transition-all cursor-pointer hover:border-[var(--app-primary-soft-border)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] dark:border-white/[0.06] dark:hover:border-[var(--app-primary-soft-border)] dark:hover:bg-[var(--app-primary-soft)]"
                     >
                       <PaperClipIcon className="h-4 w-4" />
                       Click to attach files
@@ -1063,7 +1066,7 @@ export function AddTaskModal({
                   type="button"
                   onClick={submit}
                   disabled={!title.trim()}
-                  className="rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-2 text-xs font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-xl bg-[var(--app-primary)] px-5 py-2 text-xs font-bold text-[var(--app-primary-foreground)] shadow-md transition-all hover:bg-[var(--app-primary-hover)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {isEditMode ? "Save Changes" : "Create Task"}
                 </button>
