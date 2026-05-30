@@ -1,23 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { 
   DevicePhoneMobileIcon, 
   WifiIcon, 
   ArrowPathIcon,
-  ExclamationTriangleIcon
 } from "@heroicons/react/24/outline";
-import { motion, AnimatePresence } from "framer-motion";
+
+/** Routes that stay usable on small screens (no mobile block overlay). */
+const MOBILE_ALLOWED_PATHS = new Set(["/", "/login"]);
+
+function isMobileAllowedPath(pathname: string) {
+  return MOBILE_ALLOWED_PATHS.has(pathname);
+}
 
 interface ResponsiveLayoutGuardProps {
   children: React.ReactNode;
 }
 
 export function ResponsiveLayoutGuard({ children }: ResponsiveLayoutGuardProps) {
+  const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const allowMobileView = isMobileAllowedPath(pathname);
 
   useEffect(() => {
     setMounted(true);
@@ -97,8 +105,8 @@ export function ResponsiveLayoutGuard({ children }: ResponsiveLayoutGuardProps) 
     );
   }
 
-  // 2. Small Screen Block Page
-  if (isSmallScreen) {
+  // 2. Small Screen Block Page (landing + login are exempt)
+  if (isSmallScreen && !allowMobileView) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#09090b] text-zinc-150 overflow-hidden select-none">
         {/* Background glow effects */}
