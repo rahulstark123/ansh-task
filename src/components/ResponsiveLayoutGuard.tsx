@@ -8,8 +8,8 @@ import {
   ArrowPathIcon,
 } from "@heroicons/react/24/outline";
 
-/** Routes that stay usable on small screens (no mobile block overlay). */
-const MOBILE_ALLOWED_PATHS = new Set(["/", "/login"]);
+/** Only the marketing landing page is usable on small screens. */
+const MOBILE_ALLOWED_PATHS = new Set(["/"]);
 
 function isMobileAllowedPath(pathname: string) {
   return MOBILE_ALLOWED_PATHS.has(pathname);
@@ -105,7 +105,7 @@ export function ResponsiveLayoutGuard({ children }: ResponsiveLayoutGuardProps) 
     );
   }
 
-  // 2. Small Screen Block Page (landing + login are exempt)
+  // 2. Small Screen Block Page (landing page only is exempt)
   if (isSmallScreen && !allowMobileView) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#09090b] text-zinc-150 overflow-hidden select-none">
