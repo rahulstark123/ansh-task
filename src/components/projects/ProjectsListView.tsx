@@ -136,6 +136,11 @@ const PRIORITIES = ["All", "Urgent", "High", "Normal", "Low"] as const;
 const HEALTHS = ["good", "warn", "danger", "neutral"] as const;
 const CATEGORIES = ["Engineering", "Design", "Product", "Operations", "Security", "Marketing", "Sales"] as const;
 
+const projectModalLabel =
+  "text-[11px] font-medium text-zinc-600 dark:text-zinc-400";
+const projectModalInput =
+  "mt-1.5 block w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-100 dark:placeholder:text-zinc-500";
+
 const AVAILABLE_USERS = [
   { name: "Aisha Khan", initial: "A" },
   { name: "Leo Park", initial: "L" },
@@ -322,6 +327,14 @@ function healthColorDot(health: string) {
   }
 }
 
+function TruncateText({ text, className = "" }: { text: string; className?: string }) {
+  return (
+    <span className={`block min-w-0 truncate ${className}`} title={text}>
+      {text}
+    </span>
+  );
+}
+
 export function ProjectsListView() {
   const { showToast } = useToast();
   const { ready: planReady, isPro, guardPlanFeature } = useWorkspacePlan();
@@ -341,6 +354,31 @@ export function ProjectsListView() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const [tableMenuPosition, setTableMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+
+  const closeProjectMenu = () => {
+    setActiveMenuId(null);
+    setTableMenuPosition(null);
+  };
+
+  const openTableProjectMenu = (projectId: string, button: HTMLButtonElement) => {
+    if (activeMenuId === projectId) {
+      closeProjectMenu();
+      return;
+    }
+
+    const rect = button.getBoundingClientRect();
+    const menuWidth = 128;
+    const menuHeight = 130;
+    const spaceBelow = window.innerHeight - rect.bottom;
+
+    setActiveMenuId(projectId);
+    setTableMenuPosition({
+      top: spaceBelow >= menuHeight ? rect.bottom + 4 : rect.top - menuHeight - 4,
+      left: Math.max(8, rect.right - menuWidth),
+    });
+  };
 
   // Edit Drawer Form States
   const [isEditing, setIsEditing] = useState(false);
@@ -569,6 +607,7 @@ export function ProjectsListView() {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        closeProjectMenu();
         setSelectedProject(null);
         setIsAddModalOpen(false);
       }
@@ -576,6 +615,19 @@ export function ProjectsListView() {
     window.addEventListener("keydown", handleEsc);
     return () => window.removeEventListener("keydown", handleEsc);
   }, []);
+
+  useEffect(() => {
+    closeProjectMenu();
+  }, [viewMode]);
+
+  useEffect(() => {
+    const scrollEl = tableScrollRef.current;
+    if (!scrollEl || viewMode !== "table") return;
+
+    const handleScroll = () => closeProjectMenu();
+    scrollEl.addEventListener("scroll", handleScroll, { passive: true });
+    return () => scrollEl.removeEventListener("scroll", handleScroll);
+  }, [viewMode, activeMenuId]);
 
   // Filter Logic
   const filteredProjects = projects.filter((p) => {
@@ -918,6 +970,7 @@ export function ProjectsListView() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          setTableMenuPosition(null);
                           setActiveMenuId(activeMenuId === p.id ? null : p.id);
                         }}
                         className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
@@ -936,8 +989,8 @@ export function ProjectsListView() {
                           >
                             <button
                               onClick={() => {
-                                openEditProjectModal(p);
-                                setActiveMenuId(null);
+                                setSelectedProject(p);
+                                closeProjectMenu();
                               }}
                               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                             >
@@ -946,8 +999,8 @@ export function ProjectsListView() {
                             </button>
                             <button
                               onClick={() => {
-                                setSelectedProject(p);
-                                setActiveMenuId(null);
+                                openEditProjectModal(p);
+                                closeProjectMenu();
                               }}
                               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                             >
@@ -958,7 +1011,7 @@ export function ProjectsListView() {
                             <button
                               onClick={() => {
                                 setProjectToDelete(p);
-                                setActiveMenuId(null);
+                                closeProjectMenu();
                               }}
                               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
                             >
@@ -1019,20 +1072,21 @@ export function ProjectsListView() {
             ))}
           </div>
         ) : (
-          /* TABLE VIEW */
-          <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900/60 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-zinc-600 dark:text-zinc-400">
+          <>
+          <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900/60">
+            <div ref={tableScrollRef} className="overflow-x-auto">
+              <table className="w-full table-fixed text-left text-sm text-zinc-600 dark:text-zinc-400 min-w-[960px]">
                 <thead className="border-b border-zinc-200 bg-zinc-50/50 text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:border-white/10 dark:bg-zinc-900/50">
                   <tr>
-                    <th className="px-5 py-4 font-semibold">Project Name</th>
-                    <th className="px-5 py-4 font-semibold">Category</th>
-                    <th className="px-5 py-4 font-semibold">Owner</th>
-                    <th className="px-5 py-4 font-semibold">Status</th>
-                    <th className="px-5 py-4 font-semibold">Priority</th>
-                    <th className="px-5 py-4 font-semibold">Progress</th>
-                    <th className="px-5 py-4 font-semibold">Timeline</th>
-                    <th className="px-5 py-4 font-semibold text-right">Team</th>
+                    <th className="w-[22%] px-5 py-4 font-semibold">Project Name</th>
+                    <th className="w-[11%] px-5 py-4 font-semibold">Category</th>
+                    <th className="w-[10%] px-5 py-4 font-semibold">Owner</th>
+                    <th className="w-[10%] px-5 py-4 font-semibold">Status</th>
+                    <th className="w-[10%] px-5 py-4 font-semibold">Priority</th>
+                    <th className="w-[12%] px-5 py-4 font-semibold">Progress</th>
+                    <th className="w-[15%] px-5 py-4 font-semibold">Timeline</th>
+                    <th className="w-[8%] px-5 py-4 font-semibold text-right">Team</th>
+                    <th className="w-12 px-3 py-4 font-semibold text-center"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100 dark:divide-white/5">
@@ -1042,38 +1096,38 @@ export function ProjectsListView() {
                       onClick={() => setSelectedProject(p)}
                       className="group cursor-pointer transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02]"
                     >
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
+                      <td className="max-w-0 px-5 py-3">
+                        <div className="flex min-w-0 items-center gap-3">
                           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${healthDot(p.health)}`} />
-                          <span className="font-bold text-zinc-900 dark:text-zinc-100">{p.name}</span>
+                          <TruncateText text={p.name} className="font-bold text-zinc-900 dark:text-zinc-100" />
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-xs font-semibold text-indigo-500">
-                        {p.category}
+                      <td className="max-w-0 px-5 py-3 text-xs font-semibold text-indigo-500">
+                        <TruncateText text={p.category} />
                       </td>
-                      <td className="px-5 py-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                        {p.owner}
+                      <td className="max-w-0 px-5 py-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                        <TruncateText text={p.owner} />
                       </td>
                       <td className="px-5 py-3">
-                        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusStyle(p.status)}`}>
+                        <span className={`inline-flex max-w-full truncate rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusStyle(p.status)}`} title={p.status}>
                           {p.status}
                         </span>
                       </td>
                       <td className="px-5 py-3">
-                        <span className={`inline-flex rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${priorityColor(p.priority)}`}>
+                        <span className={`inline-flex max-w-full truncate rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${priorityColor(p.priority)}`} title={p.priority}>
                           {p.priority}
                         </span>
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                          <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                             <div className="h-full rounded-full bg-indigo-500" style={{ width: `${p.progress}%` }} />
                           </div>
-                          <span className="text-[11px] font-bold text-zinc-500">{p.progress}%</span>
+                          <span className="shrink-0 text-[11px] font-bold text-zinc-500">{p.progress}%</span>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
-                        {formatDate(p.startDate)} - {formatDate(p.due)}
+                      <td className="max-w-0 px-5 py-3 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                        <TruncateText text={`${formatDate(p.startDate)} - ${formatDate(p.due)}`} />
                       </td>
                       <td className="px-5 py-3 text-right">
                         <div className="flex justify-end -space-x-1.5">
@@ -1092,12 +1146,87 @@ export function ProjectsListView() {
                           })}
                         </div>
                       </td>
+                      <td
+                        className="relative px-3 py-3 text-center"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openTableProjectMenu(p.id, e.currentTarget);
+                          }}
+                          className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                          title="Project options"
+                        >
+                          <EllipsisVerticalIcon className="h-4.5 w-4.5" />
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </div>
+
+          <AnimatePresence>
+            {activeMenuId && tableMenuPosition && (() => {
+              const menuProject = filteredProjects.find((project) => project.id === activeMenuId);
+              if (!menuProject) return null;
+
+              return (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={closeProjectMenu}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                    style={{ top: tableMenuPosition.top, left: tableMenuPosition.left }}
+                    className="fixed z-50 w-32 rounded-xl border border-zinc-200 bg-white p-1.5 text-left shadow-xl dark:border-white/10 dark:bg-zinc-900"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedProject(menuProject);
+                        closeProjectMenu();
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                      <EyeIcon className="h-4 w-4 text-zinc-400" />
+                      Preview
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        openEditProjectModal(menuProject);
+                        closeProjectMenu();
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    >
+                      <PencilSquareIcon className="h-4 w-4 text-zinc-400" />
+                      Edit
+                    </button>
+                    <div className="my-1 border-t border-zinc-100 dark:border-white/5" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProjectToDelete(menuProject);
+                        closeProjectMenu();
+                      }}
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                    >
+                      <TrashIcon className="h-4 w-4 text-rose-500" />
+                      Delete
+                    </button>
+                  </motion.div>
+                </>
+              );
+            })()}
+          </AnimatePresence>
+          </>
         )}
       </div>
 
@@ -1711,259 +1840,294 @@ export function ProjectsListView() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="fixed inset-0 z-50 m-auto flex h-[90vh] max-h-[620px] w-full max-w-[500px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418] overflow-hidden"
+              className="fixed inset-0 z-50 m-auto flex h-[min(90vh,680px)] w-[calc(100%-2rem)] max-w-[560px] flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#121418]"
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-white/5 shrink-0">
-                <div className="flex items-center gap-2">
-                  <FolderIcon className="h-5 w-5 text-indigo-500" />
-                  <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
-                    {editingProjectId ? "Edit Project" : "Add New Project"}
-                  </h3>
+              <div className="flex shrink-0 items-start justify-between gap-4 border-b border-zinc-100 px-6 py-5 dark:border-white/5">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10">
+                      <FolderIcon className="h-5 w-5 text-indigo-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                        {editingProjectId ? "Edit Project" : "New Project"}
+                      </h3>
+                      <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                        {editingProjectId
+                          ? "Update project details and team assignments."
+                          : "Set up a project with timeline, status, and team."}
+                      </p>
+                    </div>
+                  </div>
                 </div>
                 <button
+                  type="button"
                   onClick={() => {
                     setIsAddModalOpen(false);
                     setEditingProjectId(null);
                     resetProjectForm();
                   }}
-                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                  className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                 >
                   <XMarkIcon className="h-5 w-5" />
                 </button>
               </div>
 
-              {/* Scrollable Form body */}
-              <form onSubmit={handleAddProject} className="flex-1 overflow-y-auto pr-1 py-4 space-y-4 scrollbar-thin">
-                
-                 {/* Project Name */}
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
-                      Project Name
-                    </label>
-                    <span className="text-[9px] font-bold text-zinc-450 dark:text-zinc-550">{name.length}/80</span>
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    maxLength={80}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Q3 Website Redesign"
-                    className="mt-2 block w-full rounded-xl border border-zinc-200 px-4 py-3 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                  />
-                </div>
-
-                {/* Description */}
-                <div>
-                  <div className="flex items-center justify-between">
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
-                      Description
-                    </label>
-                    <span className="text-[9px] font-bold text-zinc-450 dark:text-zinc-550">{description.length}/300</span>
-                  </div>
-                  <textarea
-                    rows={2}
-                    maxLength={300}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe project objectives and scope..."
-                    className="mt-2 block w-full rounded-xl border border-zinc-200 px-4 py-3 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100 resize-none"
-                  />
-                </div>
-
-                {/* Row: Category & Lead */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
-                      Category
-                    </label>
-                    <CustomSelect
-                      value={category}
-                      onChange={setCategory}
-                      options={categoryOptions}
-                      className="mt-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-555">
-                      Project Lead
-                    </label>
-                    <CustomSelect
-                      value={owner}
-                      onChange={setOwner}
-                      options={leadOptions}
-                      className="mt-2"
-                    />
-                  </div>
-                </div>
-
-                {/* Row: Dates */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-555">
-                      Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="mt-2 block w-full cursor-pointer rounded-xl border border-zinc-200 px-3 py-2.5 text-xs text-zinc-700 outline-none dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-555">
-                      Due Date
-                    </label>
-                    <input
-                      type="date"
-                      value={due}
-                      onChange={(e) => setDue(e.target.value)}
-                      className="mt-2 block w-full cursor-pointer rounded-xl border border-zinc-200 px-3 py-2.5 text-xs text-zinc-700 outline-none dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300"
-                    />
-                  </div>
-                </div>
-
-                {/* Row: Status & Priority */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
-                      Status
-                    </label>
-                    <CustomSelect
-                      value={status}
-                      onChange={setStatus}
-                      options={statusOptions}
-                      className="mt-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
-                      Priority
-                    </label>
-                    <CustomSelect
-                      value={priority}
-                      onChange={setPriority}
-                      options={priorityOptions}
-                      className="mt-2"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
-                      Health Index
-                    </label>
-                    <CustomSelect
-                      value={health}
-                      onChange={setHealth}
-                      options={healthOptions}
-                      className="mt-2"
-                    />
-                  </div>
-                </div>
-
-                {/* Allocated Hours */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550">
-                    Allocated workload budget (Estimated Hours)
-                  </label>
-                  <input
-                    type="number"
-                    value={estimatedHours}
-                    onChange={(e) => setEstimatedHours(e.target.value)}
-                    placeholder="e.g. 120"
-                    className="mt-2 block w-full rounded-xl border border-zinc-200 px-4 py-3 text-xs text-zinc-900 outline-none focus:border-indigo-500 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                  />
-                </div>
-
-                {/* Team contributors multi selector */}
-                <div className="relative">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-550 mb-2">
-                    Assign Team Members
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setIsTeamDropdownOpen((prev) => !prev)}
-                    className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-xs text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800">
-                      <div className="flex flex-wrap gap-1.5 max-w-[90%] text-left">
-                      {selectedMembers.length === 0 ? (
-                        <span className="text-zinc-400">Select team members...</span>
-                      ) : (
-                        selectedMembers.map((name) => {
-                          const user = availableUsers.find((u) => u.name === name);
-                          const initial = user ? user.initial : (name[0]?.toUpperCase() || "");
-                          return (
-                            <span
-                              key={name}
-                              className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 border border-indigo-200 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-500/20 dark:text-indigo-200"
-                            >
-                              <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-200/50 text-[7px] font-black text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
-                                {initial}
-                              </span>
-                              {name}
-                            </span>
-                          );
-                        })
-                      )}
-                    </div>
-                    <ChevronDownIcon className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200 ${isTeamDropdownOpen ? "rotate-180" : ""}`} />
-                  </button>
- 
-                  <AnimatePresence>
-                    {isTeamDropdownOpen && (
-                      <>
-                        {/* Dropdown Backdrop to close on click outside */}
-                        <div
-                          className="fixed inset-0 z-30"
-                          onClick={() => setIsTeamDropdownOpen(false)}
+              <form onSubmit={handleAddProject} className="flex min-h-0 flex-1 flex-col">
+                {/* Scrollable Form body */}
+                <div className="flex-1 space-y-7 overflow-y-auto px-6 py-5 scrollbar-thin">
+                  {/* Basics */}
+                  <section className="space-y-4">
+                    <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-200">
+                      Basics
+                    </h4>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <label htmlFor="project-name" className={projectModalLabel}>
+                            Project name
+                          </label>
+                          {name.length > 60 && (
+                            <span className="shrink-0 text-[10px] text-zinc-400">{name.length}/80</span>
+                          )}
+                        </div>
+                        <input
+                          id="project-name"
+                          type="text"
+                          required
+                          maxLength={80}
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="e.g. Q3 Website Redesign"
+                          className={projectModalInput}
                         />
-                        <motion.div
-                          initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                          className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
-                        >
-                          {availableUsers.map((user) => {
-                            const isSelected = selectedMembers.includes(user.name);
-                            return (
-                              <button
-                                key={user.name}
-                                type="button"
-                                onClick={() => toggleMemberSelection(user.name)}
-                                className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-semibold text-left transition-colors ${
-                                  isSelected
-                                    ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                    : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                }`}
-                              >
-                                <div className="flex items-center gap-2.5">
-                                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-black text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                    {user.initial}
+                      </div>
+
+                      <div>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <label htmlFor="project-description" className={projectModalLabel}>
+                            Description
+                          </label>
+                          {description.length > 240 && (
+                            <span className="shrink-0 text-[10px] text-zinc-400">{description.length}/300</span>
+                          )}
+                        </div>
+                        <textarea
+                          id="project-description"
+                          rows={3}
+                          maxLength={300}
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          placeholder="Briefly describe goals and scope..."
+                          className={`${projectModalInput} resize-none leading-relaxed`}
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Ownership & timeline */}
+                  <section className="space-y-4 border-t border-zinc-100 pt-6 dark:border-white/5">
+                    <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-200">
+                      Ownership & timeline
+                    </h4>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className={projectModalLabel}>Category</label>
+                        <CustomSelect
+                          value={category}
+                          onChange={setCategory}
+                          options={categoryOptions}
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <label className={projectModalLabel}>Project lead</label>
+                        <CustomSelect
+                          value={owner}
+                          onChange={setOwner}
+                          options={leadOptions}
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="project-start-date" className={projectModalLabel}>
+                          Start date
+                        </label>
+                        <input
+                          id="project-start-date"
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className={`${projectModalInput} cursor-pointer`}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="project-due-date" className={projectModalLabel}>
+                          Due date
+                        </label>
+                        <input
+                          id="project-due-date"
+                          type="date"
+                          value={due}
+                          onChange={(e) => setDue(e.target.value)}
+                          className={`${projectModalInput} cursor-pointer`}
+                        />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Status & workload */}
+                  <section className="space-y-4 border-t border-zinc-100 pt-6 dark:border-white/5">
+                    <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-200">
+                      Status & workload
+                    </h4>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className={projectModalLabel}>Status</label>
+                        <CustomSelect
+                          value={status}
+                          onChange={setStatus}
+                          options={statusOptions}
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <label className={projectModalLabel}>Priority</label>
+                        <CustomSelect
+                          value={priority}
+                          onChange={setPriority}
+                          options={priorityOptions}
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <label className={projectModalLabel}>Health</label>
+                        <CustomSelect
+                          value={health}
+                          onChange={setHealth}
+                          options={healthOptions}
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="project-hours" className={projectModalLabel}>
+                          Estimated hours
+                        </label>
+                        <div className="relative mt-1.5">
+                          <input
+                            id="project-hours"
+                            type="number"
+                            min={0}
+                            value={estimatedHours}
+                            onChange={(e) => setEstimatedHours(e.target.value)}
+                            placeholder="120"
+                            className={`${projectModalInput} mt-0 pr-12`}
+                          />
+                          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-medium text-zinc-400">
+                            hrs
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* Team */}
+                  <section className="space-y-3 border-t border-zinc-100 pt-6 dark:border-white/5">
+                    <div>
+                      <h4 className="text-xs font-semibold text-zinc-900 dark:text-zinc-200">
+                        Team
+                      </h4>
+                      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                        Assign members who will work on this project.
+                      </p>
+                    </div>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setIsTeamDropdownOpen((prev) => !prev)}
+                        className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-700 outline-none transition-colors hover:bg-zinc-50 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      >
+                        <div className="flex min-w-0 flex-1 flex-wrap gap-1.5 text-left">
+                          {selectedMembers.length === 0 ? (
+                            <span className="text-zinc-400">Select team members...</span>
+                          ) : (
+                            selectedMembers.map((memberName) => {
+                              const user = availableUsers.find((u) => u.name === memberName);
+                              const initial = user ? user.initial : (memberName[0]?.toUpperCase() || "");
+                              return (
+                                <span
+                                  key={memberName}
+                                  className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-indigo-200/80 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-950/40 dark:text-indigo-200"
+                                >
+                                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-indigo-200/60 text-[8px] font-bold text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                                    {initial}
                                   </span>
-                                  <span>{user.name}</span>
-                                </div>
-                                <div className={`flex h-4 w-4 items-center justify-center rounded border transition-colors ${
-                                  isSelected
-                                    ? "border-[var(--app-primary)] bg-[var(--app-primary)] text-white"
-                                    : "border-zinc-300 bg-white dark:border-zinc-750 dark:bg-zinc-900"
-                                }`}>
-                                  {isSelected && <CheckIcon className="h-3 w-3 stroke-[3]" />}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </motion.div>
-                      </>
-                    )}
-                  </AnimatePresence>
+                                  <span className="truncate">{memberName}</span>
+                                </span>
+                              );
+                            })
+                          )}
+                        </div>
+                        <ChevronDownIcon
+                          className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200 ${isTeamDropdownOpen ? "rotate-180" : ""}`}
+                        />
+                      </button>
+
+                      <AnimatePresence>
+                        {isTeamDropdownOpen && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-30"
+                              onClick={() => setIsTeamDropdownOpen(false)}
+                            />
+                            <motion.div
+                              initial={{ opacity: 0, y: -4, scale: 0.98 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -4, scale: 0.98 }}
+                              className="absolute left-0 right-0 z-40 mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
+                            >
+                              {availableUsers.map((user) => {
+                                const isSelected = selectedMembers.includes(user.name);
+                                return (
+                                  <button
+                                    key={user.name}
+                                    type="button"
+                                    onClick={() => toggleMemberSelection(user.name)}
+                                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-semibold text-left transition-colors ${
+                                      isSelected
+                                        ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
+                                        : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
+                                    }`}
+                                  >
+                                    <div className="flex min-w-0 items-center gap-2.5">
+                                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-black text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                        {user.initial}
+                                      </span>
+                                      <span className="truncate">{user.name}</span>
+                                    </div>
+                                    <div
+                                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                                        isSelected
+                                          ? "border-[var(--app-primary)] bg-[var(--app-primary)] text-white"
+                                          : "border-zinc-300 bg-white dark:border-zinc-750 dark:bg-zinc-900"
+                                      }`}
+                                    >
+                                      {isSelected && <CheckIcon className="h-3 w-3 stroke-[3]" />}
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </motion.div>
+                          </>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </section>
                 </div>
 
-                {/* Form Buttons */}
-                <div className="flex gap-3 pt-4 border-t border-zinc-100 dark:border-white/5 shrink-0">
+                {/* Sticky footer */}
+                <div className="flex shrink-0 gap-3 border-t border-zinc-100 px-6 py-4 dark:border-white/5">
                   <button
                     type="button"
                     onClick={() => {
@@ -1971,15 +2135,15 @@ export function ProjectsListView() {
                       setEditingProjectId(null);
                       resetProjectForm();
                     }}
-                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                    className="flex-1 rounded-xl border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-600 transition-colors hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all"
+                    className="flex-1 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:brightness-110 active:scale-[0.98]"
                   >
-                    {editingProjectId ? "Save Changes" : "Create Project"}
+                    {editingProjectId ? "Save changes" : "Create project"}
                   </button>
                 </div>
               </form>

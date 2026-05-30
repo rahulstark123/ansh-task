@@ -8,7 +8,6 @@ import {
   CheckCircleIcon,
   BriefcaseIcon,
   LightBulbIcon,
-  DocumentDuplicateIcon,
   UsersIcon,
   QuestionMarkCircleIcon,
   ClipboardDocumentListIcon,
@@ -141,7 +140,7 @@ export function LandingPageClient() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activePreviewTab, setActivePreviewTab] = useState<"kanban" | "brain" | "docs">("kanban");
+  const [activePreviewTab, setActivePreviewTab] = useState<"kanban" | "brain" | "team">("kanban");
   const [selectedAccent, setSelectedAccent] = useState("teal");
   const [selectedTeamChannel, setSelectedTeamChannel] = useState("general");
   const [faqOpen, setFaqOpen] = useState<Record<number, boolean>>({});
@@ -314,7 +313,7 @@ export function LandingPageClient() {
 
               {/* Description */}
               <p className="text-zinc-600 dark:text-zinc-300 text-lg md:text-xl font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                ANSH Task combines project management tools, Kanban task boards, collaborative brain boards, and documents into a unified, high-performance workspace.
+                ANSH Task combines project management tools, Kanban task boards, collaborative brain boards, and Team Space into a unified, high-performance workspace.
               </p>
 
               {/* Value Props: What ANSH Task Does (Crisp & Clear) */}
@@ -344,8 +343,8 @@ export function LandingPageClient() {
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Documents Hub</h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Shared rich docs directly linked to projects.</p>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Team Space</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Channels, private rooms, and direct messages in one place.</p>
                   </div>
                 </div>
 
@@ -413,10 +412,10 @@ export function LandingPageClient() {
                       Brain Board
                     </button>
                     <button
-                      onClick={() => setActivePreviewTab("docs")}
-                      className={`px-3 py-1 rounded-md transition-all ${activePreviewTab === "docs" ? "bg-white text-zinc-900 dark:bg-zinc-700 dark:text-zinc-50 shadow-xs" : "hover:text-zinc-700"}`}
+                      onClick={() => setActivePreviewTab("team")}
+                      className={`px-3 py-1 rounded-md transition-all ${activePreviewTab === "team" ? "bg-white text-zinc-900 dark:bg-zinc-700 dark:text-zinc-50 shadow-xs" : "hover:text-zinc-700"}`}
                     >
-                      Documents
+                      Team Space
                     </button>
                   </div>
 
@@ -516,27 +515,84 @@ export function LandingPageClient() {
                     </motion.div>
                   )}
 
-                  {/* Documents View Content */}
-                  {activePreviewTab === "docs" && (
+                  {/* Team Space View Content */}
+                  {activePreviewTab === "team" && (
                     <motion.div
-                      key="docs-preview"
+                      key="team-preview"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 h-full shadow-xs text-left"
+                      className="flex gap-3 h-full min-h-[300px] text-left"
                     >
-                      <div className="flex items-center gap-2 mb-3">
-                        <DocumentDuplicateIcon className="h-4 w-4 text-teal-600" style={{ color: getAccentColor() }} />
-                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Document Editor</span>
+                      <div className="w-[36%] shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 shadow-xs">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-2">Channels</p>
+                        <div className="space-y-1">
+                          {TEAM_SPACE_PREVIEW.map((channel) => (
+                            <button
+                              key={channel.id}
+                              type="button"
+                              onClick={() => setSelectedTeamChannel(channel.id)}
+                              className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[11px] font-semibold transition-all ${
+                                selectedTeamChannel === channel.id
+                                  ? "bg-teal-500/15 text-teal-700 dark:text-teal-300"
+                                  : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                              }`}
+                            >
+                              {channel.isPrivate ? (
+                                <LockClosedIcon className="h-3.5 w-3.5 shrink-0" />
+                              ) : (
+                                <HashtagIcon className="h-3.5 w-3.5 shrink-0" />
+                              )}
+                              {channel.name}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mt-3 mb-2">Direct Messages</p>
+                        <div className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-semibold text-zinc-600 dark:text-zinc-400">
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-indigo-500 text-[8px] font-bold text-white">PS</div>
+                          Priya Sharma
+                        </div>
                       </div>
-                      <h4 className="text-sm font-bold text-zinc-900 dark:text-white mb-2 pb-2 border-b border-zinc-150 dark:border-zinc-800">
-                        ANSH Task Product Specification & Guidelines
-                      </h4>
-                      <div className="space-y-2 text-[11px] text-zinc-600 dark:text-zinc-300 leading-relaxed">
-                        <p className="font-semibold text-zinc-800 dark:text-zinc-200">1. Core Architecture</p>
-                        <p>Our app provides high performance dashboard features. We map routes seamlessly using Next.js app groups. All internal views are nested inside (app) ensuring unified topbar, sidebar and appearance controls.</p>
-                        <p className="font-semibold text-zinc-800 dark:text-zinc-200">2. Realtime Collaboration</p>
-                        <p>Database queries are loaded via Prisma ORM. Live activity tracking hooks feed recent changes directly to team workspaces.</p>
+
+                      <div className="flex flex-1 flex-col rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 shadow-xs">
+                        <div className="flex items-center gap-2 border-b border-zinc-100 pb-2 mb-3 dark:border-zinc-800">
+                          <ChatBubbleLeftRightIcon className="h-4 w-4 text-teal-600" style={{ color: getAccentColor() }} />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              {activeTeamChannel.isPrivate ? (
+                                <LockClosedIcon className="h-3.5 w-3.5 text-zinc-500" />
+                              ) : (
+                                <HashtagIcon className="h-3.5 w-3.5 text-zinc-500" />
+                              )}
+                              <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{activeTeamChannel.name}</p>
+                            </div>
+                            <p className="truncate text-[10px] text-zinc-500">{activeTeamChannel.topic}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 space-y-2.5 overflow-hidden">
+                          {activeTeamChannel.messages.map((message) => (
+                            <div key={`${message.author}-${message.time}`} className="flex gap-2">
+                              <div
+                                className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[8px] font-bold text-white"
+                                style={{ backgroundColor: getAccentColor() }}
+                              >
+                                {message.initials}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-[11px] font-bold text-zinc-900 dark:text-zinc-100">{message.author}</span>
+                                  <span className="text-[10px] text-zinc-400">{message.time}</span>
+                                </div>
+                                <p className="text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-300">{message.text}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[10px] text-zinc-400 dark:border-zinc-800 dark:bg-zinc-950/50">
+                          Message #{activeTeamChannel.name}...
+                        </div>
                       </div>
                     </motion.div>
                   )}

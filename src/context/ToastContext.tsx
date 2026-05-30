@@ -70,13 +70,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 animate={{ opacity: 1, y: 0, scale: 1, x: 0 }}
                 exit={{ opacity: 0, scale: 0.9, x: 20, transition: { duration: 0.2 } }}
                 transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                className="pointer-events-auto flex items-start gap-3 rounded-2xl border border-zinc-200/60 bg-white/80 p-4 shadow-lg backdrop-blur-md dark:border-white/[0.08] dark:bg-zinc-900/80"
+                className="pointer-events-auto flex min-w-0 max-w-sm items-start gap-3 overflow-hidden rounded-2xl border border-zinc-200/60 bg-white/80 p-4 shadow-lg backdrop-blur-md dark:border-white/[0.08] dark:bg-zinc-900/80"
               >
                 <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-lg ${colorClass}`}>
                   <Icon className="h-4.5 w-4.5" />
                 </div>
-                <div className="flex-1 pt-0.5">
-                  <p className="text-xs font-semibold leading-relaxed text-zinc-800 dark:text-zinc-200">
+                <div className="min-w-0 flex-1 overflow-hidden pt-0.5">
+                  <p
+                    className="line-clamp-3 break-words text-xs font-semibold leading-relaxed text-zinc-800 [overflow-wrap:anywhere] dark:text-zinc-200"
+                    title={toast.message}
+                  >
                     {toast.message}
                   </p>
                 </div>

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  isSupportImageFile,
+  validateSupportAttachments,
+} from "@/lib/support-attachments";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +18,27 @@ const s3Client = new S3Client({
   },
   forcePathStyle: true,
 });
+
+function parseTicketSerial(ticketId: string): number | null {
+  const match = /^TCK-(\d+)$/.exec(ticketId);
+  if (!match) return null;
+  const serial = Number.parseInt(match[1], 10);
+  return Number.isFinite(serial) ? serial : null;
+}
+
+async function generateTicketId(): Promise<string> {
+  const rows = await prisma.ticket.findMany({
+    select: { ticketId: true },
+  });
+
+  let maxSerial = 1000;
+  for (const row of rows) {
+    const serial = parseTicketSerial(row.ticketId);
+    if (serial !== null) maxSerial = Math.max(maxSerial, serial);
+  }
+
+  return `TCK-${maxSerial + 1}`;
+}
 
 export async function GET(request: Request) {
   try {
@@ -65,54 +90,77 @@ export async function POST(request: Request) {
 
     const workspaceId = parseInt(workspaceIdParam, 10);
 
-    // Calculate unique TCK serial ID
-    const count = await prisma.ticket.count({
-      where: { workspaceId },
-    });
-    const ticketId = `TCK-${1000 + count + 1}`;
-
-    const attachmentUrls: string[] = [];
-
-    // Handle S3 attachments upload
-    if (files && files.length > 0) {
-      for (const file of files) {
-        if (file.size === 0) continue;
-        try {
-          const bytes = await file.arrayBuffer();
-          const buffer = Buffer.from(bytes);
-          const fileName = file.name.replace(/\s+/g, "_"); // sanitize spaces
-          const key = `${workspaceId}/tickets/${ticketId}-${fileName}`;
-
-          await s3Client.send(
-            new PutObjectCommand({
-              Bucket: process.env.S3_BUCKET_NAME || "anshtasks",
-              Key: key,
-              Body: buffer,
-              ContentType: file.type || "application/octet-stream",
-            })
-          );
-
-          // Supabase public storage url
-          const url = `https://runubzqcrytlvyflunba.supabase.co/storage/v1/object/public/${process.env.S3_BUCKET_NAME || "anshtasks"}/${key}`;
-          attachmentUrls.push(url);
-        } catch (uploadError: any) {
-          console.error(`S3 upload failed for file ${file.name}:`, uploadError);
-        }
+    const attachmentFiles = (files ?? []).filter((file) => file.size > 0);
+    if (attachmentFiles.length > 0) {
+      const validation = validateSupportAttachments(attachmentFiles);
+      if (!validation.ok) {
+        return NextResponse.json(
+          { success: false, error: validation.error },
+          { status: 400 }
+        );
       }
     }
 
-    const newTicket = await prisma.ticket.create({
-      data: {
-        ticketId,
-        subject,
-        category: category || "Technical",
-        priority: priority || "Medium",
-        status: "Open",
-        description,
-        attachmentUrls,
-        workspaceId,
-      },
-    });
+    let newTicket = null;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const ticketId = await generateTicketId();
+      const attachmentUrls: string[] = [];
+
+      if (files && files.length > 0) {
+        for (const file of files) {
+          if (file.size === 0 || !isSupportImageFile(file)) continue;
+          try {
+            const bytes = await file.arrayBuffer();
+            const buffer = Buffer.from(bytes);
+            const fileName = file.name.replace(/\s+/g, "_");
+            const key = `${workspaceId}/tickets/${ticketId}-${fileName}`;
+
+            await s3Client.send(
+              new PutObjectCommand({
+                Bucket: process.env.S3_BUCKET_NAME || "anshtasks",
+                Key: key,
+                Body: buffer,
+                ContentType: file.type || "application/octet-stream",
+              })
+            );
+
+            const url = `https://runubzqcrytlvyflunba.supabase.co/storage/v1/object/public/${process.env.S3_BUCKET_NAME || "anshtasks"}/${key}`;
+            attachmentUrls.push(url);
+          } catch (uploadError: any) {
+            console.error(`S3 upload failed for file ${file.name}:`, uploadError);
+          }
+        }
+      }
+
+      try {
+        newTicket = await prisma.ticket.create({
+          data: {
+            ticketId,
+            subject,
+            category: category || "Technical",
+            priority: priority || "Medium",
+            status: "Open",
+            description,
+            attachmentUrls,
+            workspaceId,
+          },
+        });
+        break;
+      } catch (createError: any) {
+        if (createError?.code === "P2002" && attempt < 2) {
+          continue;
+        }
+        throw createError;
+      }
+    }
+
+    if (!newTicket) {
+      return NextResponse.json(
+        { success: false, error: "Could not allocate a unique ticket ID. Please try again." },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,

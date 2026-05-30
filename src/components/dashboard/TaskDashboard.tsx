@@ -90,6 +90,14 @@ function urlsToAttachments(urls: string[] | undefined): TaskAttachment[] {
   }));
 }
 
+function truncateWithEllipsis(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength).trimEnd()}…`;
+}
+
+const SIDEBAR_TITLE_MAX_CHARS = 80;
+const DIALOG_TITLE_MAX_CHARS = 60;
+
 function formatAttachmentSize(bytes: number): string {
   if (!bytes) return "—";
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -1642,19 +1650,15 @@ export function TaskDashboard({
                           draggable
                           onDragStart={(e) => handleDragStart(e, task.id)}
                           onClick={() => setSelectedTask(task)}
-                          className="group relative cursor-grab rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm shadow-zinc-200/40 hover:border-zinc-300/80 active:cursor-grabbing hover:shadow-[0_4px_16px_-4px_rgba(24,24,27,0.06)] dark:border-white/[0.05] dark:bg-zinc-900/90 dark:shadow-none dark:hover:border-zinc-700 transition-[border-color,box-shadow]"
+                          className="group relative min-w-0 cursor-grab overflow-hidden rounded-xl border border-zinc-200 bg-white p-3.5 shadow-sm shadow-zinc-200/40 hover:border-zinc-300/80 active:cursor-grabbing hover:shadow-[0_4px_16px_-4px_rgba(24,24,27,0.06)] dark:border-white/[0.05] dark:bg-zinc-900/90 dark:shadow-none dark:hover:border-zinc-700 transition-[border-color,box-shadow]"
                         >
                           {/* Card Top Row: Category & Priority */}
-                          <div className="flex items-center justify-between gap-2">
-                            {task.category ? (
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                                {task.category}
-                              </span>
-                            ) : (
-                              <span />
-                            )}
+                          <div className="flex min-w-0 items-center justify-between gap-2">
+                            <span className="min-w-0 flex-1 truncate text-[9px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                              {task.category || "General"}
+                            </span>
                             <span
-                              className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border ${priorityColor(
+                              className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border ${priorityColor(
                                 task.priority
                               )}`}
                             >
@@ -1663,55 +1667,95 @@ export function TaskDashboard({
                           </div>
 
                           {/* Task Title */}
-                          <h4 className="mt-2 text-[13px] font-semibold leading-snug tracking-tight text-zinc-900 group-hover:text-[var(--app-primary)] dark:text-zinc-100 dark:group-hover:text-teal-400 transition-colors">
+                          <h4
+                            className="mt-2 truncate text-[13px] font-semibold leading-snug tracking-tight text-zinc-900 group-hover:text-[var(--app-primary)] dark:text-zinc-100 dark:group-hover:text-teal-400 transition-colors"
+                            title={task.title}
+                          >
                             {task.title}
                           </h4>
 
                           {/* Task Description snippet */}
                           {task.description && (
-                            <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                            <p
+                              className="mt-1 line-clamp-2 break-all text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400"
+                              title={task.description}
+                            >
                               {task.description}
                             </p>
                           )}
 
+                          {/* Meta row: estimate + assignee hint */}
+                          {(task.estimate || (task.assignees?.length ?? 0) > 0 || task.assignee) && (
+                            <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                              {task.estimate && (
+                                <span className="inline-flex max-w-full items-center gap-1 truncate text-[10px] font-medium text-zinc-450 dark:text-zinc-500">
+                                  <ClockIcon className="h-3 w-3 shrink-0 opacity-70" />
+                                  <span className="truncate">{task.estimate}</span>
+                                </span>
+                              )}
+                              {(task.assignees?.length ?? 0) > 0 || task.assignee ? (
+                                <span className="inline-flex max-w-full items-center gap-1 truncate text-[10px] font-medium text-zinc-450 dark:text-zinc-500">
+                                  <UserIcon className="h-3 w-3 shrink-0 opacity-70" />
+                                  <span className="truncate">
+                                    {task.assignees && task.assignees.length > 0
+                                      ? task.assignees.length > 1
+                                        ? `${task.assignees[0]} +${task.assignees.length - 1}`
+                                        : task.assignees[0]
+                                      : task.assignee}
+                                  </span>
+                                </span>
+                              ) : null}
+                            </div>
+                          )}
+
                           {/* Labels list */}
                           {task.labels && task.labels.length > 0 && (
-                            <div className="mt-2.5 flex flex-wrap gap-1">
-                              {task.labels.map((label) => (
+                            <div className="mt-2 flex min-w-0 flex-wrap gap-1">
+                              {task.labels.slice(0, 3).map((label) => (
                                 <span
                                   key={label}
-                                  className="rounded bg-stone-100 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200/40 dark:border-zinc-700/50"
+                                  className="max-w-[88px] truncate rounded bg-stone-100 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200/40 dark:border-zinc-700/50"
+                                  title={label}
                                 >
                                   {label}
                                 </span>
                               ))}
+                              {task.labels.length > 3 && (
+                                <span className="rounded bg-stone-100 px-1.5 py-0.5 text-[9px] font-medium text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400 border border-zinc-200/40 dark:border-zinc-700/50">
+                                  +{task.labels.length - 3}
+                                </span>
+                              )}
                             </div>
                           )}
 
-                          {/* Card Footer: Due Date, Estimates & Assignee */}
-                          <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-2.5 dark:border-white/[0.03]">
+                          {/* Card Footer: Due Date, Attachments & Assignee */}
+                          <div className="mt-3 flex min-w-0 items-center justify-between gap-2 border-t border-zinc-100 pt-2.5 dark:border-white/[0.03]">
                             
                             {/* Due Date + Attachments */}
-                            <div className="flex items-center gap-2">
+                            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                               {task.due && task.due !== "No date" && (
-                                <span className={`inline-flex items-center gap-1 text-[10px] font-medium ${
+                                <span
+                                  className={`inline-flex min-w-0 max-w-full items-center gap-1 truncate text-[10px] font-medium ${
                                   task.due.includes("Today") || task.due.includes("Urgent") || task.due.includes("Yesterday")
                                     ? "text-rose-500 font-semibold"
                                     : "text-zinc-400"
-                                }`}>
+                                }`}
+                                  title={task.due}
+                                >
                                   <CalendarIcon className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                                  <span>{task.due}</span>
+                                  <span className="truncate">{task.due}</span>
                                 </span>
                               )}
                               {task.attachmentUrls && task.attachmentUrls.length > 0 && (
-                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500">
-                                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                                <span className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-semibold text-zinc-400 dark:text-zinc-500">
+                                  <PaperClipIcon className="h-3 w-3" />
                                   {task.attachmentUrls.length}
                                 </span>
                               )}
                             </div>
 
                             {/* Assignee Avatar / Avatars Group */}
+                            <div className="shrink-0">
                             {task.assignees && task.assignees.length > 0 ? (
                               <div className="flex -space-x-1.5 overflow-hidden">
                                 {task.assignees.slice(0, 3).map((a) => (
@@ -1728,6 +1772,7 @@ export function TaskDashboard({
                             ) : (
                               getAvatar(task.assignee || "Unassigned")
                             )}
+                            </div>
                           </div>
 
                         </div>
@@ -2120,7 +2165,7 @@ export function TaskDashboard({
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 260 }}
-              className="absolute inset-y-0 right-0 z-50 flex h-full w-full max-w-[480px] flex-col border-l border-zinc-200 bg-[var(--background)] shadow-2xl dark:border-white/[0.08] dark:bg-zinc-900"
+              className="absolute inset-y-0 right-0 z-50 flex h-full w-full max-w-[480px] min-w-0 flex-col overflow-hidden border-l border-zinc-200 bg-[var(--background)] shadow-2xl dark:border-white/[0.08] dark:bg-zinc-900"
             >
               
               {/* Drawer Header */}
@@ -2183,10 +2228,10 @@ export function TaskDashboard({
                 </div>
               </div>
 
-              {/* Drawer Content */}
-              <div className="flex-1 flex flex-col min-h-0">
-                {/* Title (always visible) */}
-                <div className="shrink-0 px-6 pt-6 pb-4 space-y-1.5">
+              {/* Drawer scroll area */}
+              <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
+                {/* Title */}
+                <div className="min-w-0 space-y-1.5 pb-4 pt-6">
                   <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                     Title
                   </label>
@@ -2198,14 +2243,17 @@ export function TaskDashboard({
                       className="w-full text-base font-bold bg-transparent border-b border-zinc-200 focus:border-[var(--app-primary)] py-1.5 outline-none tracking-tight text-zinc-900 dark:text-zinc-100 dark:border-zinc-700 dark:focus:border-teal-500 transition-colors"
                     />
                   ) : (
-                    <div className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100 py-1.5">
-                      {selectedTask.title}
+                    <div
+                      className="min-w-0 overflow-hidden py-1.5 text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100"
+                      title={selectedTask.title}
+                    >
+                      {truncateWithEllipsis(selectedTask.title, SIDEBAR_TITLE_MAX_CHARS)}
                     </div>
                   )}
                 </div>
 
                 {/* Tabs */}
-                <div className="shrink-0 flex gap-1 border-b border-zinc-200/80 px-6 dark:border-white/[0.06]">
+                <div className="sticky top-0 z-10 -mx-6 flex gap-1 border-b border-zinc-200/80 bg-[var(--background)] px-6 dark:border-white/[0.06] dark:bg-zinc-900">
                   <button
                     type="button"
                     onClick={() => setDetailDrawerTab("details")}
@@ -2243,7 +2291,7 @@ export function TaskDashboard({
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-thin">
+                <div className="min-w-0 space-y-6 py-6">
                 {detailDrawerTab === "details" ? (
                 <>
                 {/* Description (Interactive edit) */}
@@ -2259,11 +2307,18 @@ export function TaskDashboard({
                       placeholder="Describe this task in detail so others can pick it up..."
                       className="w-full text-xs font-normal text-zinc-800 leading-relaxed bg-white border border-zinc-200 rounded-xl p-3 outline-none focus:border-zinc-400 focus:shadow-[0_0_0_3px_var(--app-ring)] dark:bg-zinc-950/40 dark:border-white/[0.08] dark:text-zinc-200 dark:focus:border-zinc-700 transition-[border-color,box-shadow]"
                     />
+                  ) : selectedTask.description ? (
+                    <div
+                      className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 shadow-inner dark:border-white/10 dark:bg-zinc-900/50"
+                      title={selectedTask.description}
+                    >
+                      <p className="line-clamp-5 overflow-hidden text-xs leading-relaxed text-zinc-600 [overflow-wrap:anywhere] break-words dark:text-zinc-300">
+                        {selectedTask.description}
+                      </p>
+                    </div>
                   ) : (
-                    <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 text-xs leading-relaxed text-zinc-600 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 shadow-inner min-h-[5rem]">
-                      {selectedTask.description || (
-                        <span className="italic text-zinc-400 dark:text-zinc-500">No description provided.</span>
-                      )}
+                    <div className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 text-xs italic text-zinc-400 shadow-inner dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-500">
+                      No description provided.
                     </div>
                   )}
                 </div>
@@ -2740,11 +2795,14 @@ export function TaskDashboard({
               <div className="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-white/5">
                 <div className="flex items-center gap-2">
                   <DocumentTextIcon className="h-5 w-5 text-[var(--app-primary)]" />
-                  <div>
+                  <div className="min-w-0">
                     <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
                       {editingNoteId ? "Edit note" : "Add note"}
                     </h3>
-                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate max-w-[280px]">
+                    <p
+                      className="max-w-[280px] truncate text-[10px] text-zinc-500 dark:text-zinc-400"
+                      title={selectedTask.title}
+                    >
                       {selectedTask.title}
                     </p>
                   </div>
@@ -3115,19 +3173,22 @@ export function TaskDashboard({
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="fixed inset-0 z-[210] m-auto flex h-fit max-w-[400px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418] overflow-hidden"
+              className="fixed left-1/2 top-1/2 z-[210] w-[calc(100%-2rem)] max-w-[400px] min-w-0 -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418] flex"
             >
-              <div className="flex flex-col items-center text-center">
+              <div className="flex w-full min-w-0 flex-col items-center text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400 mb-4 shadow-sm">
                   <CheckCircleIcon className="h-6 w-6" />
                 </div>
                 <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
                   Mark task as complete?
                 </h3>
-                <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                <p className="mt-2 w-full min-w-0 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
                   Are you sure you want to mark{" "}
-                  <span className="font-semibold text-zinc-700 dark:text-zinc-300">
-                    &quot;{taskToComplete.title}&quot;
+                  <span
+                    className="inline-block max-w-full truncate align-bottom font-semibold text-zinc-700 dark:text-zinc-300"
+                    title={taskToComplete.title}
+                  >
+                    &quot;{truncateWithEllipsis(taskToComplete.title, DIALOG_TITLE_MAX_CHARS)}&quot;
                   </span>{" "}
                   as complete?
                 </p>
@@ -3175,17 +3236,24 @@ export function TaskDashboard({
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="fixed inset-0 z-[210] m-auto flex h-fit max-w-[400px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418] overflow-hidden"
+              className="fixed left-1/2 top-1/2 z-[210] w-[calc(100%-2rem)] max-w-[400px] min-w-0 -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418] flex"
             >
-              <div className="flex flex-col items-center text-center">
+              <div className="flex w-full min-w-0 flex-col items-center text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-500 dark:bg-rose-950/30 dark:text-rose-400 mb-4 shadow-sm">
                   <ExclamationTriangleIcon className="h-6 w-6" />
                 </div>
                 <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
                   Delete Task
                 </h3>
-                <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                  Are you sure you want to delete <span className="font-semibold text-zinc-700 dark:text-zinc-300">"{taskToDelete.title}"</span>? This action cannot be undone.
+                <p className="mt-2 w-full min-w-0 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  Are you sure you want to delete{" "}
+                  <span
+                    className="inline-block max-w-full truncate align-bottom font-semibold text-zinc-700 dark:text-zinc-300"
+                    title={taskToDelete.title}
+                  >
+                    &quot;{truncateWithEllipsis(taskToDelete.title, DIALOG_TITLE_MAX_CHARS)}&quot;
+                  </span>
+                  ? This action cannot be undone.
                 </p>
               </div>
 

@@ -76,6 +76,28 @@ type Member = {
 const FIXED_TEAM_ROLES = ["Owner", "Admin", "Editor", "Observer"] as const;
 const DEFAULT_DESIGNATIONS = ["Senior Engineer", "Product Manager", "Team Lead", "Member"] as const;
 
+const DROPDOWN_TRIGGER_CLASS =
+  "flex min-h-[46px] w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800";
+
+const DROPDOWN_OPTION_CLASS =
+  "flex w-full min-w-0 items-center justify-between gap-2 overflow-hidden rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors";
+
+function SelectValue({ value, className = "" }: { value: string; className?: string }) {
+  return (
+    <span className={`min-w-0 flex-1 truncate text-left ${className}`} title={value}>
+      {value}
+    </span>
+  );
+}
+
+function TruncateText({ text, className = "" }: { text: string; className?: string }) {
+  return (
+    <span className={`block min-w-0 truncate ${className}`} title={text}>
+      {text}
+    </span>
+  );
+}
+
 const INITIAL_MEMBERS: Member[] = [
   {
     id: "m1",
@@ -912,15 +934,15 @@ export function TeamsManagementView() {
           
           {/* Scrollable Table viewport */}
           <div className="flex-1 overflow-auto scrollbar-thin">
-            <table className="w-full text-left text-sm text-zinc-600 dark:text-zinc-400 min-w-[700px]">
+            <table className="w-full table-fixed text-left text-sm text-zinc-600 dark:text-zinc-400 min-w-[700px]">
               <thead className="sticky top-0 z-10 border-b border-zinc-200 bg-zinc-50/80 backdrop-blur-sm text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:border-white/10 dark:bg-zinc-900/90">
                 <tr>
-                  <th className="px-6 py-4 font-semibold">Member Details</th>
-                  <th className="px-6 py-4 font-semibold">Contact</th>
-                  <th className="px-6 py-4 font-semibold">Role</th>
-                  <th className="px-6 py-4 font-semibold">Department</th>
-                  <th className="px-6 py-4 font-semibold">Reports To</th>
-                  <th className="px-6 py-4 font-semibold w-16 text-center"></th>
+                  <th className="w-[22%] px-6 py-4 font-semibold">Member Details</th>
+                  <th className="w-[24%] px-6 py-4 font-semibold">Contact</th>
+                  <th className="w-[12%] px-6 py-4 font-semibold">Role</th>
+                  <th className="w-[16%] px-6 py-4 font-semibold">Department</th>
+                  <th className="w-[18%] px-6 py-4 font-semibold">Reports To</th>
+                  <th className="w-16 px-6 py-4 font-semibold text-center"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 dark:divide-white/5">
@@ -958,45 +980,48 @@ export function TeamsManagementView() {
                       }}
                       className="cursor-pointer transition-colors hover:bg-zinc-50/50 dark:hover:bg-white/[0.01]"
                     >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-zinc-200 to-zinc-300 text-xs font-bold text-zinc-700 dark:from-zinc-700 dark:to-zinc-800 dark:text-zinc-300">
+                      <td className="max-w-0 px-6 py-4">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-zinc-200 to-zinc-300 text-xs font-bold text-zinc-700 dark:from-zinc-700 dark:to-zinc-800 dark:text-zinc-300">
                             {m.name.split(" ").map(n => n[0]).join("")}
                           </div>
-                          <span className="font-bold text-zinc-900 dark:text-zinc-100">{m.name}</span>
+                          <TruncateText text={m.name} className="font-bold text-zinc-900 dark:text-zinc-100" />
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-0.5 text-xs">
-                          <span className="flex items-center gap-1 text-zinc-600 dark:text-zinc-300">
-                            <EnvelopeIcon className="h-3 w-3 text-zinc-400" />
-                            {m.email}
+                      <td className="max-w-0 px-6 py-4">
+                        <div className="flex min-w-0 flex-col gap-0.5 text-xs">
+                          <span className="flex min-w-0 items-center gap-1 text-zinc-600 dark:text-zinc-300">
+                            <EnvelopeIcon className="h-3 w-3 shrink-0 text-zinc-400" />
+                            <TruncateText text={m.email} />
                           </span>
                           {m.phone ? (
-                            <span className="flex items-center gap-1 text-zinc-400 dark:text-zinc-500">
-                              <PhoneIcon className="h-3 w-3 text-zinc-500/80" />
-                              {m.phone}
+                            <span className="flex min-w-0 items-center gap-1 text-zinc-400 dark:text-zinc-500">
+                              <PhoneIcon className="h-3 w-3 shrink-0 text-zinc-500/80" />
+                              <TruncateText text={m.phone} />
                             </span>
                           ) : null}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="rounded-md border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--app-primary-soft-text)] dark:border-teal-500/15 dark:bg-teal-950/35 dark:text-teal-100">
+                      <td className="max-w-0 px-6 py-4">
+                        <span
+                          className="inline-block max-w-full truncate rounded-md border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2.5 py-0.5 text-[11px] font-bold text-[var(--app-primary-soft-text)] dark:border-teal-500/15 dark:bg-teal-950/35 dark:text-teal-100"
+                          title={m.role}
+                        >
                           {m.role}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-                        {m.dept}
+                      <td className="max-w-0 px-6 py-4 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+                        <TruncateText text={m.dept} />
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="max-w-0 px-6 py-4">
                         {m.reportsTo === "None" ? (
                           <span className="text-xs text-zinc-400 dark:text-zinc-600 italic">
                             None (Exec)
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                            <ArrowUpRightIcon className="h-3 w-3 text-zinc-400" />
-                            {m.reportsTo}
+                          <span className="flex min-w-0 items-center gap-1 text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                            <ArrowUpRightIcon className="h-3 w-3 shrink-0 text-zinc-400" />
+                            <TruncateText text={m.reportsTo} />
                           </span>
                         )}
                       </td>
@@ -1125,19 +1150,19 @@ export function TeamsManagementView() {
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-zinc-100 p-6 dark:border-white/5 bg-zinc-50/50 dark:bg-zinc-950/20">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] text-sm font-bold text-white shadow-md">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--app-gradient-from)] to-[var(--app-gradient-to)] text-sm font-bold text-white shadow-md">
                     {selectedMember.name.split(" ").map(n => n[0]).join("")}
                   </div>
-                  <div>
-                    <h3 className="font-heading text-base font-extrabold text-zinc-900 dark:text-zinc-50">
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate font-heading text-base font-extrabold text-zinc-900 dark:text-zinc-50" title={selectedMember.name}>
                       {selectedMember.name}
                     </h3>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="rounded-md border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-primary-soft-text)] dark:border-teal-500/15 dark:bg-teal-950/35 dark:text-teal-100">
+                    <div className="mt-1 flex min-w-0 items-center gap-2">
+                      <span className="shrink-0 rounded-md border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--app-primary-soft-text)] dark:border-teal-500/15 dark:bg-teal-950/35 dark:text-teal-100">
                         {selectedMember.role}
                       </span>
-                      <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">
+                      <span className="min-w-0 truncate text-[10px] font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500" title={selectedMember.dept}>
                         {selectedMember.dept}
                       </span>
                     </div>
@@ -1187,14 +1212,14 @@ export function TeamsManagementView() {
                         Personal & Professional Info
                       </h4>
                       <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-4 dark:border-white/5 dark:bg-zinc-950/20 space-y-3.5">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-zinc-400">Email Address</span>
-                          <span className="font-semibold text-zinc-700 dark:text-zinc-200">{selectedMember.email}</span>
+                        <div className="flex items-center justify-between gap-3 text-xs">
+                          <span className="shrink-0 text-zinc-400">Email Address</span>
+                          <TruncateText text={selectedMember.email} className="font-semibold text-zinc-700 dark:text-zinc-200" />
                         </div>
                         {selectedMember.phone ? (
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-zinc-400">Phone Number</span>
-                            <span className="font-semibold text-zinc-700 dark:text-zinc-200">{selectedMember.phone}</span>
+                          <div className="flex items-center justify-between gap-3 text-xs">
+                            <span className="shrink-0 text-zinc-400">Phone Number</span>
+                            <TruncateText text={selectedMember.phone} className="font-semibold text-zinc-700 dark:text-zinc-200" />
                           </div>
                         ) : null}
                         <div className="flex justify-between items-center text-xs">
@@ -1204,9 +1229,9 @@ export function TeamsManagementView() {
                             {selectedMember.joinedDate}
                           </div>
                         </div>
-                        <div className="flex justify-between items-center text-xs border-t border-zinc-100 dark:border-white/5 pt-3">
-                          <span className="text-zinc-400">Reports To</span>
-                          <span className="font-bold text-[var(--app-primary-soft-text)] bg-[var(--app-primary-soft)] px-2 py-0.5 rounded text-[11px] border border-[var(--app-primary-soft-border)]">
+                        <div className="flex items-center justify-between gap-3 border-t border-zinc-100 pt-3 text-xs dark:border-white/5">
+                          <span className="shrink-0 text-zinc-400">Reports To</span>
+                          <span className="max-w-[60%] truncate rounded border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--app-primary-soft-text)] dark:border-teal-500/15 dark:bg-teal-950/35" title={selectedMember.reportsTo}>
                             {selectedMember.reportsTo}
                           </span>
                         </div>
@@ -1537,14 +1562,14 @@ export function TeamsManagementView() {
                       </div>
                     ) : (
                       <>
-                        <div className="relative flex-1">
+                        <div className="relative min-w-0 flex-1">
                           <button
                             type="button"
                             onClick={() => setIsAddDesignationOpen(!isAddDesignationOpen)}
-                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            className={DROPDOWN_TRIGGER_CLASS}
                           >
-                            <span>{designation || "Select designation"}</span>
-                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isAddDesignationOpen ? "rotate-180" : ""}`} />
+                            <SelectValue value={designation || "Select designation"} />
+                            <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isAddDesignationOpen ? "rotate-180" : ""}`} />
                           </button>
 
                           <AnimatePresence>
@@ -1567,14 +1592,14 @@ export function TeamsManagementView() {
                                           setDesignation(d);
                                           setIsAddDesignationOpen(false);
                                         }}
-                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                        className={`${DROPDOWN_OPTION_CLASS} ${
                                           isSelected
                                             ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                             : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
                                         }`}
                                       >
-                                        <span>{d}</span>
-                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                        <SelectValue value={d} />
+                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
                                       </button>
                                     );
                                   })}
@@ -1634,10 +1659,10 @@ export function TeamsManagementView() {
                     <button
                       type="button"
                       onClick={() => setIsAddRoleOpen(!isAddRoleOpen)}
-                      className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      className={DROPDOWN_TRIGGER_CLASS}
                     >
-                      <span>{role}</span>
-                      <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isAddRoleOpen ? "rotate-180" : ""}`} />
+                      <SelectValue value={role} />
+                      <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isAddRoleOpen ? "rotate-180" : ""}`} />
                     </button>
 
                     <AnimatePresence>
@@ -1660,14 +1685,14 @@ export function TeamsManagementView() {
                                     setRole(r);
                                     setIsAddRoleOpen(false);
                                   }}
-                                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                  className={`${DROPDOWN_OPTION_CLASS} ${
                                     isSelected
                                       ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                       : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
                                   }`}
                                 >
-                                  <span>{r}</span>
-                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                  <SelectValue value={r} />
+                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
                                 </button>
                               );
                             })}
@@ -1717,14 +1742,14 @@ export function TeamsManagementView() {
                       </div>
                     ) : (
                       <>
-                        <div className="relative flex-1">
+                        <div className="relative min-w-0 flex-1">
                           <button
                             type="button"
                             onClick={() => setIsAddDeptOpen(!isAddDeptOpen)}
-                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            className={DROPDOWN_TRIGGER_CLASS}
                           >
-                            <span>{dept}</span>
-                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isAddDeptOpen ? "rotate-180" : ""}`} />
+                            <SelectValue value={dept} />
+                            <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isAddDeptOpen ? "rotate-180" : ""}`} />
                           </button>
                           
                           <AnimatePresence>
@@ -1747,14 +1772,14 @@ export function TeamsManagementView() {
                                           setDept(d);
                                           setIsAddDeptOpen(false);
                                         }}
-                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                        className={`${DROPDOWN_OPTION_CLASS} ${
                                           isSelected
                                             ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                             : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
                                         }`}
                                       >
-                                        <span>{d}</span>
-                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                        <SelectValue value={d} />
+                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
                                       </button>
                                     );
                                   })}
@@ -1787,10 +1812,10 @@ export function TeamsManagementView() {
                     <button
                       type="button"
                       onClick={() => setIsAddReportsOpen(!isAddReportsOpen)}
-                      className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/55 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      className={DROPDOWN_TRIGGER_CLASS}
                     >
-                      <span>{reportsTo === "None" ? "None (Direct / Exec)" : reportsTo}</span>
-                      <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isAddReportsOpen ? "rotate-180" : ""}`} />
+                      <SelectValue value={reportsTo === "None" ? "None (Direct / Exec)" : reportsTo} />
+                      <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isAddReportsOpen ? "rotate-180" : ""}`} />
                     </button>
                     
                     <AnimatePresence>
@@ -1809,14 +1834,14 @@ export function TeamsManagementView() {
                                 setReportsTo("None");
                                 setIsAddReportsOpen(false);
                               }}
-                              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                              className={`${DROPDOWN_OPTION_CLASS} ${
                                 reportsTo === "None"
                                   ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                   : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
                               }`}
                             >
-                              <span>None (Direct / Exec)</span>
-                              {reportsTo === "None" && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                              <SelectValue value="None (Direct / Exec)" />
+                              {reportsTo === "None" && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
                             </button>
                             
                             {members.map((m) => {
@@ -1829,14 +1854,14 @@ export function TeamsManagementView() {
                                     setReportsTo(m.name);
                                     setIsAddReportsOpen(false);
                                   }}
-                                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                  className={`${DROPDOWN_OPTION_CLASS} ${
                                     isSelected
                                       ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                       : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
                                   }`}
                                 >
-                                  <span>{m.name}</span>
-                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                  <SelectValue value={m.name} />
+                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
                                 </button>
                               );
                             })}
@@ -2011,14 +2036,14 @@ export function TeamsManagementView() {
                       </div>
                     ) : (
                       <>
-                        <div className="relative flex-1">
+                        <div className="relative min-w-0 flex-1">
                           <button
                             type="button"
                             onClick={() => setIsEditDesignationOpen(!isEditDesignationOpen)}
-                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            className={DROPDOWN_TRIGGER_CLASS}
                           >
-                            <span>{editDesignation || "Select designation"}</span>
-                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isEditDesignationOpen ? "rotate-180" : ""}`} />
+                            <SelectValue value={editDesignation || "Select designation"} />
+                            <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isEditDesignationOpen ? "rotate-180" : ""}`} />
                           </button>
 
                           <AnimatePresence>
@@ -2041,14 +2066,14 @@ export function TeamsManagementView() {
                                           setEditDesignation(d);
                                           setIsEditDesignationOpen(false);
                                         }}
-                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                        className={`${DROPDOWN_OPTION_CLASS} ${
                                           isSelected
                                             ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                             : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
                                         }`}
                                       >
-                                        <span>{d}</span>
-                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                        <SelectValue value={d} />
+                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
                                       </button>
                                     );
                                   })}
@@ -2107,10 +2132,10 @@ export function TeamsManagementView() {
                     <button
                       type="button"
                       onClick={() => setIsEditRoleOpen(!isEditRoleOpen)}
-                      className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      className={DROPDOWN_TRIGGER_CLASS}
                     >
-                      <span>{editRole}</span>
-                      <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isEditRoleOpen ? "rotate-180" : ""}`} />
+                      <SelectValue value={editRole} />
+                      <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isEditRoleOpen ? "rotate-180" : ""}`} />
                     </button>
 
                     <AnimatePresence>
@@ -2133,14 +2158,14 @@ export function TeamsManagementView() {
                                     setEditRole(r);
                                     setIsEditRoleOpen(false);
                                   }}
-                                  className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                  className={`${DROPDOWN_OPTION_CLASS} ${
                                     isSelected
                                       ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                       : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
                                   }`}
                                 >
-                                  <span>{r}</span>
-                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                  <SelectValue value={r} />
+                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
                                 </button>
                               );
                             })}
@@ -2190,14 +2215,14 @@ export function TeamsManagementView() {
                       </div>
                     ) : (
                       <>
-                        <div className="relative flex-1">
+                        <div className="relative min-w-0 flex-1">
                           <button
                             type="button"
                             onClick={() => setIsEditDeptOpen(!isEditDeptOpen)}
-                            className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                            className={DROPDOWN_TRIGGER_CLASS}
                           >
-                            <span>{editDept}</span>
-                            <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isEditDeptOpen ? "rotate-180" : ""}`} />
+                            <SelectValue value={editDept} />
+                            <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isEditDeptOpen ? "rotate-180" : ""}`} />
                           </button>
                           
                           <AnimatePresence>
@@ -2220,14 +2245,14 @@ export function TeamsManagementView() {
                                           setEditDept(d);
                                           setIsEditDeptOpen(false);
                                         }}
-                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                        className={`${DROPDOWN_OPTION_CLASS} ${
                                           isSelected
                                             ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                             : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
                                         }`}
                                       >
-                                        <span>{d}</span>
-                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                        <SelectValue value={d} />
+                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
                                       </button>
                                     );
                                   })}
@@ -2260,10 +2285,10 @@ export function TeamsManagementView() {
                     <button
                       type="button"
                       onClick={() => setIsEditReportsOpen(!isEditReportsOpen)}
-                      className="flex min-h-[46px] w-full items-center justify-between rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm text-zinc-700 outline-none hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900/55 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      className={DROPDOWN_TRIGGER_CLASS}
                     >
-                      <span>{editReportsTo === "None" ? "None (Direct / Exec)" : editReportsTo}</span>
-                      <ChevronDownIcon className={`h-4.5 w-4.5 text-zinc-400 transition-transform duration-200 ${isEditReportsOpen ? "rotate-180" : ""}`} />
+                      <SelectValue value={editReportsTo === "None" ? "None (Direct / Exec)" : editReportsTo} />
+                      <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isEditReportsOpen ? "rotate-180" : ""}`} />
                     </button>
                     
                     <AnimatePresence>
@@ -2282,14 +2307,14 @@ export function TeamsManagementView() {
                                 setEditReportsTo("None");
                                 setIsEditReportsOpen(false);
                               }}
-                              className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                              className={`${DROPDOWN_OPTION_CLASS} ${
                                 editReportsTo === "None"
                                   ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                   : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
                               }`}
                             >
-                              <span>None (Direct / Exec)</span>
-                              {editReportsTo === "None" && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                              <SelectValue value="None (Direct / Exec)" />
+                              {editReportsTo === "None" && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
                             </button>
                             
                             {members
@@ -2304,14 +2329,14 @@ export function TeamsManagementView() {
                                       setEditReportsTo(m.name);
                                       setIsEditReportsOpen(false);
                                     }}
-                                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-left transition-colors ${
+                                    className={`${DROPDOWN_OPTION_CLASS} ${
                                       isSelected
                                         ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                         : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
                                     }`}
                                   >
-                                    <span>{m.name}</span>
-                                    {isSelected && <CheckIcon className="h-3.5 w-3.5 text-[var(--app-primary)] stroke-[3]" />}
+                                    <SelectValue value={m.name} />
+                                    {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
                                   </button>
                                 );
                               })}

@@ -15,6 +15,12 @@ import {
   PaperAirplaneIcon,
 } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
+import { useToast } from "@/context/ToastContext";
+import {
+  SUPPORT_MAX_IMAGES,
+  formatSupportAttachmentSize,
+  validateSupportAttachments,
+} from "@/lib/support-attachments";
 
 interface Ticket {
   id: string;
@@ -38,6 +44,7 @@ type TicketReply = {
 };
 
 export default function SupportPage() {
+  const { showToast } = useToast();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
   const [workspaceId, setWorkspaceId] = useState(1);
@@ -144,15 +151,35 @@ export default function SupportPage() {
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const selectedFiles = Array.from(e.target.files);
-      setFiles((prev) => [...prev, ...selectedFiles]);
+    if (!e.target.files) return;
+
+    const selectedFiles = Array.from(e.target.files).filter((file) => file.size > 0);
+    const mergedFiles = [...files, ...selectedFiles];
+    const validation = validateSupportAttachments(mergedFiles);
+
+    if (!validation.ok) {
+      showToast(validation.error, "error");
+      e.target.value = "";
+      return;
     }
+
+    setFiles(mergedFiles);
+    e.target.value = "";
   };
+
+  const totalAttachmentBytes = files.reduce((sum, file) => sum + file.size, 0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject.trim() || !description.trim()) return;
+
+    if (files.length > 0) {
+      const validation = validateSupportAttachments(files);
+      if (!validation.ok) {
+        showToast(validation.error, "error");
+        return;
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -184,9 +211,12 @@ export default function SupportPage() {
         setFiles([]);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 5000);
+      } else {
+        showToast(json.error || "Failed to submit support ticket.", "error");
       }
     } catch (err) {
       console.error("Failed to submit support ticket:", err);
+      showToast("Failed to submit support ticket. Please try again.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -377,13 +407,20 @@ export default function SupportPage() {
                 </label>
                 
                 {files.length > 0 && (
-                  <div className="space-y-2 mb-2">
+                  <div className="mb-2 space-y-2">
                     {files.map((fileItem, idx) => (
                       <div key={idx} className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 p-2.5 dark:border-white/5 dark:bg-zinc-900/40">
-                        <div className="flex items-center gap-2 truncate">
-                          <PaperClipIcon className="h-4 w-4 text-indigo-500 shrink-0" />
-                          <span className="text-[11px] font-semibold truncate dark:text-zinc-300">{fileItem.name}</span>
-                          <span className="text-[9px] text-zinc-400">({(fileItem.size / 1024).toFixed(1)} KB)</span>
+                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <PaperClipIcon className="h-4 w-4 shrink-0 text-indigo-500" />
+                          <span
+                            className="truncate text-[11px] font-semibold dark:text-zinc-300"
+                            title={fileItem.name}
+                          >
+                            {fileItem.name}
+                          </span>
+                          <span className="shrink-0 text-[9px] text-zinc-400">
+                            ({formatSupportAttachmentSize(fileItem.size)})
+                          </span>
                         </div>
                         <button
                           type="button"
@@ -394,23 +431,34 @@ export default function SupportPage() {
                         </button>
                       </div>
                     ))}
+                    <p className="text-[9px] font-medium text-zinc-500 dark:text-zinc-400">
+                      {files.length}/{SUPPORT_MAX_IMAGES} images ·{" "}
+                      {formatSupportAttachmentSize(totalAttachmentBytes)} / 10 MB
+                    </p>
                   </div>
                 )}
 
-                <label className="block cursor-pointer rounded-xl border border-dashed border-zinc-200 bg-stone-50/30 p-4 text-center hover:border-zinc-300 dark:border-white/10 dark:bg-zinc-900/20 hover:bg-stone-50/50 dark:hover:bg-zinc-900/40 transition-colors">
+                <label
+                  className={`block rounded-xl border border-dashed border-zinc-200 bg-stone-50/30 p-4 text-center transition-colors dark:border-white/10 dark:bg-zinc-900/20 ${
+                    files.length >= SUPPORT_MAX_IMAGES
+                      ? "cursor-not-allowed opacity-50"
+                      : "cursor-pointer hover:border-zinc-300 hover:bg-stone-50/50 dark:hover:bg-zinc-900/40"
+                  }`}
+                >
                   <input
                     type="file"
                     className="hidden"
                     onChange={handleFileChange}
-                    accept=".pdf,.png,.jpg,.jpeg,.txt"
+                    accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif"
                     multiple
+                    disabled={files.length >= SUPPORT_MAX_IMAGES}
                   />
                   <PaperClipIcon className="mx-auto h-5 w-5 text-zinc-400" />
                   <span className="mt-1 block text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
-                    Attach screenshots or log files
+                    Attach screenshots (images only)
                   </span>
                   <span className="block text-[9px] text-zinc-400">
-                    PDF, PNG, JPG, or TXT up to 5MB (Multiple allowed)
+                    Up to {SUPPORT_MAX_IMAGES} images · Max 10 MB total · PNG, JPG, WEBP, GIF
                   </span>
                 </label>
               </div>
@@ -597,17 +645,20 @@ export default function SupportPage() {
               </div>
 
               {/* Scrollable tab content */}
-              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 scrollbar-thin">
+              <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-5 py-4 [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
                 {modalTab === "details" ? (
-                  <div className="space-y-4">
+                  <div className="min-w-0 space-y-4">
                     {/* Ticket summary */}
-                    <div className="rounded-xl border border-zinc-200/80 bg-gradient-to-br from-stone-50 to-zinc-50/80 p-4 dark:border-white/[0.06] dark:from-zinc-900/60 dark:to-zinc-950/40">
-                      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="sm:col-span-2">
+                    <div className="min-w-0 rounded-xl border border-zinc-200/80 bg-gradient-to-br from-stone-50 to-zinc-50/80 p-4 dark:border-white/[0.06] dark:from-zinc-900/60 dark:to-zinc-950/40">
+                      <dl className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                        <div className="min-w-0 sm:col-span-2">
                           <dt className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                             Subject
                           </dt>
-                          <dd className="mt-1 text-sm font-bold leading-snug text-zinc-900 dark:text-zinc-50">
+                          <dd
+                            className="mt-1 line-clamp-2 overflow-hidden break-words text-sm font-bold leading-snug text-zinc-900 [overflow-wrap:anywhere] dark:text-zinc-50"
+                            title={selectedTicket.subject}
+                          >
                             {selectedTicket.subject}
                           </dd>
                         </div>
@@ -677,12 +728,17 @@ export default function SupportPage() {
                       </dl>
                     </div>
 
-                    <div>
+                    <div className="min-w-0">
                       <h4 className="mb-2 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                         Description
                       </h4>
-                      <div className="whitespace-pre-wrap rounded-xl border border-zinc-200/80 bg-white p-4 text-xs leading-relaxed text-zinc-700 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/40 dark:text-zinc-300">
-                        {selectedTicket.description}
+                      <div
+                        className="min-w-0 overflow-hidden rounded-xl border border-zinc-200/80 bg-white p-4 shadow-sm dark:border-white/[0.06] dark:bg-zinc-900/40"
+                        title={selectedTicket.description}
+                      >
+                        <p className="line-clamp-5 overflow-hidden whitespace-pre-wrap break-words text-xs leading-relaxed text-zinc-700 [overflow-wrap:anywhere] dark:text-zinc-300">
+                          {selectedTicket.description}
+                        </p>
                       </div>
                     </div>
 
@@ -757,16 +813,18 @@ export default function SupportPage() {
                             className={`flex gap-2.5 ${r.authorRole === "user" ? "flex-row-reverse" : ""}`}
                           >
                             <div
-                              className={`max-w-[90%] rounded-xl p-3 text-xs ${
+                              className={`min-w-0 max-w-[90%] overflow-hidden rounded-xl p-3 text-xs ${
                                 r.authorRole === "admin"
                                   ? "bg-teal-500/10 text-zinc-700 dark:text-zinc-300"
                                   : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
                               }`}
                             >
-                              <p className="font-semibold text-zinc-800 dark:text-zinc-100">
+                              <p className="truncate font-semibold text-zinc-800 dark:text-zinc-100">
                                 {r.authorName || (r.authorRole === "admin" ? "ANSH Support" : "You")}
                               </p>
-                              <p className="mt-1 text-[11px] leading-relaxed whitespace-pre-wrap">{r.message}</p>
+                              <p className="mt-1 break-words text-[11px] leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
+                                {r.message}
+                              </p>
                               <p className="mt-1 text-[9px] text-zinc-400">{formatDate(r.createdAt)}</p>
                             </div>
                           </div>
