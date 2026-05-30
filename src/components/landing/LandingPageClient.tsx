@@ -27,6 +27,8 @@ import {
   HashtagIcon,
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
+import type { DisplayFxInfo } from "@/lib/billing/display-currency";
+import { formatInrWithEstimate } from "@/lib/billing/display-currency";
 
 // Define accent options to showcase the app's dynamic styling
 const ACCENTS = [
@@ -42,7 +44,7 @@ const PRICING_PLANS = [
     id: "free",
     name: "Free",
     badge: "Start free",
-    price: "₹0",
+    priceInr: 0,
     cadence: "/ workspace",
     description:
       "Great for trying the product, managing small teams, and getting real work done without paying upfront.",
@@ -60,7 +62,7 @@ const PRICING_PLANS = [
     id: "pro",
     name: "Pro",
     badge: "Most popular",
-    price: "₹199",
+    priceInr: 199,
     cadence: "/ user / month",
     description:
       "Best for growing teams that want seat-based scaling, deeper visibility, and full collaboration in one workspace.",
@@ -145,9 +147,32 @@ export function LandingPageClient() {
   const [selectedAccent, setSelectedAccent] = useState("teal");
   const [selectedTeamChannel, setSelectedTeamChannel] = useState("general");
   const [faqOpen, setFaqOpen] = useState<Record<number, boolean>>({});
+  const [displayFx, setDisplayFx] = useState<DisplayFxInfo | null>(null);
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    async function loadFx() {
+      try {
+        const res = await fetch("/api/billing/fx", { cache: "no-store" });
+        const json = await res.json();
+        if (json.success) {
+          setDisplayFx({
+            countryCode: json.countryCode,
+            chargeCurrency: json.chargeCurrency,
+            displayCurrency: json.displayCurrency,
+            rateFromInr: json.rateFromInr,
+            ratesUpdatedAt: json.ratesUpdatedAt,
+            disclaimer: json.disclaimer,
+          });
+        }
+      } catch {
+        /* INR-only fallback */
+      }
+    }
+    loadFx();
   }, []);
 
   const toggleFaq = (index: number) => {
@@ -737,10 +762,17 @@ export function LandingPageClient() {
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
               Start free, then upgrade only when your team needs more seats, Team Space, and Advanced Analytics.
             </p>
+            {displayFx?.displayCurrency && (
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xl mx-auto">
+                {displayFx.disclaimer}
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {PRICING_PLANS.map((plan) => (
+            {PRICING_PLANS.map((plan) => {
+              const { inr, estimate } = formatInrWithEstimate(plan.priceInr, displayFx);
+              return (
               <div
                 key={plan.id}
                 className={`relative rounded-3xl border p-8 shadow-sm transition-all ${
@@ -768,9 +800,18 @@ export function LandingPageClient() {
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className={`font-heading text-4xl font-extrabold tracking-tight ${plan.highlighted ? "text-white" : "text-zinc-900 dark:text-white"}`}>
-                      {plan.price}
+                    <div
+                      className={`font-heading text-4xl font-extrabold tracking-tight ${plan.highlighted ? "text-white" : "text-zinc-900 dark:text-white"}`}
+                    >
+                      {inr}
                     </div>
+                    {estimate && plan.priceInr > 0 && (
+                      <div
+                        className={`mt-0.5 text-sm font-bold ${plan.highlighted ? "text-teal-300" : "text-teal-600 dark:text-teal-400"}`}
+                      >
+                        (~{estimate})
+                      </div>
+                    )}
                     <div className={`mt-1 text-xs font-semibold ${plan.highlighted ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400"}`}>
                       {plan.cadence}
                     </div>
@@ -808,7 +849,8 @@ export function LandingPageClient() {
                   </p>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         </div>
       </section>
