@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { calculateProratedAddSeats } from "@/lib/billing/proration";
+import type { DisplayFxInfo } from "@/lib/billing/display-currency";
+import { formatInrWithEstimate } from "@/lib/billing/display-currency";
+import { FxDisclaimerBanner } from "@/components/billing/InrPriceDisplay";
 import { supabase } from "@/lib/supabase";
 import posthog from "@/lib/posthog-noop";
 import { motion, AnimatePresence } from "framer-motion";
@@ -78,6 +81,25 @@ function getWid(): string {
   return sessionStorage.getItem("ansh_onboarding_wid") ?? "1";
 }
 
+function PriceEstimate({
+  inr,
+  fx,
+  className = "text-[11px] font-semibold text-zinc-500 dark:text-zinc-400",
+}: {
+  inr: number;
+  fx: DisplayFxInfo | null;
+  className?: string;
+}) {
+  const { estimate } = formatInrWithEstimate(inr, fx);
+  if (!estimate) return null;
+  return (
+    <span className={className} title={fx?.disclaimer}>
+      {" "}
+      (~{estimate})
+    </span>
+  );
+}
+
 /* ─── page ───────────────────────────────────────────────── */
 
 export default function BillingSettingsPage() {
@@ -102,6 +124,7 @@ export default function BillingSettingsPage() {
   const [additionalSeats, setAdditionalSeats] = useState(1);
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
   const [paymentError, setPaymentError] = useState<string>("");
+  const [displayFx, setDisplayFx] = useState<DisplayFxInfo | null>(null);
 
   // Fetch current plan from DB
   const fetchPlan = useCallback(async () => {
@@ -179,6 +202,28 @@ export default function BillingSettingsPage() {
     fetchPlan();
     loadRazorpayScript(); // pre-load in background
   }, [fetchPlan]);
+
+  useEffect(() => {
+    async function loadFx() {
+      try {
+        const res = await fetch("/api/billing/fx", { cache: "no-store" });
+        const json = await res.json();
+        if (json.success) {
+          setDisplayFx({
+            countryCode: json.countryCode,
+            chargeCurrency: json.chargeCurrency,
+            displayCurrency: json.displayCurrency,
+            rateFromInr: json.rateFromInr,
+            ratesUpdatedAt: json.ratesUpdatedAt,
+            disclaimer: json.disclaimer,
+          });
+        }
+      } catch {
+        /* INR-only fallback */
+      }
+    }
+    loadFx();
+  }, []);
 
   const billableSeatCount =
     currentPlan === "pro" && !isTrial && seatsPurchased != null
@@ -416,6 +461,8 @@ export default function BillingSettingsPage() {
         </p>
       </div>
 
+      <FxDisclaimerBanner fx={displayFx} />
+
       {/* ── Active plan status banner ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm dark:border-white/[0.08] dark:bg-zinc-900/60">
         <div className="flex items-center gap-3.5">
@@ -476,7 +523,12 @@ export default function BillingSettingsPage() {
                   ? "₹0"
                   : isTrial
                   ? "₹0"
-                  : `₹${totalMonthly.toLocaleString("en-IN")}/mo`}
+                  : (
+                    <>
+                      ₹{totalMonthly.toLocaleString("en-IN")}/mo
+                      <PriceEstimate inr={totalMonthly} fx={displayFx} />
+                    </>
+                  )}
               </p>
             </div>
           </div>
@@ -656,6 +708,11 @@ export default function BillingSettingsPage() {
                   className={`font-heading text-4xl font-black ${isProActive ? "text-zinc-900 dark:text-zinc-50" : "text-white"}`}
                 >
                   ₹{pricePerUser.toLocaleString("en-IN")}
+                  <PriceEstimate
+                    inr={pricePerUser}
+                    fx={displayFx}
+                    className={`text-base font-bold ${isProActive ? "text-teal-700 dark:text-teal-400" : "text-teal-300"}`}
+                  />
                 </motion.span>
               </AnimatePresence>
               <span className={`mb-1 text-sm font-medium ${isProActive ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-400"}`}>/ user / month</span>
@@ -675,10 +732,12 @@ export default function BillingSettingsPage() {
                     {userCount} {userCount === 1 ? "user" : "users"} ={" "}
                     <span className={`font-black ${isProActive ? "text-zinc-900 dark:text-white" : "text-white"}`}>
                       ₹{totalMonthly.toLocaleString("en-IN")}/mo
+                      <PriceEstimate inr={totalMonthly} fx={displayFx} />
                     </span>
                     {billing === "yearly" && (
                       <span className={`ml-1 ${isProActive ? "text-teal-700 dark:text-teal-300" : "text-teal-300"}`}>
                         · ₹{totalYearlyFull.toLocaleString("en-IN")}/yr
+                        <PriceEstimate inr={totalYearlyFull} fx={displayFx} />
                       </span>
                     )}
                   </span>
@@ -698,6 +757,11 @@ export default function BillingSettingsPage() {
                   Billed annually — save&nbsp;
                   <span className={`rounded px-1.5 py-0.5 ${isProActive ? "bg-teal-500/15 text-teal-700 dark:text-teal-300" : "bg-teal-500/20 text-teal-300"}`}>
                     ₹{(MONTHLY_PRICE * 12 - YEARLY_PRICE).toLocaleString("en-IN")} per user
+                    <PriceEstimate
+                      inr={MONTHLY_PRICE * 12 - YEARLY_PRICE}
+                      fx={displayFx}
+                      className="font-semibold"
+                    />
                   </span>
                 </motion.p>
               ) : (
@@ -922,6 +986,7 @@ export default function BillingSettingsPage() {
                             <div className="text-right">
                               <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">
                                 ₹{addSeatsProration.amountInr.toLocaleString("en-IN")}
+                                <PriceEstimate inr={addSeatsProration.amountInr} fx={displayFx} />
                               </span>
                               <span className="block text-[9px] text-zinc-400 font-medium">
                                 {renewalDateLabel ? `renews ${renewalDateLabel}` : "aligned to owner plan"}
@@ -942,6 +1007,10 @@ export default function BillingSettingsPage() {
                               {billing === "monthly"
                                 ? `${MONTHLY_PRICE} / mo`
                                 : `${YEARLY_PER_MONTH} / mo`}
+                              <PriceEstimate
+                                inr={billing === "monthly" ? MONTHLY_PRICE : YEARLY_PER_MONTH}
+                                fx={displayFx}
+                              />
                             </span>
                           </div>
                           <div className="flex justify-between items-baseline pt-1">
@@ -952,9 +1021,10 @@ export default function BillingSettingsPage() {
                             <div className="text-right">
                               <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">
                                 ₹{subtotal.toLocaleString("en-IN")}
+                                <PriceEstimate inr={subtotal} fx={displayFx} />
                               </span>
                               <span className="block text-[9px] text-zinc-400 font-medium">
-                                {billing === "monthly" ? "billed monthly" : "billed annually"}
+                                {billing === "monthly" ? "billed monthly in INR" : "billed annually in INR"}
                               </span>
                             </div>
                           </div>
@@ -981,6 +1051,7 @@ export default function BillingSettingsPage() {
                       className="flex-1 inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Proceed to Pay ₹{subtotal.toLocaleString("en-IN")}
+                      <PriceEstimate inr={subtotal} fx={displayFx} className="text-white/90" />
                     </button>
                   </div>
                 </>

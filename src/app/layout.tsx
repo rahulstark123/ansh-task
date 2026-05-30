@@ -5,6 +5,8 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { AppearanceProvider } from "@/context/AppearanceContext";
 import { ToastProvider } from "@/context/ToastContext";
 import { ResponsiveLayoutGuard } from "@/components/ResponsiveLayoutGuard";
+import { buildSiteMetadata } from "@/lib/seo";
+import { DEFAULT_TITLE, SITE_NAME } from "@/lib/site";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -18,12 +20,10 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "ANSH Tasks",
-  description: "Premium task workspace — ANSH Tasks",
-  icons: {
-    icon: "/anshFavicon.png",
-    shortcut: "/anshFavicon.png",
-    apple: "/anshFavicon.png",
+  ...buildSiteMetadata(),
+  title: {
+    default: DEFAULT_TITLE,
+    template: `%s | ${SITE_NAME}`,
   },
 };
 

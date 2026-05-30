@@ -1,28 +1,27 @@
-import type { Metadata } from "next";
+import { buildSiteMetadata, buildLandingJsonLd } from "@/lib/seo";
 import { LandingPageClient } from "@/components/landing/LandingPageClient";
 
-export const metadata: Metadata = {
-  title: "ANSH Tasks - The Ultimate Task Management App & Project Workspace",
-  description: "Streamline team workflows with ANSH Tasks, a modern project management app. Coordinate tasks with Kanban boards, brainstorm on Brain Boards, and write specs in the Docs Hub. Try it for free!",
-  keywords: [
-    "task app",
-    "project management apps",
-    "task management apps",
-    "best project management tools",
-    "collaborative workspace",
-    "kanban board app",
-    "team collaboration software",
-    "free task tracker",
-    "brain board app",
-    "remote team organization tool",
-  ],
-  openGraph: {
-    title: "ANSH Tasks - The Ultimate Task Management App & Project Workspace",
-    description: "Merges tasks, projects, collaborative brain boards, and documents into a single, high-performance command center.",
-    type: "website",
-  },
-};
+const LANDING_TITLE =
+  "ANSH Tasks — Task & Project Management App for Fast Teams";
+const LANDING_DESCRIPTION =
+  "Organize work with Kanban boards, brain boards, and team chat in one workspace. ANSH Tasks helps startups and teams plan projects, track tasks, and collaborate — free to get started.";
+
+export const metadata = buildSiteMetadata({
+  title: LANDING_TITLE,
+  description: LANDING_DESCRIPTION,
+  path: "",
+});
 
 export default function LandingPage() {
-  return <LandingPageClient />;
+  const jsonLd = buildLandingJsonLd();
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <LandingPageClient />
+    </>
+  );
 }

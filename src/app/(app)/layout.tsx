@@ -5,6 +5,14 @@ import { PlanRouteGuard } from "@/components/plans/PlanRouteGuard";
 import { PlanUpgradeModal } from "@/components/plans/PlanUpgradeModal";
 import { PermissionRouteGuard } from "@/components/permissions/PermissionRouteGuard";
 import { PermissionDeniedModal } from "@/components/permissions/PermissionDeniedModal";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default function AppLayout({
   children,
