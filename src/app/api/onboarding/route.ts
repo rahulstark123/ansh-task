@@ -12,6 +12,16 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { user, workspace, project, tasks } = body;
 
+    const phoneRaw =
+      typeof user?.phone === "string" ? user.phone.trim() : "";
+    const phoneDigits = phoneRaw.replace(/\D/g, "");
+    if (phoneDigits.length < 8 || phoneDigits.length > 15) {
+      return NextResponse.json(
+        { success: false, error: "A valid phone number is required." },
+        { status: 400 }
+      );
+    }
+
     // Check if DATABASE_URL contains placeholder password
     const dbUrl = process.env.DATABASE_URL || "";
     const isMockMode = dbUrl.includes("[YOUR-PASSWORD]") || !dbUrl;
@@ -74,6 +84,7 @@ export async function POST(request: Request) {
           email: ownerEmail,
           firstName: user.firstName,
           lastName: user.lastName,
+          phone: phoneRaw,
           jobTitle: user.jobTitle,
           designation: user.jobTitle,
           role: "owner",
@@ -84,6 +95,7 @@ export async function POST(request: Request) {
         update: {
           firstName: user.firstName,
           lastName: user.lastName,
+          phone: phoneRaw,
           jobTitle: user.jobTitle,
           designation: user.jobTitle,
           role: "owner",

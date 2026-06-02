@@ -27,8 +27,8 @@ import {
   HashtagIcon,
   LockClosedIcon,
 } from "@heroicons/react/24/outline";
-import type { DisplayFxInfo } from "@/lib/billing/display-currency";
-import { formatInrWithEstimate } from "@/lib/billing/display-currency";
+import type { BillingLocaleInfo } from "@/lib/billing/charge-region";
+import { formatChargeAmount } from "@/lib/billing/charge-region";
 
 // Define accent options to showcase the app's dynamic styling
 const ACCENTS = [
@@ -147,7 +147,9 @@ export function LandingPageClient() {
   const [selectedAccent, setSelectedAccent] = useState("teal");
   const [selectedTeamChannel, setSelectedTeamChannel] = useState("general");
   const [faqOpen, setFaqOpen] = useState<Record<number, boolean>>({});
-  const [displayFx, setDisplayFx] = useState<DisplayFxInfo | null>(null);
+  const [billingLocale, setBillingLocale] = useState<BillingLocaleInfo | null>(
+    null
+  );
 
   useEffect(() => {
     setMounted(true);
@@ -159,12 +161,13 @@ export function LandingPageClient() {
         const res = await fetch("/api/billing/fx", { cache: "no-store" });
         const json = await res.json();
         if (json.success) {
-          setDisplayFx({
+          setBillingLocale({
             countryCode: json.countryCode,
             chargeCurrency: json.chargeCurrency,
-            displayCurrency: json.displayCurrency,
-            rateFromInr: json.rateFromInr,
-            ratesUpdatedAt: json.ratesUpdatedAt,
+            monthlyPriceMajor: json.monthlyPriceMajor,
+            yearlyPriceMajorPerSeat: json.yearlyPriceMajorPerSeat,
+            yearlyPriceTotalPerSeat: json.yearlyPriceTotalPerSeat,
+            monthlyMinorPerSeat: json.monthlyMinorPerSeat,
             disclaimer: json.disclaimer,
           });
         }
@@ -762,16 +765,23 @@ export function LandingPageClient() {
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
               Start free, then upgrade only when your team needs more seats, Team Space, and Advanced Analytics.
             </p>
-            {displayFx?.displayCurrency && (
+            {billingLocale && billingLocale.chargeCurrency === "USD" && (
               <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xl mx-auto">
-                {displayFx.disclaimer}
+                {billingLocale.disclaimer}
               </p>
             )}
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {PRICING_PLANS.map((plan) => {
-              const { inr, estimate } = formatInrWithEstimate(plan.priceInr, displayFx);
+              const priceMajor =
+                plan.id === "pro"
+                  ? (billingLocale?.monthlyPriceMajor ?? plan.priceInr)
+                  : 0;
+              const priceLabel = formatChargeAmount(
+                priceMajor,
+                billingLocale?.chargeCurrency ?? "INR"
+              );
               return (
               <div
                 key={plan.id}
@@ -803,15 +813,8 @@ export function LandingPageClient() {
                     <div
                       className={`font-heading text-4xl font-extrabold tracking-tight ${plan.highlighted ? "text-white" : "text-zinc-900 dark:text-white"}`}
                     >
-                      {inr}
+                      {priceLabel}
                     </div>
-                    {estimate && plan.priceInr > 0 && (
-                      <div
-                        className={`mt-0.5 text-sm font-bold ${plan.highlighted ? "text-teal-300" : "text-teal-600 dark:text-teal-400"}`}
-                      >
-                        (~{estimate})
-                      </div>
-                    )}
                     <div className={`mt-1 text-xs font-semibold ${plan.highlighted ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400"}`}>
                       {plan.cadence}
                     </div>

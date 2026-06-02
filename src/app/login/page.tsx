@@ -191,17 +191,9 @@ export default function LoginPage() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between">
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Password
-                  </label>
-                  <Link
-                    href={email ? `/forgot-password?email=${encodeURIComponent(email)}` : "/forgot-password"}
-                    className="text-[10px] font-bold tracking-widest text-teal-600 hover:text-teal-500"
-                  >
-                    FORGOT?
-                  </Link>
-                </div>
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                  Password
+                </label>
                 <div className="mt-2 relative">
                   <input
                     id="password"
@@ -225,6 +217,18 @@ export default function LoginPage() {
                       <EyeIcon className="h-5 w-5" />
                     )}
                   </button>
+                </div>
+                <div className="mt-2 flex justify-end">
+                  <Link
+                    href={
+                      email
+                        ? `/forgot-password?email=${encodeURIComponent(email)}`
+                        : "/forgot-password"
+                    }
+                    className="text-[10px] font-bold tracking-widest text-teal-600 hover:text-teal-500"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
               </div>
 

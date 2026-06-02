@@ -3,7 +3,10 @@ import Razorpay from "razorpay";
 export type RazorpayConfig = {
   keyId: string;
   keySecret: string;
-  proPlanAmountPaisa?: number; // per-workspace flat monthly amount (optional, defaults to dynamic input)
+  /** Per-seat monthly price in paisa (INR). */
+  proPlanAmountPaisa?: number;
+  /** Per-seat monthly price in cents (USD). */
+  proPlanAmountCents?: number;
 };
 
 let _instance: Razorpay | null = null;
@@ -19,19 +22,23 @@ export function getRazorpayConfig(): RazorpayConfig | null {
     process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID?.trim() ||
     "";
   const keySecret = process.env.RAZORPAY_KEY_SECRET?.trim() || "";
-  const amountRaw = process.env.RAZORPAY_PRO_PLAN_AMOUNT_PAISA?.trim();
-  const proPlanAmountPaisa = amountRaw ? Number(amountRaw) : undefined;
+  const inrRaw = process.env.RAZORPAY_PRO_PLAN_AMOUNT_PAISA?.trim();
+  const usdRaw = process.env.RAZORPAY_PRO_PLAN_AMOUNT_CENTS?.trim();
+  const proPlanAmountPaisa = inrRaw ? Number(inrRaw) : undefined;
+  const proPlanAmountCents = usdRaw ? Number(usdRaw) : undefined;
 
   if (!keyId || !keySecret) {
     return null;
   }
 
+  const truncPositive = (n: number | undefined) =>
+    n && Number.isFinite(n) && n > 0 ? Math.trunc(n) : undefined;
+
   return {
     keyId,
     keySecret,
-    proPlanAmountPaisa: proPlanAmountPaisa && Number.isFinite(proPlanAmountPaisa) && proPlanAmountPaisa > 0
-      ? Math.trunc(proPlanAmountPaisa)
-      : undefined,
+    proPlanAmountPaisa: truncPositive(proPlanAmountPaisa),
+    proPlanAmountCents: truncPositive(proPlanAmountCents),
   };
 }
 

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { supabase } from "@/lib/supabase";
+import {
+  resolveCheckoutFromRequest,
+  razorpayAmountConfig,
+} from "@/lib/billing/checkout-region";
 import { getRazorpayConfig, getRazorpayInstance } from "@/lib/billing/razorpay";
 import { calculateProratedAddSeats } from "@/lib/billing/proration";
 import { getWorkspaceSeatsInfo } from "@/lib/billing/seats";
@@ -100,6 +104,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const { countryCode, currency } = resolveCheckoutFromRequest(
+      request,
+      body.billingCountry
+    );
+    const pricingConfig = razorpayAmountConfig(cfg);
+
     let quote;
     try {
       quote = calculateProratedAddSeats({
@@ -107,7 +117,8 @@ export async function POST(request: Request) {
         additionalSeats,
         periodExpiresAt,
         periodStartsAt: activeSubscription.startsAt,
-        monthlyPaisaPerSeat: cfg.proPlanAmountPaisa,
+        currency,
+        razorpayConfig: pricingConfig,
       });
     } catch (err: unknown) {
       const message =
@@ -115,12 +126,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: message }, { status: 400 });
     }
 
-    const amountPaisa = quote.amountPaisa;
+    const amountMinor = quote.amountPaisa;
 
     const rzp = getRazorpayInstance();
     const order = await rzp.orders.create({
-      amount: amountPaisa,
-      currency: "INR",
+      amount: amountMinor,
+      currency,
       receipt: `wid_${wid}_seats_${Date.now()}`,
       notes: {
         workspaceId: String(wid),
@@ -130,6 +141,8 @@ export async function POST(request: Request) {
         parentSubscriptionId: activeSubscription.id,
         prorated: "true",
         periodExpiresAt: periodExpiresAt.toISOString(),
+        countryCode,
+        chargeCurrency: currency,
       },
     });
 
@@ -139,7 +152,7 @@ export async function POST(request: Request) {
         status: "PENDING",
         plan: "seat_addon",
         seatsCount: additionalSeats,
-        amountPaisa,
+        amountPaisa: amountMinor,
         billingCycle,
         razorpayOrderId: order.id,
       },
@@ -150,7 +163,7 @@ export async function POST(request: Request) {
         workspaceId: wid,
         subscriptionId: addonSub.id,
         status: "CREATED",
-        amountPaisa,
+        amountPaisa: amountMinor,
         razorpayOrderId: order.id,
       },
     });
@@ -162,7 +175,9 @@ export async function POST(request: Request) {
         workspace_id: wid,
         additional_seats: additionalSeats,
         billing_cycle: billingCycle,
-        amount_paisa: amountPaisa,
+        amount_minor: amountMinor,
+        currency,
+        country_code: countryCode,
         razorpay_order_id: order.id,
       },
     });
@@ -170,14 +185,18 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       orderId: order.id,
-      amount: amountPaisa,
-      currency: "INR",
+      amount: amountMinor,
+      currency,
+      countryCode,
       keyId: cfg.keyId,
       additionalSeats,
       billingCycle,
       proration: {
-        amountInr: quote.amountInr,
-        fullPeriodAmountInr: quote.fullPeriodAmountInr,
+        amountInr: quote.amountMajor,
+        amountMajor: quote.amountMajor,
+        currency: quote.currency,
+        fullPeriodAmountInr: quote.fullPeriodAmountMajor,
+        fullPeriodAmountMajor: quote.fullPeriodAmountMajor,
         remainingDays: quote.remainingDays,
         totalDays: quote.totalDays,
         prorationFactor: quote.prorationFactor,

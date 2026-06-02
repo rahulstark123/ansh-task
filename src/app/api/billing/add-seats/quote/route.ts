@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  resolveCheckoutFromRequest,
+  razorpayAmountConfig,
+} from "@/lib/billing/checkout-region";
 import { getRazorpayConfig } from "@/lib/billing/razorpay";
 import { calculateProratedAddSeats } from "@/lib/billing/proration";
 import { getWorkspaceSeatsInfo } from "@/lib/billing/seats";
@@ -64,13 +68,15 @@ export async function GET(request: Request) {
     const billingCycle =
       activeSubscription?.billingCycle === "yearly" ? "yearly" : "monthly";
     const cfg = getRazorpayConfig();
+    const { countryCode, currency } = resolveCheckoutFromRequest(request);
 
     const quote = calculateProratedAddSeats({
       billingCycle,
       additionalSeats,
       periodExpiresAt,
       periodStartsAt: activeSubscription?.startsAt,
-      monthlyPaisaPerSeat: cfg?.proPlanAmountPaisa,
+      currency,
+      razorpayConfig: cfg ? razorpayAmountConfig(cfg) : undefined,
     });
 
     return NextResponse.json({
@@ -78,6 +84,7 @@ export async function GET(request: Request) {
       ...quote,
       additionalSeats,
       billingCycle,
+      countryCode,
     });
   } catch (error: unknown) {
     const message =
