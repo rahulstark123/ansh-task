@@ -17,8 +17,12 @@ import {
   ChevronLeftIcon,
   CheckCircleIcon,
   ArrowPathIcon,
-  ChevronDownIcon
+  ChevronDownIcon,
+  EnvelopeIcon,
 } from "@heroicons/react/24/outline";
+import "react-phone-input-2/lib/style.css";
+import PhoneInput from "react-phone-input-2";
+import { normalizeRazorpayContact } from "@/lib/billing/razorpay-prefill";
 
 type Step = "profile" | "workspace" | "project" | "tasks" | "completing";
 
@@ -31,7 +35,8 @@ export default function OnboardingPage() {
   // Form Fields
   const [fullName, setFullName] = useState("");
   const [customJobTitle, setCustomJobTitle] = useState("");
-  const [email, setEmail] = useState("ansh.user@example.com");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [jobTitle, setJobTitle] = useState("Product Manager");
   const [department, setDepartment] = useState("Product");
   
@@ -61,9 +66,15 @@ export default function OnboardingPage() {
     }
   }, []);
 
+  const isPhoneValid = Boolean(normalizeRazorpayContact(phone));
+  const isProfileStepValid =
+    fullName.trim().length > 0 &&
+    email.trim().length > 0 &&
+    isPhoneValid &&
+    (jobTitle !== "Other" || customJobTitle.trim().length > 0);
+
   const handleNextFromProfile = () => {
-    if (!fullName.trim()) return;
-    if (jobTitle === "Other" && !customJobTitle.trim()) return;
+    if (!isProfileStepValid) return;
     if (!workspaceName) {
       setWorkspaceName(`${fullName}'s Workspace`);
     }
@@ -106,6 +117,7 @@ export default function OnboardingPage() {
         email,
         firstName,
         lastName,
+        phone: phone.trim(),
         jobTitle: jobTitle === "Other" ? customJobTitle : jobTitle,
         department,
         avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${firstName}`,
@@ -303,6 +315,47 @@ export default function OnboardingPage() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <EnvelopeIcon className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-400 z-10" />
+                    <input
+                      type="email"
+                      disabled
+                      value={email}
+                      className="w-full h-11 rounded-xl border border-zinc-200 bg-zinc-100/50 pl-9 pr-16 text-xs font-semibold text-zinc-500 dark:border-white/[0.08] dark:bg-zinc-900/10 cursor-not-allowed"
+                    />
+                    <span className="absolute top-1/2 right-3 -translate-y-1/2 rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-extrabold text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                      VERIFIED
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">
+                    Phone Number <span className="text-rose-500">*</span>
+                  </label>
+                  <PhoneInput
+                    country="us"
+                    value={phone}
+                    onChange={(value) => setPhone(value ? `+${value}` : "")}
+                    enableSearch={true}
+                    countryCodeEditable={false}
+                    inputProps={{
+                      name: "phone",
+                      required: true,
+                      placeholder: "Enter phone number",
+                    }}
+                  />
+                  {phone && !isPhoneValid && (
+                    <p className="mt-1.5 text-[10px] font-semibold text-rose-500">
+                      Enter a valid phone number (8–15 digits).
+                    </p>
+                  )}
+                </div>
+
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="block text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-1.5">
@@ -372,7 +425,7 @@ export default function OnboardingPage() {
 
                 <div className="pt-4 flex justify-end">
                   <button
-                    disabled={!fullName.trim() || (jobTitle === "Other" && !customJobTitle.trim())}
+                    disabled={!isProfileStepValid}
                     onClick={handleNextFromProfile}
                     className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-zinc-950 px-6 text-xs font-bold text-white shadow-md hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-zinc-50 dark:text-zinc-950 dark:hover:bg-zinc-200"
                   >

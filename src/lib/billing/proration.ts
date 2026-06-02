@@ -1,3 +1,10 @@
+import type { ChargeCurrency } from "@/lib/billing/charge-region";
+import {
+  getFullPeriodMinorPerSeat,
+  getMonthlyMinorPerSeat,
+  minorToMajor,
+} from "@/lib/billing/charge-region";
+
 /** Public INR prices (must match billing settings UI). */
 export const BILLING_MONTHLY_PRICE_INR = 199;
 export const BILLING_YEARLY_DISCOUNT = 0.81;
@@ -5,9 +12,12 @@ export const BILLING_YEARLY_DISCOUNT = 0.81;
 export type BillingCycle = "monthly" | "yearly";
 
 export type ProratedAddSeatsQuote = {
+  currency: ChargeCurrency;
   amountPaisa: number;
   amountInr: number;
+  amountMajor: number;
   fullPeriodAmountInr: number;
+  fullPeriodAmountMajor: number;
   fullPeriodAmountPaisa: number;
   remainingDays: number;
   totalDays: number;
@@ -26,14 +36,12 @@ export function getMonthlyPaisaPerSeat(monthlyPaisaFromEnv?: number): number {
   return configured > 0 ? Math.trunc(configured) : 19900;
 }
 
+/** @deprecated Use getFullPeriodMinorPerSeat from charge-region */
 export function getFullPeriodPaisaPerSeat(
   billingCycle: BillingCycle,
   monthlyPaisaPerSeat: number
 ): number {
-  if (billingCycle === "yearly") {
-    return Math.round(monthlyPaisaPerSeat * 12 * BILLING_YEARLY_DISCOUNT);
-  }
-  return monthlyPaisaPerSeat;
+  return getFullPeriodMinorPerSeat(billingCycle, monthlyPaisaPerSeat);
 }
 
 export function getFullPeriodAmountInr(
@@ -76,17 +84,28 @@ export function calculateProratedAddSeats(params: {
   periodExpiresAt: Date;
   periodStartsAt?: Date | null;
   now?: Date;
+  currency?: ChargeCurrency;
   monthlyPaisaPerSeat?: number;
+  monthlyMinorPerSeat?: number;
+  razorpayConfig?: { inrPaisa?: number; usdCents?: number };
 }): ProratedAddSeatsQuote {
   const now = params.now ?? new Date();
   const seats = Math.max(1, Math.floor(params.additionalSeats));
-  const monthlyPaisa = getMonthlyPaisaPerSeat(params.monthlyPaisaPerSeat);
-  const fullPeriodPaisaPerSeat = getFullPeriodPaisaPerSeat(
+  const currency = params.currency ?? "INR";
+  const monthlyMinor =
+    params.monthlyMinorPerSeat ??
+    getMonthlyMinorPerSeat(currency, {
+      inrPaisa:
+        params.monthlyPaisaPerSeat ?? params.razorpayConfig?.inrPaisa,
+      usdCents: params.razorpayConfig?.usdCents,
+    });
+  const fullPeriodPaisaPerSeat = getFullPeriodMinorPerSeat(
     params.billingCycle,
-    monthlyPaisa
+    monthlyMinor
   );
   const fullPeriodAmountPaisa = fullPeriodPaisaPerSeat * seats;
-  const fullPeriodAmountInr = Math.round(fullPeriodAmountPaisa / 100);
+  const fullPeriodAmountMajor = minorToMajor(fullPeriodAmountPaisa, currency);
+  const fullPeriodAmountInr = fullPeriodAmountMajor;
 
   const periodStartsAt = inferPeriodStart(
     params.periodExpiresAt,
@@ -107,15 +126,20 @@ export function calculateProratedAddSeats(params: {
   }
 
   const prorationFactor = remainingDays / totalDays;
+  const minMinor = currency === "USD" ? 50 : 100;
   const amountPaisa = Math.max(
-    100,
+    minMinor,
     Math.round(fullPeriodAmountPaisa * prorationFactor)
   );
+  const amountMajor = minorToMajor(amountPaisa, currency);
 
   return {
+    currency,
     amountPaisa,
-    amountInr: Math.round(amountPaisa / 100),
-    fullPeriodAmountInr,
+    amountInr: amountMajor,
+    amountMajor,
+    fullPeriodAmountInr: fullPeriodAmountMajor,
+    fullPeriodAmountMajor,
     fullPeriodAmountPaisa,
     remainingDays,
     totalDays,

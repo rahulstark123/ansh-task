@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { supabase } from "@/lib/supabase";
+import {
+  computeUpgradeCheckoutMinor,
+  resolveCheckoutFromRequest,
+} from "@/lib/billing/checkout-region";
 import { getRazorpayConfig, getRazorpayInstance } from "@/lib/billing/razorpay";
 import { captureServerEvent } from "@/lib/posthog-server";
 
@@ -56,26 +60,29 @@ export async function POST(request: Request) {
     });
     const seats = Math.max(seatsCount, 1);
 
-    // 5. Compute amount (prefer client-provided dynamic amount, fallback to calculation)
-    let amountPaisa = body.amountPaisa ?? body.amount;
-    if (!amountPaisa || typeof amountPaisa !== "number" || amountPaisa <= 0) {
-      const monthlyPaisa = cfg.proPlanAmountPaisa ?? 19900; // per seat per month (default ₹199)
-      amountPaisa =
-        billingCycle === "yearly"
-          ? Math.round(monthlyPaisa * seats * 12 * 0.81)
-          : monthlyPaisa * seats;
-    }
+    const { countryCode, currency } = resolveCheckoutFromRequest(
+      request,
+      body.billingCountry
+    );
 
-    // 6. Create Razorpay order
+    const amountMinor = computeUpgradeCheckoutMinor({
+      currency,
+      billingCycle,
+      seats,
+      cfg,
+    });
+
     const rzp = getRazorpayInstance();
     const order = await rzp.orders.create({
-      amount: amountPaisa,
-      currency: "INR",
+      amount: amountMinor,
+      currency,
       receipt: `wid_${wid}_${Date.now()}`,
       notes: {
         workspaceId: String(wid),
         billingCycle,
         seats: String(seats),
+        countryCode,
+        chargeCurrency: currency,
       },
     });
 
@@ -86,7 +93,7 @@ export async function POST(request: Request) {
         status: "PENDING",
         plan: "pro",
         seatsCount: seats,
-        amountPaisa,
+        amountPaisa: amountMinor,
         billingCycle,
         razorpayOrderId: order.id,
       },
@@ -97,7 +104,7 @@ export async function POST(request: Request) {
         workspaceId: wid,
         subscriptionId: sub.id,
         status: "CREATED",
-        amountPaisa,
+        amountPaisa: amountMinor,
         razorpayOrderId: order.id,
       },
     });
@@ -109,7 +116,9 @@ export async function POST(request: Request) {
         workspace_id: wid,
         billing_cycle: billingCycle,
         seat_count: seats,
-        amount_paisa: amountPaisa,
+        amount_minor: amountMinor,
+        currency,
+        country_code: countryCode,
         razorpay_order_id: order.id,
       },
     });
@@ -117,8 +126,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       orderId: order.id,
-      amount: amountPaisa,
-      currency: "INR",
+      amount: amountMinor,
+      currency,
+      countryCode,
       keyId: cfg.keyId,
       seats,
       billingCycle,
