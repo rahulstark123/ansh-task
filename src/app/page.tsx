@@ -2,9 +2,9 @@ import { buildSiteMetadata, buildLandingJsonLd } from "@/lib/seo";
 import { LandingPageClient } from "@/components/landing/LandingPageClient";
 
 const LANDING_TITLE =
-  "ANSH Tasks — Task & Project Management App for Fast Teams";
+  "ANSH Tasks — All-in-One Task & Project Management for MSMEs";
 const LANDING_DESCRIPTION =
-  "Organize work with Kanban boards, brain boards, and team chat in one workspace. ANSH Tasks helps startups and teams plan projects, track tasks, and collaborate — free to get started.";
+  "Affordable task management, visual brainstorming, and built-in team chat tailored for Micro, Small & Medium Enterprises (MSMEs). Consolidate your tools and move faster.";
 
 export const metadata = buildSiteMetadata({
   title: LANDING_TITLE,
