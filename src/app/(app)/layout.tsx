@@ -5,6 +5,7 @@ import { PlanRouteGuard } from "@/components/plans/PlanRouteGuard";
 import { PlanUpgradeModal } from "@/components/plans/PlanUpgradeModal";
 import { PermissionRouteGuard } from "@/components/permissions/PermissionRouteGuard";
 import { PermissionDeniedModal } from "@/components/permissions/PermissionDeniedModal";
+import { AppFontResizer } from "@/components/AppFontResizer";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default function AppLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-1">
+      <AppFontResizer />
       <AppSidebar />
       <div className="app-main-column flex min-w-0 flex-1 flex-col dark:bg-transparent">
         <AppTopBar />

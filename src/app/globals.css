@@ -59,6 +59,10 @@ html {
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
 }
 
+html.app-font-scaled {
+  font-size: 106.25%; /* Increases base font size from 16px to 17px to scale all text slightly inside the app */
+}
+
 html,
 body {
   width: 100%;

@@ -195,7 +195,8 @@ export default function BillingSettingsPage() {
   useEffect(() => {
     async function loadFx() {
       try {
-        const res = await fetch("/api/billing/fx", { cache: "no-store" });
+        const queryParams = typeof window !== "undefined" ? window.location.search : "";
+        const res = await fetch(`/api/billing/fx${queryParams}`, { cache: "no-store" });
         const json = await res.json();
         if (json.success) {
           setBillingLocale({
