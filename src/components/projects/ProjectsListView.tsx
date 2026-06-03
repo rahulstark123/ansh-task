@@ -270,11 +270,10 @@ function CustomSelect({ value, onChange, options, placeholder = "Select...", cla
                     onChange(opt.value);
                     setIsOpen(false);
                   }}
-                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-left transition-colors ${
-                    isSelected
+                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-xs font-semibold text-left transition-colors ${isSelected
                       ? "bg-indigo-50 text-indigo-650 dark:bg-indigo-950/40 dark:text-indigo-300"
                       : "text-zinc-650 hover:bg-zinc-50 dark:text-zinc-400 dark:hover:bg-zinc-800/40"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2 truncate">
                     {opt.colorDot && (
@@ -342,13 +341,13 @@ export function ProjectsListView() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<number>(1);
-  
+
   // View & Filter State
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [priorityFilter, setPriorityFilter] = useState<string>("All");
-  
+
   // Drawer & Modal States
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -587,10 +586,10 @@ export function ProjectsListView() {
         const email = user?.email || "";
         const onboardingWid = sessionStorage.getItem("ansh_onboarding_wid");
         const wid = onboardingWid ? parseInt(onboardingWid, 10) : 1;
-        
+
         setActiveWorkspaceId(wid);
         await fetchProjects(wid, email);
-        
+
         const res = await fetch(`/api/team?email=${encodeURIComponent(email)}&wid=${wid}`);
         const json = await res.json();
         if (json.success && json.members) {
@@ -655,7 +654,7 @@ export function ProjectsListView() {
   }));
 
   const categoryOptions = CATEGORIES.map((cat) => ({ value: cat, label: cat }));
-  
+
   const leadOptions = availableUsers.map((user) => ({
     value: user.name,
     label: user.name,
@@ -689,7 +688,7 @@ export function ProjectsListView() {
     if (selectedProject?.id === id) {
       setSelectedProject((prev) => (prev ? { ...prev, ...updates } : null));
     }
-    
+
     const updateKeys = Object.keys(updates);
     if (updateKeys.length > 0 && !updateKeys.includes("name") && !updateKeys.includes("description")) {
       const key = updateKeys[0];
@@ -803,7 +802,7 @@ export function ProjectsListView() {
         showToast(`Project "${name.trim()}" created successfully!`, "success");
         const { data: { user } } = await supabase.auth.getUser();
         await fetchProjects(activeWorkspaceId, user?.email || "");
-        
+
         // Reset Form
         resetProjectForm();
         setIsAddModalOpen(false);
@@ -858,18 +857,18 @@ export function ProjectsListView() {
 
   return (
     <div className="flex h-[calc(100vh-3.75rem)] w-full flex-col overflow-hidden bg-transparent dark:bg-zinc-950">
-      
+
       {/* HEADER & FILTERS BAR */}
       <div className="shrink-0 border-b border-zinc-200/80 bg-white px-6 py-4 dark:border-white/[0.06] dark:bg-zinc-950/80 backdrop-blur-sm z-20">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          
+
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md">
               <FolderIcon className="h-5 w-5" />
             </div>
             <div>
               <h1 className="font-heading text-lg font-bold text-zinc-900 dark:text-zinc-50">
-                Portfolio Overview
+                Projects Overview
               </h1>
               <p className="text-[11px] font-medium text-zinc-500">
                 {filteredProjects.length} active projects
@@ -889,7 +888,7 @@ export function ProjectsListView() {
                 className="h-9 w-48 rounded-lg border border-zinc-200 bg-zinc-50 pl-9 pr-3 text-xs outline-none transition-all focus:border-[var(--app-primary)] focus:bg-white focus:ring-1 focus:ring-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:bg-zinc-950"
               />
             </div>
-            
+
             {/* Status Filter */}
             <CustomSelect
               value={statusFilter}
@@ -902,9 +901,8 @@ export function ProjectsListView() {
             <div className="flex items-center rounded-lg border border-zinc-200 bg-zinc-100/50 p-0.5 dark:border-white/10 dark:bg-zinc-900/50">
               <button
                 onClick={() => setViewMode("cards")}
-                className={`relative flex h-8 items-center gap-2 rounded-md px-3 text-xs font-bold transition-colors ${
-                  viewMode === "cards" ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                }`}
+                className={`relative flex h-8 items-center gap-2 rounded-md px-3 text-xs font-bold transition-colors ${viewMode === "cards" ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  }`}
               >
                 {viewMode === "cards" && (
                   <motion.div layoutId={`viewToggle-${layoutId}`} className="absolute inset-0 rounded-md bg-white shadow-sm dark:bg-zinc-800" />
@@ -914,9 +912,8 @@ export function ProjectsListView() {
               </button>
               <button
                 onClick={() => setViewMode("table")}
-                className={`relative flex h-8 items-center gap-2 rounded-md px-3 text-xs font-bold transition-colors ${
-                  viewMode === "table" ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
-                }`}
+                className={`relative flex h-8 items-center gap-2 rounded-md px-3 text-xs font-bold transition-colors ${viewMode === "table" ? "text-zinc-800 dark:text-zinc-100" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  }`}
               >
                 {viewMode === "table" && (
                   <motion.div layoutId={`viewToggle-${layoutId}`} className="absolute inset-0 rounded-md bg-white shadow-sm dark:bg-zinc-800" />
@@ -973,10 +970,10 @@ export function ProjectsListView() {
                       {p.description}
                     </p>
                   </div>
-                  
+
                   <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                     <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${healthDot(p.health)}`} title={`Health: ${healthText(p.health)}`} />
-                    
+
                     <div className="relative">
                       <button
                         onClick={(e) => {
@@ -989,7 +986,7 @@ export function ProjectsListView() {
                       >
                         <EllipsisVerticalIcon className="h-4.5 w-4.5" />
                       </button>
-                      
+
                       <AnimatePresence>
                         {activeMenuId === p.id && (
                           <motion.div
@@ -1035,7 +1032,7 @@ export function ProjectsListView() {
                     </div>
                   </div>
                 </div>
-                
+
                 <div className="mt-4 flex flex-wrap items-center gap-1.5">
                   <span className={`rounded-md border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${priorityColor(p.priority)}`}>
                     {p.priority}
@@ -1047,7 +1044,7 @@ export function ProjectsListView() {
                     {p.estimatedHours} hrs
                   </span>
                 </div>
-                
+
                 <div className="mt-auto pt-5">
                   <div className="mb-3 flex justify-between text-[11px] font-bold text-zinc-400">
                     <span>Progress</span>
@@ -1057,7 +1054,7 @@ export function ProjectsListView() {
                     <div className="h-full rounded-full bg-indigo-500 transition-all duration-500" style={{ width: `${p.progress}%` }} />
                   </div>
                 </div>
-                
+
                 <div className="mt-5 flex items-center justify-between border-t border-zinc-100 pt-4 dark:border-white/[0.06]">
                   <div className="flex -space-x-1.5">
                     {p.members.map((m, idx) => {
@@ -1084,159 +1081,159 @@ export function ProjectsListView() {
           </div>
         ) : (
           <>
-          <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900/60">
-            <div ref={tableScrollRef} className="overflow-x-auto">
-              <table className="w-full table-fixed text-left text-sm text-zinc-600 dark:text-zinc-400 min-w-[960px]">
-                <thead className="border-b border-zinc-200 bg-zinc-50/50 text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:border-white/10 dark:bg-zinc-900/50">
-                  <tr>
-                    <th className="w-[22%] px-5 py-4 font-semibold">Project Name</th>
-                    <th className="w-[11%] px-5 py-4 font-semibold">Category</th>
-                    <th className="w-[10%] px-5 py-4 font-semibold">Owner</th>
-                    <th className="w-[10%] px-5 py-4 font-semibold">Status</th>
-                    <th className="w-[10%] px-5 py-4 font-semibold">Priority</th>
-                    <th className="w-[12%] px-5 py-4 font-semibold">Progress</th>
-                    <th className="w-[15%] px-5 py-4 font-semibold">Timeline</th>
-                    <th className="w-[8%] px-5 py-4 font-semibold text-right">Team</th>
-                    <th className="w-12 px-3 py-4 font-semibold text-center"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100 dark:divide-white/5">
-                  {filteredProjects.map((p) => (
-                    <tr
-                      key={p.id}
-                      onClick={() => setSelectedProject(p)}
-                      className="group cursor-pointer transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02]"
-                    >
-                      <td className="max-w-0 px-5 py-3">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${healthDot(p.health)}`} />
-                          <TruncateText text={p.name} className="font-bold text-zinc-900 dark:text-zinc-100" />
-                        </div>
-                      </td>
-                      <td className="max-w-0 px-5 py-3 text-xs font-semibold text-indigo-500">
-                        <TruncateText text={p.category} />
-                      </td>
-                      <td className="max-w-0 px-5 py-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                        <TruncateText text={p.owner} />
-                      </td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-flex max-w-full truncate rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusStyle(p.status)}`} title={p.status}>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-flex max-w-full truncate rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${priorityColor(p.priority)}`} title={p.priority}>
-                          {p.priority}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                            <div className="h-full rounded-full bg-indigo-500" style={{ width: `${p.progress}%` }} />
-                          </div>
-                          <span className="shrink-0 text-[11px] font-bold text-zinc-500">{p.progress}%</span>
-                        </div>
-                      </td>
-                      <td className="max-w-0 px-5 py-3 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
-                        <TruncateText text={`${formatDate(p.startDate)} - ${formatDate(p.due)}`} />
-                      </td>
-                      <td className="px-5 py-3 text-right">
-                        <div className="flex justify-end -space-x-1.5">
-                          {p.members.map((m, idx) => {
-                            const user = availableUsers.find((u) => u.name === m);
-                            const initial = user ? user.initial : (m[0]?.toUpperCase() || "");
-                            return (
-                              <div
-                                key={idx}
-                                className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-zinc-200 text-[9px] font-bold text-zinc-700 dark:border-zinc-900 dark:bg-zinc-700 dark:text-zinc-200"
-                                title={m}
-                              >
-                                {initial}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </td>
-                      <td
-                        className="relative px-3 py-3 text-center"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openTableProjectMenu(p.id, e.currentTarget);
-                          }}
-                          className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                          title="Project options"
-                        >
-                          <EllipsisVerticalIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </td>
+            <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900/60">
+              <div ref={tableScrollRef} className="overflow-x-auto">
+                <table className="w-full table-fixed text-left text-sm text-zinc-600 dark:text-zinc-400 min-w-[960px]">
+                  <thead className="border-b border-zinc-200 bg-zinc-50/50 text-[11px] font-bold uppercase tracking-wider text-zinc-500 dark:border-white/10 dark:bg-zinc-900/50">
+                    <tr>
+                      <th className="w-[22%] px-5 py-4 font-semibold">Project Name</th>
+                      <th className="w-[11%] px-5 py-4 font-semibold">Category</th>
+                      <th className="w-[10%] px-5 py-4 font-semibold">Owner</th>
+                      <th className="w-[10%] px-5 py-4 font-semibold">Status</th>
+                      <th className="w-[10%] px-5 py-4 font-semibold">Priority</th>
+                      <th className="w-[12%] px-5 py-4 font-semibold">Progress</th>
+                      <th className="w-[15%] px-5 py-4 font-semibold">Timeline</th>
+                      <th className="w-[8%] px-5 py-4 font-semibold text-right">Team</th>
+                      <th className="w-12 px-3 py-4 font-semibold text-center"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100 dark:divide-white/5">
+                    {filteredProjects.map((p) => (
+                      <tr
+                        key={p.id}
+                        onClick={() => setSelectedProject(p)}
+                        className="group cursor-pointer transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.02]"
+                      >
+                        <td className="max-w-0 px-5 py-3">
+                          <div className="flex min-w-0 items-center gap-3">
+                            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${healthDot(p.health)}`} />
+                            <TruncateText text={p.name} className="font-bold text-zinc-900 dark:text-zinc-100" />
+                          </div>
+                        </td>
+                        <td className="max-w-0 px-5 py-3 text-xs font-semibold text-indigo-500">
+                          <TruncateText text={p.category} />
+                        </td>
+                        <td className="max-w-0 px-5 py-3 text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                          <TruncateText text={p.owner} />
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`inline-flex max-w-full truncate rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${statusStyle(p.status)}`} title={p.status}>
+                            {p.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className={`inline-flex max-w-full truncate rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${priorityColor(p.priority)}`} title={p.priority}>
+                            {p.priority}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                              <div className="h-full rounded-full bg-indigo-500" style={{ width: `${p.progress}%` }} />
+                            </div>
+                            <span className="shrink-0 text-[11px] font-bold text-zinc-500">{p.progress}%</span>
+                          </div>
+                        </td>
+                        <td className="max-w-0 px-5 py-3 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                          <TruncateText text={`${formatDate(p.startDate)} - ${formatDate(p.due)}`} />
+                        </td>
+                        <td className="px-5 py-3 text-right">
+                          <div className="flex justify-end -space-x-1.5">
+                            {p.members.map((m, idx) => {
+                              const user = availableUsers.find((u) => u.name === m);
+                              const initial = user ? user.initial : (m[0]?.toUpperCase() || "");
+                              return (
+                                <div
+                                  key={idx}
+                                  className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-zinc-200 text-[9px] font-bold text-zinc-700 dark:border-zinc-900 dark:bg-zinc-700 dark:text-zinc-200"
+                                  title={m}
+                                >
+                                  {initial}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </td>
+                        <td
+                          className="relative px-3 py-3 text-center"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openTableProjectMenu(p.id, e.currentTarget);
+                            }}
+                            className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                            title="Project options"
+                          >
+                            <EllipsisVerticalIcon className="h-4.5 w-4.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
 
-          <AnimatePresence>
-            {activeMenuId && tableMenuPosition && (() => {
-              const menuProject = filteredProjects.find((project) => project.id === activeMenuId);
-              if (!menuProject) return null;
+            <AnimatePresence>
+              {activeMenuId && tableMenuPosition && (() => {
+                const menuProject = filteredProjects.find((project) => project.id === activeMenuId);
+                if (!menuProject) return null;
 
-              return (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={closeProjectMenu}
-                  />
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                    style={{ top: tableMenuPosition.top, left: tableMenuPosition.left }}
-                    className="fixed z-50 w-32 rounded-xl border border-zinc-200 bg-white p-1.5 text-left shadow-xl dark:border-white/10 dark:bg-zinc-900"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedProject(menuProject);
-                        closeProjectMenu();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                return (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={closeProjectMenu}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: -5 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -5 }}
+                      style={{ top: tableMenuPosition.top, left: tableMenuPosition.left }}
+                      className="fixed z-50 w-32 rounded-xl border border-zinc-200 bg-white p-1.5 text-left shadow-xl dark:border-white/10 dark:bg-zinc-900"
                     >
-                      <EyeIcon className="h-4 w-4 text-zinc-400" />
-                      Preview
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        openEditProjectModal(menuProject);
-                        closeProjectMenu();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                    >
-                      <PencilSquareIcon className="h-4 w-4 text-zinc-400" />
-                      Edit
-                    </button>
-                    <div className="my-1 border-t border-zinc-100 dark:border-white/5" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProjectToDelete(menuProject);
-                        closeProjectMenu();
-                      }}
-                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
-                    >
-                      <TrashIcon className="h-4 w-4 text-rose-500" />
-                      Delete
-                    </button>
-                  </motion.div>
-                </>
-              );
-            })()}
-          </AnimatePresence>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedProject(menuProject);
+                          closeProjectMenu();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      >
+                        <EyeIcon className="h-4 w-4 text-zinc-400" />
+                        Preview
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openEditProjectModal(menuProject);
+                          closeProjectMenu();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                      >
+                        <PencilSquareIcon className="h-4 w-4 text-zinc-400" />
+                        Edit
+                      </button>
+                      <div className="my-1 border-t border-zinc-100 dark:border-white/5" />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProjectToDelete(menuProject);
+                          closeProjectMenu();
+                        }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                      >
+                        <TrashIcon className="h-4 w-4 text-rose-500" />
+                        Delete
+                      </button>
+                    </motion.div>
+                  </>
+                );
+              })()}
+            </AnimatePresence>
           </>
         )}
       </div>
@@ -1253,7 +1250,7 @@ export function ProjectsListView() {
               onClick={() => setSelectedProject(null)}
               className="absolute inset-0 z-40 bg-zinc-900/20 backdrop-blur-sm dark:bg-black/40"
             />
-            
+
             {/* Drawer */}
             <motion.div
               initial={{ x: "100%", opacity: 0.5 }}
@@ -1270,7 +1267,7 @@ export function ProjectsListView() {
                     Project Settings & Details
                   </span>
                 </div>
-                
+
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
@@ -1311,22 +1308,20 @@ export function ProjectsListView() {
                 <button
                   type="button"
                   onClick={() => setActiveTab("details")}
-                  className={`relative py-3 text-xs font-bold transition-all border-b-2 px-1 ${
-                    activeTab === "details"
+                  className={`relative py-3 text-xs font-bold transition-all border-b-2 px-1 ${activeTab === "details"
                       ? "border-[var(--app-primary)] text-[var(--app-primary)]"
                       : "border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                  }`}
+                    }`}
                 >
                   Project Details
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveTab("tasks")}
-                  className={`relative py-3 text-xs font-bold transition-all border-b-2 px-1 ml-6 ${
-                    activeTab === "tasks"
+                  className={`relative py-3 text-xs font-bold transition-all border-b-2 px-1 ml-6 ${activeTab === "tasks"
                       ? "border-[var(--app-primary)] text-[var(--app-primary)]"
                       : "border-transparent text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                  }`}
+                    }`}
                 >
                   Tasks ({visibleProjectTasks.length})
                 </button>
@@ -1335,7 +1330,7 @@ export function ProjectsListView() {
               {/* Drawer Content - Details Tab */}
               {activeTab === "details" && (
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin space-y-4">
-                  
+
                   {/* Project Name */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-bold text-zinc-550 uppercase tracking-wide">
@@ -1595,18 +1590,17 @@ export function ProjectsListView() {
                                 if (!isEditing) return;
                                 setTempMembers((prev) => prev.filter((x) => x !== m));
                               }}
-                              className={`flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600 transition-colors shadow-sm ${
-                                isEditing 
-                                  ? "cursor-pointer hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-350" 
+                              className={`flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50 text-xs font-black text-indigo-600 transition-colors shadow-sm ${isEditing
+                                  ? "cursor-pointer hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-950/30 dark:hover:text-rose-350"
                                   : "cursor-default"
-                              } dark:bg-indigo-950/30 dark:text-indigo-300`}
+                                } dark:bg-indigo-950/30 dark:text-indigo-300`}
                               title={isEditing ? `Click to remove ${m} from project` : m}
                             >
                               {initial}
                             </div>
                           );
                         })}
-                        
+
                         {/* Quick drop contributors */}
                         {isEditing && availableUsers.map((user) => {
                           if (tempMembers.includes(user.name)) return null;
@@ -1684,25 +1678,25 @@ export function ProjectsListView() {
                           task.priority === "high"
                             ? { badge: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30", dot: "bg-rose-500" }
                             : task.priority === "medium"
-                            ? { badge: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30", dot: "bg-amber-400" }
-                            : { badge: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30", dot: "bg-emerald-500" };
+                              ? { badge: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30", dot: "bg-amber-400" }
+                              : { badge: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30", dot: "bg-emerald-500" };
 
                         const statusStyle =
                           task.status === "done"
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/30"
                             : task.status === "in_progress"
-                            ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30"
-                            : task.status === "blocked"
-                            ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
-                            : task.status === "on_hold"
-                            ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30"
-                            : "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800/60 dark:text-zinc-300 dark:border-zinc-700";
+                              ? "bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-950/20 dark:text-teal-400 dark:border-teal-900/30"
+                              : task.status === "blocked"
+                                ? "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/30"
+                                : task.status === "on_hold"
+                                  ? "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/30"
+                                  : "bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800/60 dark:text-zinc-300 dark:border-zinc-700";
 
                         const statusLabel =
                           task.status === "in_progress" ? "In Progress" :
-                          task.status === "blocked" ? "Blocked" :
-                          task.status === "on_hold" ? "On Hold" :
-                          task.status === "done" ? "Done" : "To Do";
+                            task.status === "blocked" ? "Blocked" :
+                              task.status === "on_hold" ? "On Hold" :
+                                task.status === "done" ? "Done" : "To Do";
 
                         const assigneeInitials = task.assignee && task.assignee !== "Unassigned"
                           ? task.assignee.trim().split(/\s+/).map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -2108,11 +2102,10 @@ export function ProjectsListView() {
                                     key={user.name}
                                     type="button"
                                     onClick={() => toggleMemberSelection(user.name)}
-                                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-semibold text-left transition-colors ${
-                                      isSelected
+                                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-semibold text-left transition-colors ${isSelected
                                         ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
                                         : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                    }`}
+                                      }`}
                                   >
                                     <div className="flex min-w-0 items-center gap-2.5">
                                       <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-black text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
@@ -2121,11 +2114,10 @@ export function ProjectsListView() {
                                       <span className="truncate">{user.name}</span>
                                     </div>
                                     <div
-                                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
-                                        isSelected
+                                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${isSelected
                                           ? "border-[var(--app-primary)] bg-[var(--app-primary)] text-white"
                                           : "border-zinc-300 bg-white dark:border-zinc-750 dark:bg-zinc-900"
-                                      }`}
+                                        }`}
                                     >
                                       {isSelected && <CheckIcon className="h-3 w-3 stroke-[3]" />}
                                     </div>
