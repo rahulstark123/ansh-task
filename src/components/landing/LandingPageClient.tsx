@@ -42,12 +42,12 @@ const ACCENTS = [
 const PRICING_PLANS = [
   {
     id: "free",
-    name: "Free",
-    badge: "Start free",
+    name: "Free Plan",
+    badge: "For micro teams",
     priceInr: 0,
     cadence: "/ workspace",
     description:
-      "Great for trying the product, managing small teams, and getting real work done without paying upfront.",
+      "Ideal for micro-enterprises and founders trying the product to run small daily task lists and whiteboard planning.",
     features: [
       { label: "Up to 2 team members", included: true },
       { label: "Up to 3 projects", included: true },
@@ -60,12 +60,12 @@ const PRICING_PLANS = [
   },
   {
     id: "pro",
-    name: "Pro",
-    badge: "Most popular",
+    name: "Pro Plan",
+    badge: "Best for MSMEs",
     priceInr: 199,
     cadence: "/ user / month",
     description:
-      "Best for growing teams that want seat-based scaling, deeper visibility, and full collaboration in one workspace.",
+      "Best for small and medium businesses that need complete chat collaboration, unlimited tasks, and advanced reporting.",
     features: [
       { label: "Add team members based on paid seats", included: true },
       { label: "Unlimited projects", included: true },
@@ -84,30 +84,30 @@ const TEAM_SPACE_PREVIEW = [
     id: "general",
     name: "general",
     isPrivate: false,
-    topic: "Company-wide announcements and work-based matters",
+    topic: "Company announcements and daily operational updates",
     messages: [
-      { author: "Ansh K.", initials: "AK", time: "10:24 AM", text: "Sprint kickoff is at 2 PM — please review the Kanban board before we sync." },
-      { author: "Priya S.", initials: "PS", time: "10:31 AM", text: "Shared the updated spec in Documents. Flag any blockers in #engineering." },
-      { author: "Jay D.", initials: "JD", time: "10:45 AM", text: "On it. I'll post deployment updates here once staging is green." },
+      { author: "Ansh K.", initials: "AK", time: "10:24 AM", text: "Morning team — please update your daily Kanban lists by 11 AM so we can check dispatched orders." },
+      { author: "Priya S.", initials: "PS", time: "10:31 AM", text: "I have uploaded this month's draft GST invoice folder in Documents. Flag any missing vendor bills." },
+      { author: "Jay D.", initials: "JD", time: "10:45 AM", text: "I'll review them now. I'll post the remaining supplier receipts in #operations." },
     ],
   },
   {
-    id: "engineering",
-    name: "engineering",
+    id: "operations",
+    name: "operations",
     isPrivate: false,
-    topic: "Tech discussions, PRs, and deployments",
+    topic: "Stock logs, dispatch tracking, and supplier updates",
     messages: [
-      { author: "Jay D.", initials: "JD", time: "9:12 AM", text: "Staging deploy finished. QA can start the regression pass now." },
-      { author: "Riya M.", initials: "RM", time: "9:18 AM", text: "Found a permissions edge case on channel invites — logging a task." },
+      { author: "Jay D.", initials: "JD", time: "9:12 AM", text: "New raw materials batch arrived at warehouse. Stock count has been logged in Tasks." },
+      { author: "Riya M.", initials: "RM", time: "9:18 AM", text: "Awesome. I'll inspect the batch and update the supplier invoice payment status by EOD." },
     ],
   },
   {
-    id: "exec-updates",
-    name: "exec-updates",
+    id: "admin-finance",
+    name: "admin-finance",
     isPrivate: true,
-    topic: "Leadership alignment",
+    topic: "Compliance, budgets, and leadership updates",
     messages: [
-      { author: "Ansh K.", initials: "AK", time: "8:05 AM", text: "Q2 roadmap draft is ready for review. Please add comments by EOD." },
+      { author: "Ansh K.", initials: "AK", time: "8:05 AM", text: "Diwali bonus sheet draft is ready. Please review the budget allocation in Documents." },
     ],
   },
 ] as const;
@@ -115,26 +115,26 @@ const TEAM_SPACE_PREVIEW = [
 const COMPETITOR_COMPARISONS = [
   {
     title: "Compared to Zoho Projects",
-    summary: "Cleaner daily execution for teams that want less suite complexity.",
+    summary: "Built for modern execution, not rigid corporate suites.",
     points: [
-      "Tasks, Brain Board, docs, and support workflows stay in one focused workspace.",
-      "Faster onboarding for smaller teams that do not want a bulky business suite feel.",
+      "Zoho Projects has a stuffy enterprise interface with rigid, complex workflow setups.",
+      "ANSH Task is visual, lightweight, and combines tasks with visual whiteboards and support natively.",
     ],
   },
   {
-    title: "Compared to monday.com",
-    summary: "More built-in workflow depth without forcing extra tools for brainstorming and structured execution.",
+    title: "Compared to ClickUp & Monday",
+    summary: "Save thousands on seat licenses without dashboard lag.",
     points: [
-      "Brain Board turns ideas into action without leaving the product.",
-      "Free plan still gives real room to work with 2 members, 3 projects, and 50 tasks each month.",
+      "ClickUp & Monday are highly customizable but get expensive quickly and suffer from heavy loading lag.",
+      "ANSH Task is lightweight, highly performant, and packs tasks, chat, and brain boards under one fixed-rate plan.",
     ],
   },
   {
-    title: "Compared to Jira",
-    summary: "Easier for mixed teams beyond engineering-heavy workflows.",
+    title: "Compared to Trello & Slack",
+    summary: "No more paying for multiple tools to get tasks and chat.",
     points: [
-      "Product, design, operations, and founders can move fast without admin-heavy setup.",
-      "You keep collaboration, planning, and execution in one place instead of managing complex workflow layers.",
+      "Trello is too basic (no chat/docs), while Slack is just messaging (no task boards)—leading to double subscriptions.",
+      "ANSH Task integrates Kanban boards, documents, and chat rooms in one unified tab.",
     ],
   },
 ] as const;
@@ -210,7 +210,7 @@ export function LandingPageClient() {
 
       {/* Header / Navbar */}
       <header className="sticky top-0 z-50 border-b border-zinc-200/50 bg-zinc-50/80 backdrop-blur-md transition-colors dark:border-zinc-800/50 dark:bg-zinc-950/80">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-20">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-0.5 group">
@@ -287,7 +287,7 @@ export function LandingPageClient() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="md:hidden absolute top-20 left-0 right-0 z-40 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 px-6 py-6 space-y-4 shadow-xl"
+            className="md:hidden absolute top-16 left-0 right-0 z-40 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 px-6 py-6 space-y-4 shadow-xl"
           >
             <nav className="flex flex-col gap-4 text-base font-semibold">
               <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Features</a>
@@ -318,7 +318,7 @@ export function LandingPageClient() {
       </AnimatePresence>
 
       {/* Hero Section (1st Section - Crisp and Clear) */}
-      <section className="relative z-10 pt-8 pb-16 md:pt-16 md:pb-24">
+      <section className="relative z-10 pt-3 pb-16 md:pt-6 md:pb-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
 
@@ -328,16 +328,16 @@ export function LandingPageClient() {
               {/* Product Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-400 text-xs font-semibold tracking-wide border border-teal-500/20">
                 <SparklesIcon className="h-3.5 w-3.5" />
-                Next-Gen Workspace
+                Built for MSMEs & Growing Businesses
               </div>
 
               {/* Main Headline */}
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-[54px] font-extrabold tracking-tight leading-[1.1] text-zinc-900 dark:text-white">
-                The Next-Gen{" "}
+                Run Your Entire{" "}
                 <span className="bg-gradient-to-r from-teal-500 to-emerald-600 bg-clip-text text-transparent dark:from-teal-400 dark:to-emerald-500">
-                  Task & Project Management App
+                  MSME Tasks & Operations
                 </span>{" "}
-                for Fast Teams
+                in One Simple Workspace
               </h1>
 
               {/* Description */}
@@ -352,8 +352,8 @@ export function LandingPageClient() {
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Task Management</h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Drag-and-drop Kanban list and team spaces.</p>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">MSME-Friendly Tasks</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Simple drag-and-drop Kanban to track inventory, client orders, GST filings, and daily checklists.</p>
                   </div>
                 </div>
 
@@ -362,8 +362,8 @@ export function LandingPageClient() {
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Brain Boards</h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Freeform ideation & visual brainstorming.</p>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Visual Brain Boards</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Map warehouse layouts, Diwali discount campaigns, & logistics flows.</p>
                   </div>
                 </div>
 
@@ -372,8 +372,8 @@ export function LandingPageClient() {
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Team Space</h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Channels, private rooms, and direct messages in one place.</p>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Built-in Team Chat</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Channels & DMs to coordinate operations without extra Slack bills.</p>
                   </div>
                 </div>
 
@@ -382,8 +382,8 @@ export function LandingPageClient() {
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Unified Analytics</h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Track stats, velocities, and company activity.</p>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Integrated Support</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Manage client tickets and supplier claims natively inside the portal.</p>
                   </div>
                 </div>
               </div>
@@ -394,7 +394,7 @@ export function LandingPageClient() {
                   href="/signup"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold px-8 py-4 shadow-lg shadow-teal-600/20 active:scale-[0.98] transition-all"
                 >
-                  Get Started For Free
+                  Start Tracking Tasks Free
                   <ArrowRightIcon className="h-5 w-5" />
                 </Link>
                 <a
@@ -479,11 +479,11 @@ export function LandingPageClient() {
                           <span className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">1</span>
                         </div>
                         <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs space-y-2.5">
-                          <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold">Product</span>
-                          <h5 className="text-xs font-semibold leading-tight text-zinc-800 dark:text-zinc-200">Setup system variables & billing limits</h5>
+                          <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-[10px] font-bold">Finance</span>
+                          <h5 className="text-xs font-semibold leading-tight text-zinc-800 dark:text-zinc-200">GST filing & Q1 tax auditing</h5>
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-[10px] text-zinc-400 font-medium">May 24</span>
-                            <div className="w-5 h-5 rounded-full bg-zinc-300 dark:bg-zinc-700 text-[8px] flex items-center justify-center font-bold">JS</div>
+                            <div className="w-5 h-5 rounded-full bg-zinc-300 dark:bg-zinc-700 text-[8px] flex items-center justify-center font-bold">PS</div>
                           </div>
                         </div>
                       </div>
@@ -495,8 +495,8 @@ export function LandingPageClient() {
                           <span className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">1</span>
                         </div>
                         <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs space-y-2.5">
-                          <span className="inline-block px-2 py-0.5 rounded bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 text-[10px] font-bold" style={{ backgroundColor: `${getAccentColor()}20`, color: getAccentColor() }}>Design</span>
-                          <h5 className="text-xs font-semibold leading-tight text-zinc-800 dark:text-zinc-200">Design dynamic accent picker & dashboard themes</h5>
+                          <span className="inline-block px-2 py-0.5 rounded bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 text-[10px] font-bold" style={{ backgroundColor: `${getAccentColor()}20`, color: getAccentColor() }}>Marketing</span>
+                          <h5 className="text-xs font-semibold leading-tight text-zinc-800 dark:text-zinc-200">Launch Diwali promo campaign</h5>
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-[10px] text-zinc-400 font-medium">May 21</span>
                             <div className="w-5 h-5 rounded-full text-white text-[8px] flex items-center justify-center font-bold" style={{ backgroundColor: getAccentColor() }}>AK</div>
@@ -511,8 +511,8 @@ export function LandingPageClient() {
                           <span className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">1</span>
                         </div>
                         <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs space-y-2.5 opacity-75">
-                          <span className="inline-block px-2 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] font-bold">Engineering</span>
-                          <h5 className="text-xs font-semibold leading-tight line-through text-zinc-500 dark:text-zinc-400">Initialize Prisma DB & setup contacts schema</h5>
+                          <span className="inline-block px-2 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] font-bold">Operations</span>
+                          <h5 className="text-xs font-semibold leading-tight line-through text-zinc-500 dark:text-zinc-400">Inventory restock & supplier setup</h5>
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
                               <CheckIcon className="h-3 w-3 stroke-[3]" /> Done
@@ -534,21 +534,21 @@ export function LandingPageClient() {
                       className="relative h-full min-h-[300px]"
                     >
                       <div className="absolute top-2 left-2 w-44 bg-yellow-100 dark:bg-yellow-950/40 p-3.5 rounded-xl border border-yellow-200 dark:border-yellow-900/30 shadow-sm rotate-[-2deg] space-y-1">
-                        <span className="text-[10px] font-semibold text-yellow-800 dark:text-yellow-400">Idea #1</span>
-                        <h6 className="text-xs font-bold text-zinc-900 dark:text-zinc-150">Gamified Task Streaks</h6>
-                        <p className="text-[10px] text-zinc-600 dark:text-zinc-300 leading-tight">Reward users with badges for completing tasks on time 3 days in a row.</p>
+                        <span className="text-[10px] font-semibold text-yellow-800 dark:text-yellow-400">Warehouse Layout</span>
+                        <h6 className="text-xs font-bold text-zinc-900 dark:text-zinc-150">Optimize packaging space</h6>
+                        <p className="text-[10px] text-zinc-600 dark:text-zinc-300 leading-tight">Rearrange packing racks closer to shipping dock to speed up operational dispatches.</p>
                       </div>
 
                       <div className="absolute top-[40%] right-4 w-48 bg-purple-100 dark:bg-purple-950/40 p-3.5 rounded-xl border border-purple-200 dark:border-purple-900/30 shadow-sm rotate-[1deg] space-y-1">
-                        <span className="text-[10px] font-semibold text-purple-800 dark:text-purple-400">Growth Note</span>
-                        <h6 className="text-xs font-bold text-zinc-900 dark:text-zinc-150">Slack Integration</h6>
-                        <p className="text-[10px] text-zinc-600 dark:text-zinc-300 leading-tight">Send summary logs automatically to channels when project board updates.</p>
+                        <span className="text-[10px] font-semibold text-purple-800 dark:text-purple-400">Diwali Campaign</span>
+                        <h6 className="text-xs font-bold text-zinc-900 dark:text-zinc-150">Discount codes setup</h6>
+                        <p className="text-[10px] text-zinc-600 dark:text-zinc-300 leading-tight">Draft 10% coupon codes for regular wholesale distributors and bulk buyers.</p>
                       </div>
 
-                      <div className="absolute bottom-2 left-6 w-52 bg-teal-100 dark:bg-teal-950/40 p-3.5 rounded-xl border border-teal-200 dark:border-teal-900/30 shadow-sm rotate-[-1deg] space-y-1" style={{ borderColor: `${getAccentColor()}30` }}>
-                        <span className="text-[10px] font-semibold text-teal-800 dark:text-teal-400" style={{ color: getAccentColor() }}>UX Research</span>
-                        <h6 className="text-xs font-bold text-zinc-900 dark:text-zinc-150">Appearance drawer</h6>
-                        <p className="text-[10px] text-zinc-600 dark:text-zinc-300 leading-tight">Allow workspace-wide accent color customization. Keep it dynamic!</p>
+                      <div className="absolute bottom-2 left-6 w-52 bg-teal-100 dark:bg-teal-950/40 p-3.5 rounded-xl border border-teal-200/80 dark:border-teal-900/30 shadow-sm rotate-[-1deg] space-y-1" style={{ borderColor: `${getAccentColor()}30` }}>
+                        <span className="text-[10px] font-semibold text-teal-800 dark:text-teal-400" style={{ color: getAccentColor() }}>Operations</span>
+                        <h6 className="text-xs font-bold text-zinc-900 dark:text-zinc-150">Onboard new supplier</h6>
+                        <p className="text-[10px] text-zinc-600 dark:text-zinc-300 leading-tight">Verify GST details, business registration, and bank routing before placing first order.</p>
                       </div>
                     </motion.div>
                   )}
@@ -671,10 +671,10 @@ export function LandingPageClient() {
           {/* Header */}
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Powerful Task Management Features for High-Performing Teams
+              Streamline Your Entire MSME Operations Natively
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
-              Say goodbye to fragmented SaaS apps. ANSH Task integrates productivity tools into one hyper-fast, customizable platform.
+              No need to pay for 4-5 different software tools. ANSH Task consolidates your core business collaboration under one affordable billing plan.
             </p>
           </div>
 
@@ -760,10 +760,10 @@ export function LandingPageClient() {
               Simple Pricing
             </div>
             <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Clear plans for teams that want to move fast
+              Affordable plans tailored for MSMEs
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
-              Start free, then upgrade only when your team needs more seats, Team Space, and Advanced Analytics.
+              Start free, then upgrade only when your team needs more seats, Team Space, and Advanced Analytics. Enjoy predictable, small-business-friendly rates.
             </p>
             {billingLocale && billingLocale.chargeCurrency === "USD" && (
               <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xl mx-auto">
@@ -867,10 +867,10 @@ export function LandingPageClient() {
               Why Teams Switch
             </div>
             <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Why ANSH Task feels better than Zoho Projects, monday.com, and Jira for growing teams
+              Why MSMEs choose ANSH Task over Zoho Projects, Monday, ClickUp, and Trello
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
-              We are built for teams that want real work execution, cleaner collaboration, and less setup friction in one product.
+              We are built for small & medium businesses that want real work execution, cleaner collaboration, and zero setup friction in one product.
             </p>
           </div>
 
@@ -882,11 +882,11 @@ export function LandingPageClient() {
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-5">
                   {index === 0 ? (
-                    <BriefcaseIcon className="h-6 w-6" />
-                  ) : index === 1 ? (
-                    <ChatBubbleLeftRightIcon className="h-6 w-6" />
-                  ) : (
                     <ClipboardDocumentListIcon className="h-6 w-6" />
+                  ) : index === 1 ? (
+                    <BriefcaseIcon className="h-6 w-6" />
+                  ) : (
+                    <ChatBubbleLeftRightIcon className="h-6 w-6" />
                   )}
                 </div>
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">
@@ -915,18 +915,18 @@ export function LandingPageClient() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-teal-500/20 bg-teal-500/5 p-5">
                 <h4 className="text-sm font-black uppercase tracking-widest text-teal-700 dark:text-teal-400">
-                  ANSH Task
+                  The ANSH Task Model for MSMEs
                 </h4>
                 <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                  One workspace for tasks, Brain Board, docs, Team Space, permissions, and support. Less switching. Faster adoption. Better clarity for everyday teams.
+                  A unified tool that any non-technical employee can adopt in minutes. Tasks, whiteboards, chat, and support desks all live together. No hidden setups or extra license costs.
                 </p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950/40">
                 <h4 className="text-sm font-black uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-                  Typical competitor experience
+                  The bloated enterprise tool model
                 </h4>
                 <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                  More admin overhead, more configuration, or more add-on tools before teams get the same planning, collaboration, and execution flow.
+                  Steep learning curves, complicated configuration (e.g. Zoho setup / Monday boards), expensive per-user licenses, and separate bills for Slack, whiteboards, and client ticketing.
                 </p>
               </div>
             </div>
@@ -1077,8 +1077,8 @@ export function LandingPageClient() {
           <div className="space-y-4">
             {[
               {
-                q: "How does ANSH Task compare to other task management apps and project management tools?",
-                a: "ANSH Task is a unified collaborative productivity hub designed to stand out among task management apps. Unlike standalone project management tools, it integrates tasks (Kanban boards), visual whiteboards (Brain Boards), specs/wikis (Documents Hub), and support desks in one tab. This prevents context switching and maximizes team efficiency.",
+                q: "How does ANSH Task benefit MSMEs compared to other task management apps?",
+                a: "Micro, Small & Medium Enterprises (MSMEs) often end up paying for multiple tools like Zoho/Trello (tasks), Slack (chat), Miro (whiteboards), and Zendesk (support). ANSH Task integrates all of these core functions under one roof at an extremely affordable price point, saving MSMEs up to 80% on software subscriptions and eliminating admin complexity.",
               },
               {
                 q: "Can I customize the design system and theme accent colors?",
@@ -1150,7 +1150,7 @@ export function LandingPageClient() {
               href="/signup"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-teal-500 hover:bg-teal-600 text-zinc-950 font-bold px-8 py-4 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-[0.98] transition-all"
             >
-              Sign Up For Free
+              Start Tracking Tasks Free
               <ArrowRightIcon className="h-5 w-5" />
             </Link>
           </div>
