@@ -6,6 +6,7 @@ import {
   resolveCheckoutFromRequest,
 } from "@/lib/billing/checkout-region";
 import { getRazorpayConfig, getRazorpayInstance } from "@/lib/billing/razorpay";
+import { getScheduledProSubscription } from "@/lib/billing/subscription-lifecycle";
 import { captureServerEvent } from "@/lib/posthog-server";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,40 @@ export async function POST(request: Request) {
 
     const billingCycle: "monthly" | "yearly" =
       body.billingCycle === "yearly" ? "yearly" : "monthly";
+
+    const now = new Date();
+    const [scheduledPro, activePro] = await Promise.all([
+      getScheduledProSubscription(wid),
+      prisma.subscription.findFirst({
+        where: {
+          workspaceId: wid,
+          status: "ACTIVE",
+          plan: "pro",
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+      }),
+    ]);
+
+    if (scheduledPro) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "You already purchased Pro during your trial. It will start automatically when your trial ends.",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (activePro) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "This workspace already has an active Pro subscription.",
+        },
+        { status: 400 }
+      );
+    }
 
     // 3. Get Razorpay config
     const cfg = getRazorpayConfig();

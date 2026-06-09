@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getRazorpayConfig } from "@/lib/billing/razorpay";
 import { verifyRazorpaySignature } from "@/lib/billing/razorpay-signature";
+import {
+  addBillingPeriod,
+  isActiveTrialWorkspace,
+} from "@/lib/billing/subscription-lifecycle";
+import { TRIAL_PLAN } from "@/lib/plans";
 import { captureServerEvent } from "@/lib/posthog-server";
 
 export const dynamic = "force-dynamic";
@@ -138,13 +143,42 @@ export async function POST(request: Request) {
       });
     }
 
-    const expiresAt = new Date(now);
     const billingCycle = subscription.billingCycle;
-    if (billingCycle === "yearly") {
-      expiresAt.setFullYear(expiresAt.getFullYear() + 1);
-    } else {
-      expiresAt.setMonth(expiresAt.getMonth() + 1);
-    }
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: wid },
+      select: { plan: true, planExpiresAt: true },
+    });
+
+    const onActiveTrial = isActiveTrialWorkspace(
+      workspace?.plan ?? "free",
+      workspace?.planExpiresAt,
+      now
+    );
+
+    const startsAt =
+      onActiveTrial && workspace?.planExpiresAt && workspace.planExpiresAt > now
+        ? new Date(workspace.planExpiresAt)
+        : new Date(now);
+    const expiresAt = addBillingPeriod(startsAt, billingCycle);
+    const scheduled = onActiveTrial && startsAt > now;
+
+    const subscriptionUpdate = {
+      status: scheduled ? "SCHEDULED" : "ACTIVE",
+      startsAt,
+      expiresAt,
+    } as const;
+
+    const workspaceUpdates = scheduled
+      ? []
+      : [
+          prisma.workspace.update({
+            where: { id: wid },
+            data: {
+              plan: "pro",
+              planExpiresAt: expiresAt,
+            },
+          }),
+        ];
 
     await prisma.$transaction([
       prisma.transaction.update({
@@ -157,19 +191,9 @@ export async function POST(request: Request) {
       }),
       prisma.subscription.update({
         where: { id: transaction.subscriptionId },
-        data: {
-          status: "ACTIVE",
-          startsAt: now,
-          expiresAt,
-        },
+        data: subscriptionUpdate,
       }),
-      prisma.workspace.update({
-        where: { id: wid },
-        data: {
-          plan: "pro",
-          planExpiresAt: expiresAt,
-        },
-      }),
+      ...workspaceUpdates,
     ]);
 
     await captureServerEvent({
@@ -180,15 +204,21 @@ export async function POST(request: Request) {
         billing_cycle: billingCycle,
         razorpay_order_id: razorpay_order_id,
         razorpay_payment_id: razorpay_payment_id,
-        plan: "pro",
+        plan: scheduled ? TRIAL_PLAN : "pro",
+        scheduled,
+        starts_at: startsAt.toISOString(),
         expires_at: expiresAt.toISOString(),
       },
     });
 
     return NextResponse.json({
       success: true,
-      message: "Payment verified. Workspace upgraded to Pro!",
-      plan: "pro",
+      message: scheduled
+        ? `Payment verified. Your Pro plan will start when your trial ends on ${startsAt.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}.`
+        : "Payment verified. Workspace upgraded to Pro!",
+      plan: scheduled ? TRIAL_PLAN : "pro",
+      scheduled,
+      startsAt: startsAt.toISOString(),
       expiresAt: expiresAt.toISOString(),
     });
   } catch (error: any) {

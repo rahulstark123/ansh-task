@@ -2,7 +2,7 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_PERMISSION_MATRIX } from "@/lib/permissions";
-import { getTrialEndsAt } from "@/lib/plans";
+import { TRIAL_PLAN, getTrialEndsAt } from "@/lib/plans";
 import { captureServerEvent } from "@/lib/posthog-server";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
           industry: workspace.industry,
           size: workspace.size,
           domain: workspace.domain || null,
-          plan: "pro",
+          plan: TRIAL_PLAN,
           planExpiresAt: trialEndsAt,
         }
       });

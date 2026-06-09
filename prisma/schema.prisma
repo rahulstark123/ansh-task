@@ -29,7 +29,7 @@ model User {
 
   // Relationships
   workspaceId Int?
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   brainboardNotes BrainboardNote[]
   sentMessages Message[]
   conversations ConversationParticipant[]
@@ -48,7 +48,7 @@ model Workspace {
   billingEmail String?
   address      String?
   cityCountry  String?
-  plan         String   @default("free") // "free" | "pro"
+  plan         String   @default("free") // "free" | "trial" | "pro"
   planExpiresAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -127,7 +127,7 @@ model Project {
 
   // Relationships
   workspaceId Int
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   tasks       Task[]
 }
 
@@ -151,9 +151,9 @@ model Task {
 
   // Relationships
   workspaceId Int
-  workspace   Workspace @relation(fields: [workspaceId], references: [id])
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   projectId   String?
-  project     Project?  @relation(fields: [projectId], references: [id])
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   taskNotes   TaskNote[]
 }
 
@@ -295,7 +295,7 @@ model ChannelMember {
 
 model Subscription {
   id          String   @id @default(uuid())
-  status      String   @default("PENDING") // "PENDING" | "ACTIVE" | "CANCELLED" | "EXPIRED"
+  status      String   @default("PENDING") // "PENDING" | "SCHEDULED" | "ACTIVE" | "CANCELLED" | "EXPIRED"
   plan        String   @default("pro")
   seatsCount  Int      @default(1)
   amountPaisa Int

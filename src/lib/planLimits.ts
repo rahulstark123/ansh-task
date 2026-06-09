@@ -1,9 +1,12 @@
+import { activateDueSubscriptions } from "@/lib/billing/subscription-lifecycle";
 import { prisma } from "@/lib/prisma";
 import {
   FREE_PLAN_PROJECTS_LIMIT,
   FREE_PLAN_TASKS_PER_MONTH_LIMIT,
   FREE_PLAN_TEAM_MEMBERS_LIMIT,
+  TRIAL_PLAN,
   WorkspacePlan,
+  isStoredTrialPlan,
 } from "@/lib/plans";
 
 function getCurrentMonthRange() {
@@ -14,15 +17,24 @@ function getCurrentMonthRange() {
 }
 
 export async function getEffectiveWorkspacePlan(workspaceId: number): Promise<WorkspacePlan> {
+  await activateDueSubscriptions(workspaceId);
+
   const workspace = await prisma.workspace.findUnique({
     where: { id: workspaceId },
     select: { plan: true, planExpiresAt: true },
   });
 
-  if (
-    workspace?.plan === "pro" &&
-    (workspace.planExpiresAt === null || workspace.planExpiresAt > new Date())
-  ) {
+  const storedPlan = workspace?.plan ?? "free";
+  const notExpired =
+    workspace?.planExpiresAt === null ||
+    workspace?.planExpiresAt === undefined ||
+    workspace.planExpiresAt > new Date();
+
+  if (isStoredTrialPlan(storedPlan) && notExpired) {
+    return TRIAL_PLAN;
+  }
+
+  if (storedPlan === "pro" && notExpired) {
     return "pro";
   }
 

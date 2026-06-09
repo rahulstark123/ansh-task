@@ -1,9 +1,20 @@
 import { prisma } from "@/lib/prisma";
-import { FREE_PLAN_TEAM_MEMBERS_LIMIT, WorkspacePlan } from "@/lib/plans";
+import {
+  FREE_PLAN_TEAM_MEMBERS_LIMIT,
+  TRIAL_PLAN,
+  WorkspacePlan,
+} from "@/lib/plans";
+import {
+  activateDueSubscriptions,
+  getScheduledProSubscription,
+  isActiveTrialWorkspace,
+} from "@/lib/billing/subscription-lifecycle";
 
 export type WorkspaceSeatsInfo = {
   plan: WorkspacePlan;
   isTrial: boolean;
+  hasScheduledPro: boolean;
+  scheduledProStartsAt: Date | null;
   seatsUsed: number;
   seatsPurchased: number | null;
   seatsVacant: number | null;
@@ -13,6 +24,8 @@ export type WorkspaceSeatsInfo = {
 export async function getWorkspaceSeatsInfo(
   workspaceId: number
 ): Promise<WorkspaceSeatsInfo> {
+  await activateDueSubscriptions(workspaceId);
+
   const now = new Date();
 
   const [memberCount, workspace, activeSubscription] = await Promise.all([
@@ -33,15 +46,23 @@ export async function getWorkspaceSeatsInfo(
     }),
   ]);
 
-  const isPro =
-    workspace?.plan === "pro" &&
-    (workspace.planExpiresAt === null || workspace.planExpiresAt > now);
+  const storedPlan = workspace?.plan ?? "free";
+  const isTrial = isActiveTrialWorkspace(
+    storedPlan,
+    workspace?.planExpiresAt,
+    now
+  );
+  const scheduledPro = isTrial
+    ? await getScheduledProSubscription(workspaceId)
+    : null;
 
-  if (!isPro) {
+  if (storedPlan === "free" || (!isTrial && !activeSubscription)) {
     const purchased = FREE_PLAN_TEAM_MEMBERS_LIMIT;
     return {
       plan: "free",
       isTrial: false,
+      hasScheduledPro: false,
+      scheduledProStartsAt: null,
       seatsUsed: memberCount,
       seatsPurchased: purchased,
       seatsVacant: Math.max(0, purchased - memberCount),
@@ -49,16 +70,21 @@ export async function getWorkspaceSeatsInfo(
     };
   }
 
-  const isTrial = !activeSubscription;
-
   if (isTrial) {
     return {
-      plan: "pro",
+      plan: TRIAL_PLAN,
       isTrial: true,
+      hasScheduledPro: Boolean(scheduledPro),
+      scheduledProStartsAt: scheduledPro?.startsAt ?? null,
       seatsUsed: memberCount,
-      seatsPurchased: null,
+      seatsPurchased: scheduledPro?.seatsCount ?? null,
       seatsVacant: null,
-      billingCycle: null,
+      billingCycle:
+        scheduledPro?.billingCycle === "yearly"
+          ? "yearly"
+          : scheduledPro?.billingCycle === "monthly"
+            ? "monthly"
+            : null,
     };
   }
 
@@ -69,6 +95,8 @@ export async function getWorkspaceSeatsInfo(
   return {
     plan: "pro",
     isTrial: false,
+    hasScheduledPro: false,
+    scheduledProStartsAt: null,
     seatsUsed: memberCount,
     seatsPurchased: purchased,
     seatsVacant: Math.max(0, purchased - memberCount),

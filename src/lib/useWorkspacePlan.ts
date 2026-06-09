@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ProFeatureKey,
+  TRIAL_PLAN,
   WorkspacePlan,
   getRestrictedPlanFeatureForPath,
+  isProFeaturePlan,
+  isStoredTrialPlan,
   resolveWorkspaceIdFromSession,
   showPlanUpgradeModal,
 } from "@/lib/plans";
@@ -30,7 +33,13 @@ export function useWorkspacePlan() {
       });
       const json = await res.json();
       if (res.ok && json?.success) {
-        setPlan(json.plan === "pro" ? "pro" : "free");
+        const nextPlan: WorkspacePlan =
+          json.plan === "pro"
+            ? "pro"
+            : isStoredTrialPlan(json.plan)
+              ? TRIAL_PLAN
+              : "free";
+        setPlan(nextPlan);
         setIsTrial(Boolean(json.isTrial));
         setTrialEndsAt(json.trialEndsAt || null);
         setSeatsUsed(typeof json.seatsUsed === "number" ? json.seatsUsed : 0);
@@ -77,14 +86,14 @@ export function useWorkspacePlan() {
     (pathname: string) => {
       const feature = getRestrictedPlanFeatureForPath(pathname);
       if (!feature) return true;
-      return plan === "pro";
+      return isProFeaturePlan(plan);
     },
     [plan]
   );
 
   const guardPlanFeature = useCallback(
     (feature: ProFeatureKey, message?: string, title?: string) => {
-      if (plan === "pro") return true;
+      if (isProFeaturePlan(plan)) return true;
       showPlanUpgradeModal(feature, message, title);
       return false;
     },
@@ -119,7 +128,7 @@ export function useWorkspacePlan() {
     billingCycle,
     canAddSeats,
     ready,
-    isPro: plan === "pro",
+    isPro: isProFeaturePlan(plan),
     refreshPlan,
     canAccessPlanPath,
     guardPlanFeature,

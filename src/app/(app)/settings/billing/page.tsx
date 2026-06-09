@@ -93,8 +93,10 @@ export default function BillingSettingsPage() {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
   const [userCount, setUserCount] = useState<number>(1);
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [currentPlan, setCurrentPlan] = useState<"free" | "pro">("free");
+  const [currentPlan, setCurrentPlan] = useState<"free" | "trial" | "pro">("free");
   const [isTrial, setIsTrial] = useState(false);
+  const [hasScheduledPro, setHasScheduledPro] = useState(false);
+  const [scheduledProStartsAt, setScheduledProStartsAt] = useState<string | null>(null);
   const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null);
   const [planLoading, setPlanLoading] = useState(true);
   const [seatsUsed, setSeatsUsed] = useState(0);
@@ -111,6 +113,7 @@ export default function BillingSettingsPage() {
   const [additionalSeats, setAdditionalSeats] = useState(1);
   const [paymentStatus, setPaymentStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
   const [paymentError, setPaymentError] = useState<string>("");
+  const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string>("");
   const [billingLocale, setBillingLocale] = useState<BillingLocaleInfo | null>(
     null
   );
@@ -124,9 +127,11 @@ export default function BillingSettingsPage() {
       });
       const json = await res.json();
       if (json.success) {
-        setCurrentPlan(json.plan as "free" | "pro");
+        setCurrentPlan(json.plan as "free" | "trial" | "pro");
         setPlanExpiresAt(json.planExpiresAt);
         setIsTrial(Boolean(json.isTrial));
+        setHasScheduledPro(Boolean(json.hasScheduledPro));
+        setScheduledProStartsAt(json.scheduledProStartsAt ?? null);
         setSeatsUsed(typeof json.seatsUsed === "number" ? json.seatsUsed : 0);
         setSeatsPurchased(
           typeof json.seatsPurchased === "number" ? json.seatsPurchased : null
@@ -149,6 +154,8 @@ export default function BillingSettingsPage() {
         setCurrentPlan("free");
         setPlanExpiresAt(null);
         setIsTrial(false);
+        setHasScheduledPro(false);
+        setScheduledProStartsAt(null);
         setSeatsUsed(0);
         setSeatsPurchased(null);
         setSeatsVacant(null);
@@ -160,6 +167,8 @@ export default function BillingSettingsPage() {
       setCurrentPlan("free");
       setPlanExpiresAt(null);
       setIsTrial(false);
+      setHasScheduledPro(false);
+      setScheduledProStartsAt(null);
       setSeatsUsed(0);
       setSeatsPurchased(null);
       setSeatsVacant(null);
@@ -279,6 +288,7 @@ export default function BillingSettingsPage() {
     setCheckoutUsers(userCount || 1);
     setPaymentStatus("idle");
     setPaymentError("");
+    setPaymentSuccessMessage("");
     setIsCheckoutOpen(true);
     posthog.capture("upgrade_checkout_opened", {
       billing_cycle: billing,
@@ -370,7 +380,12 @@ export default function BillingSettingsPage() {
       const { orderId, amount, currency, keyId } = orderJson;
 
       // Step 2: Open Razorpay Checkout
-      await new Promise<void>((resolve, reject) => {
+      const verifyJson = await new Promise<{
+        success: boolean;
+        scheduled?: boolean;
+        message?: string;
+        startsAt?: string;
+      }>((resolve, reject) => {
         const rzp = new window.Razorpay({
           key: keyId,
           order_id: orderId,
@@ -409,11 +424,11 @@ export default function BillingSettingsPage() {
                   workspaceId: parseInt(wid, 10),
                 }),
               });
-              const verifyJson = await verifyRes.json();
-              if (!verifyJson.success) {
-                throw new Error(verifyJson.error || "Payment verification failed");
+              const verifyPayload = await verifyRes.json();
+              if (!verifyPayload.success) {
+                throw new Error(verifyPayload.error || "Payment verification failed");
               }
-              resolve();
+              resolve(verifyPayload);
             } catch (err: any) {
               reject(err);
             }
@@ -435,11 +450,22 @@ export default function BillingSettingsPage() {
         }
       );
       setPaymentStatus("success");
-      setCurrentPlan("pro");
+      setPaymentSuccessMessage(
+        verifyJson.message ||
+          (verifyJson.scheduled
+            ? "Your Pro plan is scheduled to start after your trial ends."
+            : "Your workspace has been upgraded to the Pro plan.")
+      );
+      if (!verifyJson.scheduled) {
+        setCurrentPlan("pro");
+      } else {
+        setHasScheduledPro(true);
+        setScheduledProStartsAt(verifyJson.startsAt ?? null);
+      }
 
       setTimeout(() => {
         window.location.reload();
-      }, 1500);
+      }, 2500);
     } catch (err: any) {
       if (err?.message === "Payment cancelled") {
         // User dismissed — just go back to idle
@@ -463,6 +489,17 @@ export default function BillingSettingsPage() {
         year: "numeric",
       })
     : null;
+
+  const formattedScheduledProStart = scheduledProStartsAt
+    ? new Date(scheduledProStartsAt).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
+  const isPaidProActive = currentPlan === "pro" && !isTrial;
+  const canPurchasePro = !isPaidProActive && !hasScheduledPro;
 
   return (
     <div className="space-y-8">
@@ -493,11 +530,13 @@ export default function BillingSettingsPage() {
               <div className="mt-1 h-4 w-48 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
             ) : (
               <p className="mt-0.5 text-sm font-bold text-zinc-900 dark:text-zinc-50">
-                {currentPlan === "pro"
-                  ? isTrial
+                {hasScheduledPro
+                  ? `Free Trial — Active${formattedExpiry ? ` · Ends ${formattedExpiry}` : ""}${formattedScheduledProStart ? ` · Pro starts ${formattedScheduledProStart}` : ""}`
+                  : isTrial || currentPlan === "trial"
                     ? `Free Trial — Active${formattedExpiry ? ` · Ends ${formattedExpiry}` : ""}`
-                    : `Pro Plan — Active${formattedExpiry ? ` · Renews ${formattedExpiry}` : ""}`
-                  : "Free Plan — No active subscription"}
+                    : currentPlan === "pro"
+                      ? `Pro Plan — Active${formattedExpiry ? ` · Renews ${formattedExpiry}` : ""}`
+                      : "Free Plan — No active subscription"}
               </p>
             )}
           </div>
@@ -606,7 +645,7 @@ export default function BillingSettingsPage() {
       {/* ── Plan cards ── */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
         {(() => {
-          const isProActive = currentPlan === "pro";
+          const isProActive = isPaidProActive;
           return (
             <>
 
@@ -689,10 +728,16 @@ export default function BillingSettingsPage() {
             Most Popular
           </span>
 
-          {currentPlan === "pro" && (
+          {isPaidProActive && (
             <span className="absolute right-5 top-5 inline-flex items-center gap-1.5 rounded-full bg-teal-500 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-sm">
               <CheckCircleIcon className="h-3.5 w-3.5" />
               Active
+            </span>
+          )}
+          {hasScheduledPro && (
+            <span className="absolute right-5 top-5 inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-white shadow-sm">
+              <CheckCircleIcon className="h-3.5 w-3.5" />
+              Pro Scheduled
             </span>
           )}
 
@@ -782,15 +827,22 @@ export default function BillingSettingsPage() {
             type="button"
             id="pro-plan-cta"
             onClick={handleOpenCheckout}
-            disabled={currentPlan === "pro" || planLoading}
+            disabled={!canPurchasePro || planLoading}
             className={`mt-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-all active:scale-[0.98] disabled:cursor-default disabled:opacity-60 ${
-              isProActive
+              isProActive || hasScheduledPro
                 ? "bg-teal-500/20 text-teal-700 dark:text-teal-300"
                 : "bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-white shadow-lg shadow-teal-600/25 hover:brightness-110"
             }`}
           >
-            {currentPlan === "pro" ? (
+            {isPaidProActive ? (
               "Current Plan"
+            ) : hasScheduledPro ? (
+              "Pro Purchased"
+            ) : isTrial ? (
+              <>
+                Buy Pro — starts after trial
+                <ArrowRightIcon className="h-4 w-4" />
+              </>
             ) : (
               <>
                 Upgrade to Pro
@@ -858,10 +910,10 @@ export default function BillingSettingsPage() {
             type="button"
             id="compare-upgrade-cta"
             onClick={handleOpenCheckout}
-            disabled={currentPlan === "pro"}
+            disabled={!canPurchasePro}
             className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-default disabled:opacity-60"
           >
-            Get Pro <ArrowRightIcon className="h-3.5 w-3.5" />
+            {hasScheduledPro ? "Pro Scheduled" : "Get Pro"} <ArrowRightIcon className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
@@ -902,6 +954,11 @@ export default function BillingSettingsPage() {
                             : "Upgrade to Pro Plan"}
                         </h3>
                         <p className="text-[10px] text-zinc-400">Secure checkout powered by Razorpay</p>
+                        {checkoutMode === "upgrade" && isTrial && formattedExpiry && (
+                          <p className="mt-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                            Pro billing starts after your trial ends on {formattedExpiry}.
+                          </p>
+                        )}
                       </div>
                     </div>
                     <button
@@ -1091,7 +1148,8 @@ export default function BillingSettingsPage() {
                     <p className="text-xs text-zinc-500 mt-1">
                       {checkoutMode === "add_seats"
                         ? "Your subscription now includes more team seats."
-                        : "Your workspace has been upgraded to the Pro plan."}
+                        : paymentSuccessMessage ||
+                          "Your workspace has been upgraded to the Pro plan."}
                     </p>
                   </div>
                 </div>

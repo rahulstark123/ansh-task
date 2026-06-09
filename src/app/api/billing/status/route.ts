@@ -48,11 +48,13 @@ export async function GET(request: Request) {
       trialEndsAt: seats.isTrial
         ? workspace.planExpiresAt?.toISOString() ?? null
         : null,
+      hasScheduledPro: seats.hasScheduledPro,
+      scheduledProStartsAt: seats.scheduledProStartsAt?.toISOString() ?? null,
       seatsUsed: seats.seatsUsed,
       seatsPurchased: seats.seatsPurchased,
       seatsVacant: seats.seatsVacant,
       billingCycle: seats.billingCycle,
-      canAddSeats: seats.plan === "pro" && !seats.isTrial,
+      canAddSeats: seats.plan === "pro",
     });
   } catch (error: any) {
     console.error("[billing/status] Error:", error);
