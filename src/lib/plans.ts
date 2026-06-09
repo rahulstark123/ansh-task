@@ -1,4 +1,18 @@
-export type WorkspacePlan = "free" | "pro";
+export const TRIAL_PLAN = "trial" as const;
+
+export type WorkspacePlan = "free" | typeof TRIAL_PLAN | "pro";
+
+export function isStoredTrialPlan(plan: string | null | undefined) {
+  return plan === TRIAL_PLAN || plan === "free_trial";
+}
+
+export function isProFeaturePlan(plan: WorkspacePlan) {
+  return plan === "pro" || plan === TRIAL_PLAN;
+}
+
+export function isPaidProPlan(plan: WorkspacePlan) {
+  return plan === "pro";
+}
 
 export type ProFeatureKey =
   | "teamSpace"
