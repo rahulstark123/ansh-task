@@ -35,6 +35,8 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionMatrix = {
     create_sticky_notes: true,
     edit_notes: true,
     delete_notes: true,
+    post_announcements: true,
+    manage_announcements: true,
   },
   admin: {
     modify_workspace: true,
@@ -54,6 +56,8 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionMatrix = {
     create_sticky_notes: true,
     edit_notes: true,
     delete_notes: true,
+    post_announcements: true,
+    manage_announcements: true,
   },
   editor: {
     modify_workspace: false,
@@ -73,6 +77,8 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionMatrix = {
     create_sticky_notes: true,
     edit_notes: true,
     delete_notes: true,
+    post_announcements: false,
+    manage_announcements: false,
   },
   observer: {
     modify_workspace: false,
@@ -92,6 +98,8 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionMatrix = {
     create_sticky_notes: false,
     edit_notes: false,
     delete_notes: false,
+    post_announcements: false,
+    manage_announcements: false,
   },
 };
 

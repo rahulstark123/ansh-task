@@ -26,9 +26,12 @@ import {
   EnvelopeIcon,
   HashtagIcon,
   LockClosedIcon,
+  BoltIcon,
+  MegaphoneIcon,
 } from "@heroicons/react/24/outline";
 import type { BillingLocaleInfo } from "@/lib/billing/charge-region";
 import { formatChargeAmount } from "@/lib/billing/charge-region";
+import { TEAM_SPACE_ENABLED } from "@/config/features";
 
 // Define accent options to showcase the app's dynamic styling
 const ACCENTS = [
@@ -53,7 +56,9 @@ const PRICING_PLANS = [
       { label: "Up to 3 projects", included: true },
       { label: "50 tasks per month", included: true },
       { label: "Brain Board included", included: true },
-      { label: "Team Space not included", included: false },
+      { label: "Activity feed not included", included: false },
+      { label: "Announcements not included", included: false },
+      ...(TEAM_SPACE_ENABLED ? [{ label: "Team Space not included", included: false }] : []),
       { label: "Advanced Analytics not included", included: false },
     ],
     highlighted: false,
@@ -65,17 +70,42 @@ const PRICING_PLANS = [
     priceInr: 199,
     cadence: "/ user / month",
     description:
-      "Best for small and medium businesses that need complete chat collaboration, unlimited tasks, and advanced reporting.",
+      "Best for small and medium businesses that need unlimited tasks, brain boards, and advanced reporting.",
     features: [
       { label: "Add team members based on paid seats", included: true },
       { label: "Unlimited projects", included: true },
       { label: "Unlimited tasks", included: true },
       { label: "Brain Board included", included: true },
-      { label: "Team Space channels and DMs", included: true },
+      { label: "Activity feed included", included: true },
+      { label: "Announcements (post & pin)", included: true },
+      ...(TEAM_SPACE_ENABLED ? [{ label: "Team Space channels and DMs", included: true }] : []),
       { label: "Advanced Analytics included", included: true },
     ],
     note: "Yearly billing saves 19%",
     highlighted: true,
+  },
+] as const;
+
+const ACTIVITY_PREVIEW = [
+  {
+    title: "Task updated: GST filing Q1",
+    description: "Status is now in progress · Finance project",
+    time: "12m ago",
+  },
+  {
+    title: "Announcement: GST deadline May 31",
+    description: "Posted by Ansh K. · Pinned notice for all staff",
+    time: "1h ago",
+  },
+  {
+    title: "Priya Sharma joined the workspace",
+    description: "Role: Editor",
+    time: "2h ago",
+  },
+  {
+    title: "Project updated: Diwali Campaign",
+    description: "45% complete · Active",
+    time: "3h ago",
   },
 ] as const;
 
@@ -126,15 +156,15 @@ const COMPETITOR_COMPARISONS = [
     summary: "Save thousands on seat licenses without dashboard lag.",
     points: [
       "ClickUp & Monday are highly customizable but get expensive quickly and suffer from heavy loading lag.",
-      "ANSH Task is lightweight, highly performant, and packs tasks, chat, and brain boards under one fixed-rate plan.",
+      "ANSH Task is lightweight, highly performant, and packs tasks, brain boards, activity feed, and support under one fixed-rate plan.",
     ],
   },
   {
     title: "Compared to Trello & Slack",
-    summary: "No more paying for multiple tools to get tasks and chat.",
+    summary: "No more paying for multiple tools to get tasks and docs.",
     points: [
-      "Trello is too basic (no chat/docs), while Slack is just messaging (no task boards)—leading to double subscriptions.",
-      "ANSH Task integrates Kanban boards, documents, and chat rooms in one unified tab.",
+      "Trello is too basic (no docs/support), while Slack is just messaging (no task boards)—leading to double subscriptions.",
+      "ANSH Task integrates Kanban boards, brain boards, activity feed, announcements, and support in one unified workspace.",
     ],
   },
 ] as const;
@@ -143,7 +173,7 @@ export function LandingPageClient() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activePreviewTab, setActivePreviewTab] = useState<"kanban" | "brain" | "team">("kanban");
+  const [activePreviewTab, setActivePreviewTab] = useState<"kanban" | "brain" | "team" | "activity">("kanban");
   const [selectedAccent, setSelectedAccent] = useState("teal");
   const [selectedTeamChannel, setSelectedTeamChannel] = useState("general");
   const [faqOpen, setFaqOpen] = useState<Record<number, boolean>>({});
@@ -342,7 +372,7 @@ export function LandingPageClient() {
 
               {/* Description */}
               <p className="text-zinc-600 dark:text-zinc-300 text-lg md:text-xl font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                ANSH Task combines project management tools, Kanban task boards, collaborative brain boards, and Team Space into a unified, high-performance workspace.
+                ANSH Task combines project management tools, Kanban task boards, collaborative brain boards, activity feed, and workspace announcements into a unified, high-performance workspace.
               </p>
 
               {/* Value Props: What ANSH Task Does (Crisp & Clear) */}
@@ -372,8 +402,18 @@ export function LandingPageClient() {
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Built-in Team Chat</h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Channels & DMs to coordinate operations without extra Slack bills.</p>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Activity Feed</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">See task, project, and team updates in one timeline — no separate chat app needed.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 mt-0.5">
+                    <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Workspace Announcements</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Pin GST deadlines, holiday notices, and policy updates for your whole team.</p>
                   </div>
                 </div>
 
@@ -386,6 +426,18 @@ export function LandingPageClient() {
                     <p className="text-xs text-zinc-500 dark:text-zinc-400">Manage client tickets and supplier claims natively inside the portal.</p>
                   </div>
                 </div>
+
+                {TEAM_SPACE_ENABLED && (
+                <div className="flex items-start gap-2.5">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 mt-0.5">
+                    <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Built-in Team Chat</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Channels & DMs to coordinate operations without extra Slack bills.</p>
+                  </div>
+                </div>
+                )}
               </div>
 
               {/* Call to Actions */}
@@ -394,7 +446,7 @@ export function LandingPageClient() {
                   href="/signup"
                   className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold px-8 py-4 shadow-lg shadow-teal-600/20 active:scale-[0.98] transition-all"
                 >
-                  Start Tracking Tasks Free
+                  Start 14-Day Free Trial
                   <ArrowRightIcon className="h-5 w-5" />
                 </Link>
                 <a
@@ -449,12 +501,21 @@ export function LandingPageClient() {
                     >
                       Brain Board
                     </button>
+                    {TEAM_SPACE_ENABLED ? (
                     <button
                       onClick={() => setActivePreviewTab("team")}
                       className={`px-3 py-1 rounded-md transition-all ${activePreviewTab === "team" ? "bg-white text-zinc-900 dark:bg-zinc-700 dark:text-zinc-50 shadow-xs" : "hover:text-zinc-700"}`}
                     >
                       Team Space
                     </button>
+                    ) : (
+                    <button
+                      onClick={() => setActivePreviewTab("activity")}
+                      className={`px-3 py-1 rounded-md transition-all ${activePreviewTab === "activity" ? "bg-white text-zinc-900 dark:bg-zinc-700 dark:text-zinc-50 shadow-xs" : "hover:text-zinc-700"}`}
+                    >
+                      Activity
+                    </button>
+                    )}
                   </div>
 
                   <span className="text-xs text-zinc-400 dark:text-zinc-500 font-mono">ansh-task.app</span>
@@ -553,8 +614,38 @@ export function LandingPageClient() {
                     </motion.div>
                   )}
 
+                  {/* Activity Feed Preview */}
+                  {!TEAM_SPACE_ENABLED && activePreviewTab === "activity" && (
+                    <motion.div
+                      key="activity-preview"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className="space-y-2.5 text-left"
+                    >
+                      {ACTIVITY_PREVIEW.map((item) => (
+                        <div
+                          key={item.title}
+                          className="flex gap-3 rounded-xl border border-zinc-200/80 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900"
+                        >
+                          <div
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white text-[10px] font-bold"
+                            style={{ backgroundColor: getAccentColor() }}
+                          >
+                            <BoltIcon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{item.title}</p>
+                            <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">{item.description}</p>
+                            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{item.time}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </motion.div>
+                  )}
+
                   {/* Team Space View Content */}
-                  {activePreviewTab === "team" && (
+                  {TEAM_SPACE_ENABLED && activePreviewTab === "team" && (
                     <motion.div
                       key="team-preview"
                       initial={{ opacity: 0, y: 10 }}
@@ -703,7 +794,34 @@ export function LandingPageClient() {
               </p>
             </div>
 
-            {/* Feature 3 */}
+            {/* Feature 3 — Activity Feed */}
+            {!TEAM_SPACE_ENABLED && (
+            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+                <BoltIcon className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Activity Feed</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                A live timeline of task updates, new projects, team joins, support tickets, and announcements — all in one place without realtime chat overhead.
+              </p>
+            </div>
+            )}
+
+            {/* Feature — Announcements */}
+            {!TEAM_SPACE_ENABLED && (
+            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+                <MegaphoneIcon className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Workspace Announcements</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                Owners and admins can pin company-wide notices — GST deadlines, holiday closures, and policy updates — so every teammate stays aligned.
+              </p>
+            </div>
+            )}
+
+            {/* Feature 3 — Team Space (when enabled) */}
+            {TEAM_SPACE_ENABLED && (
             <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
                 <ChatBubbleLeftRightIcon className="h-6 w-6" />
@@ -713,6 +831,7 @@ export function LandingPageClient() {
                 Chat in shared channels, private rooms, and direct messages without leaving your workspace. Keep project updates, decisions, and team coordination in one place.
               </p>
             </div>
+            )}
 
             {/* Feature 4 */}
             <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
@@ -721,7 +840,7 @@ export function LandingPageClient() {
               </div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Granular Team Management</h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                Setup team spaces, control group access rights, manage profile roles, and monitor recent logs. Seamlessly coordinate complex organizations with ease.
+                Setup teams, control group access rights, manage profile roles, and monitor recent logs. Seamlessly coordinate complex organizations with ease.
               </p>
             </div>
 
@@ -763,7 +882,7 @@ export function LandingPageClient() {
               Affordable plans tailored for MSMEs
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
-              Start free, then upgrade only when your team needs more seats, Team Space, and Advanced Analytics. Enjoy predictable, small-business-friendly rates.
+              Start free with tasks, projects, and Brain Board — upgrade to Pro for activity feed, announcements, and Advanced Analytics.
             </p>
             {billingLocale && billingLocale.chargeCurrency === "USD" && (
               <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-xl mx-auto">
@@ -918,7 +1037,7 @@ export function LandingPageClient() {
                   The ANSH Task Model for MSMEs
                 </h4>
                 <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                  A unified tool that any non-technical employee can adopt in minutes. Tasks, whiteboards, chat, and support desks all live together. No hidden setups or extra license costs.
+                  A unified tool that any non-technical employee can adopt in minutes. Tasks, whiteboards, activity feed, announcements, and support desks all live together. No hidden setups or extra license costs.
                 </p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5 dark:border-zinc-800 dark:bg-zinc-950/40">
@@ -934,7 +1053,78 @@ export function LandingPageClient() {
         </div>
       </section>
 
+      {/* Workspace Updates — Activity Feed & Announcements */}
+      {!TEAM_SPACE_ENABLED && (
+      <section id="workspace-updates" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div className="relative order-2 lg:order-1">
+              <div className="absolute inset-0 bg-gradient-to-tr from-teal-500/10 to-indigo-500/10 rounded-2xl blur-3xl pointer-events-none" />
+              <div className="relative border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl p-6 overflow-hidden">
+                <div className="flex items-center justify-between pb-4 mb-4 border-b border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-yellow-400 inline-block" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-400 inline-block" />
+                  </div>
+                  <span className="text-xs font-semibold text-zinc-400 dark:text-zinc-500">Activity Feed</span>
+                </div>
+                <div className="space-y-3">
+                  {ACTIVITY_PREVIEW.map((item) => (
+                    <div key={item.title} className="flex gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/30 p-3">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white">
+                        <BoltIcon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-zinc-900 dark:text-zinc-100">{item.title}</p>
+                        <p className="mt-0.5 text-[10px] text-zinc-500">{item.description}</p>
+                        <p className="mt-1 text-[10px] font-semibold text-zinc-400">{item.time}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-6 order-1 lg:order-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-400 text-xs font-semibold tracking-wide border border-teal-500/20">
+                <BoltIcon className="h-3.5 w-3.5" />
+                Workspace Updates
+              </div>
+              <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white leading-tight">
+                Stay Aligned with Activity Feed & Announcements
+              </h2>
+              <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg leading-relaxed">
+                Replace scattered chat threads with a lightweight update system. The activity feed logs what changed across tasks and projects, while announcements let leaders pin what everyone must read today.
+              </p>
+              <div className="space-y-3.5 pt-2">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                    <CheckIcon className="h-4 w-4 stroke-[3]" />
+                  </div>
+                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Automatic timeline — tasks, projects, tickets, and team joins</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                    <CheckIcon className="h-4 w-4 stroke-[3]" />
+                  </div>
+                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Pinned announcements for GST deadlines, closures, and policy updates</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                    <CheckIcon className="h-4 w-4 stroke-[3]" />
+                  </div>
+                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Included on Pro — no extra Slack subscription required</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      )}
+
       {/* Team Space Feature (Section 3) */}
+      {TEAM_SPACE_ENABLED && (
       <section id="team-space" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -1060,6 +1250,7 @@ export function LandingPageClient() {
           </div>
         </div>
       </section>
+      )}
 
       {/* SEO Optimized FAQ Accordion (Section 4) */}
       <section id="faq" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 bg-zinc-100/40 dark:bg-zinc-950/20 relative z-10 scroll-mt-24">
@@ -1150,7 +1341,7 @@ export function LandingPageClient() {
               href="/signup"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-teal-500 hover:bg-teal-600 text-zinc-950 font-bold px-8 py-4 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-[0.98] transition-all"
             >
-              Start Tracking Tasks Free
+              Start 14-Day Free Trial
               <ArrowRightIcon className="h-5 w-5" />
             </Link>
           </div>
@@ -1204,8 +1395,12 @@ export function LandingPageClient() {
                 <li><a href="#features" className="hover:text-teal-600">Kanban Board</a></li>
                 <li><a href="#pricing" className="hover:text-teal-600">Pricing</a></li>
                 <li><a href="#features" className="hover:text-teal-600">Brain Board</a></li>
+                <li><a href="#workspace-updates" className="hover:text-teal-600">Activity Feed</a></li>
+                <li><a href="#workspace-updates" className="hover:text-teal-600">Announcements</a></li>
                 <li><a href="#features" className="hover:text-teal-600">Doc Sharing</a></li>
+                {TEAM_SPACE_ENABLED && (
                 <li><a href="#team-space" className="hover:text-teal-600">Team Spaces</a></li>
+                )}
               </ul>
             </div>
 

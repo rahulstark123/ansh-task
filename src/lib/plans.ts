@@ -1,3 +1,5 @@
+import { TEAM_SPACE_ENABLED } from "@/config/features";
+
 export const TRIAL_PLAN = "trial" as const;
 
 export type WorkspacePlan = "free" | typeof TRIAL_PLAN | "pro";
@@ -16,6 +18,8 @@ export function isPaidProPlan(plan: WorkspacePlan) {
 
 export type ProFeatureKey =
   | "teamSpace"
+  | "activityFeed"
+  | "announcements"
   | "advancedAnalytics"
   | "teamMembersLimit"
   | "projectsLimit"
@@ -36,7 +40,9 @@ export const FREE_PLAN_PROJECTS_LIMIT = 3;
 export const FREE_PLAN_TASKS_PER_MONTH_LIMIT = 50;
 
 const PRO_FEATURE_ROUTE_RULES: Array<{ prefix: string; feature: ProFeatureKey }> = [
-  { prefix: "/tasks/team", feature: "teamSpace" },
+  ...(TEAM_SPACE_ENABLED ? [{ prefix: "/tasks/team", feature: "teamSpace" as const }] : []),
+  { prefix: "/tasks/activity", feature: "activityFeed" },
+  { prefix: "/management/announcements", feature: "announcements" },
 ];
 
 export function resolveWorkspaceIdFromSession() {
@@ -63,6 +69,10 @@ export function getUpgradeMessage(feature: ProFeatureKey) {
   switch (feature) {
     case "teamSpace":
       return "Team Space is not included in the Free plan. Upgrade to PRO to unlock channels, direct messages, and team discussions.";
+    case "activityFeed":
+      return "Activity feed is not included in the Free plan. Upgrade to PRO to unlock the full workspace activity timeline.";
+    case "announcements":
+      return "Announcements are not included in the Free plan. Upgrade to PRO to post, pin, and manage workspace notices.";
     case "advancedAnalytics":
       return "Advanced analytics is not included in the Free plan. Upgrade to PRO to unlock deeper workload, priority, and status insights.";
     case "teamMembersLimit":

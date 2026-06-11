@@ -7,11 +7,14 @@ import {
   Cog6ToothIcon,
   HomeModernIcon,
   LightBulbIcon,
+  MegaphoneIcon,
   QuestionMarkCircleIcon,
   RectangleStackIcon,
   UsersIcon,
   AdjustmentsHorizontalIcon,
+  BoltIcon,
 } from "@heroicons/react/24/outline";
+import { TEAM_SPACE_ENABLED } from "@/config/features";
 
 export type NavIcon = ComponentType<{ className?: string }>;
 
@@ -52,12 +55,23 @@ export const NAV_SECTIONS: NavSection[] = [
         match: "exact",
       },
       { href: "/tasks/my", label: "My tasks", icon: CheckCircleIcon, match: "exact" },
-      {
-        href: "/tasks/team",
-        label: "Team space",
-        icon: ChatBubbleLeftRightIcon,
-        match: "exact",
-      },
+      ...(TEAM_SPACE_ENABLED
+        ? [
+            {
+              href: "/tasks/team",
+              label: "Team space",
+              icon: ChatBubbleLeftRightIcon,
+              match: "exact" as const,
+            },
+          ]
+        : [
+            {
+              href: "/tasks/activity",
+              label: "Activity feed",
+              icon: BoltIcon,
+              match: "exact" as const,
+            },
+          ]),
     ],
   },
   {
@@ -77,6 +91,12 @@ export const NAV_SECTIONS: NavSection[] = [
         label: "Teams",
         icon: UsersIcon,
         match: "prefix",
+      },
+      {
+        href: "/management/announcements",
+        label: "Announcements",
+        icon: MegaphoneIcon,
+        match: "exact",
       },
     ],
   },
@@ -112,10 +132,12 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/tasks/my": "My tasks",
   "/tasks/all": "All tasks",
   "/tasks/team": "Team space",
+  "/tasks/activity": "Activity feed",
   "/projects": "Projects",
   "/brain-board": "Brain board",
   "/documents": "Documents",
   "/management/teams": "Teams",
+  "/management/announcements": "Announcements",
   "/settings": "Settings",
   "/settings/profile": "Profile",
   "/settings/company": "Company",

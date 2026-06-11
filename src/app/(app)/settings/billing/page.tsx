@@ -10,6 +10,7 @@ import {
   buildRazorpayReadonly,
 } from "@/lib/billing/razorpay-prefill";
 import { SITE_URL } from "@/lib/site";
+import { TEAM_SPACE_ENABLED } from "@/config/features";
 import { supabase } from "@/lib/supabase";
 import posthog from "@/lib/posthog-noop";
 import { motion, AnimatePresence } from "framer-motion";
@@ -43,7 +44,11 @@ const FEATURES: Feature[] = [
   { label: "Team members",                  free: "2 members",    pro: "Per paid seat"  },
   { label: "Brain Board",                   free: true,           pro: true             },
   { label: "Kanban & table views",          free: true,           pro: true             },
-  { label: "Team Space (channels & DMs)",   free: false,          pro: true             },
+  { label: "Activity feed",                 free: false,          pro: true             },
+  { label: "Announcements",                 free: false,          pro: "Post & pin"     },
+  ...(TEAM_SPACE_ENABLED
+    ? [{ label: "Team Space (channels & DMs)", free: false as const, pro: true as const }]
+    : []),
   { label: "Advanced analytics",            free: false,          pro: true             },
   { label: "Custom roles & permissions",    free: false,          pro: true             },
   { label: "Activity audit log (Soon)",     free: false,          pro: "Soon"           },
@@ -703,8 +708,11 @@ export default function BillingSettingsPage() {
               "2 workspace members",
               "Brain Board included",
               "Kanban & table views",
-              "No Team Space or advanced analytics",
-            ].map((f) => (
+              TEAM_SPACE_ENABLED ? "No Team Space" : null,
+              "No activity feed",
+              "No announcements",
+              "No advanced analytics",
+            ].filter(Boolean).map((f) => (
               <li key={f} className="flex items-start gap-2.5 text-sm">
                 <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 stroke-[2.5] text-[var(--app-primary)]" />
                 <span className="text-zinc-600 dark:text-zinc-300">{f}</span>
@@ -855,7 +863,9 @@ export default function BillingSettingsPage() {
             {[
               "Unlimited tasks & projects",
               "Add team members based on paid seats",
-              "Team Space channels & DMs",
+              "Activity feed included",
+              "Announcements (post & pin)",
+              ...(TEAM_SPACE_ENABLED ? ["Team Space channels & DMs"] : []),
               "Brain Board included",
               "Advanced analytics & reports",
               "Custom roles & permissions",

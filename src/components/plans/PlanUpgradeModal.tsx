@@ -19,13 +19,13 @@ import {
 export function PlanUpgradeModal() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState(getUpgradeTitle("teamSpace"));
-  const [message, setMessage] = useState(getUpgradeMessage("teamSpace"));
+  const [title, setTitle] = useState(getUpgradeTitle("advancedAnalytics"));
+  const [message, setMessage] = useState(getUpgradeMessage("advancedAnalytics"));
 
   useEffect(() => {
     const onUpgradeRequired = (event: Event) => {
       const custom = event as CustomEvent<UpgradeRequiredPayload>;
-      const feature = custom.detail?.feature || "teamSpace";
+      const feature = custom.detail?.feature || "advancedAnalytics";
       setTitle(custom.detail?.title || getUpgradeTitle(feature));
       setMessage(custom.detail?.message || getUpgradeMessage(feature));
       setOpen(true);

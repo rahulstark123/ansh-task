@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buildSiteMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Terms & Conditions | ANSH Task",
-  description: "Terms and Conditions for using ANSH Task.",
-};
+export const metadata: Metadata = buildSiteMetadata({
+  title: "Terms & Conditions",
+  description: "Terms and Conditions for using ANSH Tasks.",
+  path: "/terms",
+});
 
 const SECTIONS = [
   {

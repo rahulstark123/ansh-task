@@ -35,6 +35,7 @@ model User {
   conversations ConversationParticipant[]
   channelMemberships ChannelMember[]
   taskNotes          TaskNote[]
+  announcements      Announcement[]
 }
 
 model Workspace {
@@ -75,6 +76,7 @@ model Workspace {
   subscriptions Subscription[]
   transactions  Transaction[]
   permissionSettings WorkspacePermissionSettings?
+  announcements Announcement[]
 }
 
 model WorkspaceRole {
@@ -291,6 +293,24 @@ model ChannelMember {
   createdAt DateTime @default(now())
 
   @@unique([channelId, userId])
+}
+
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String
+  body        String
+  pinned      Boolean  @default(false)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, archived, pinned])
+  @@index([workspaceId, createdAt])
 }
 
 model Subscription {

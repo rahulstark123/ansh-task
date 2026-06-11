@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { TEAM_SPACE_ENABLED } from "@/config/features";
 import { 
   MagnifyingGlassIcon, 
   FolderIcon,
@@ -159,22 +160,25 @@ export function AppTopBar() {
           console.error("Error fetching tasks for search in TopBar:", err);
         }
 
-        // Fetch channels
-        const channelRes = await fetch(`/api/channel?wid=${wid}`);
-        const channelJson = await channelRes.json();
+        // Fetch channels (Team Space only)
         let channelsList: { id: string; name: string }[] = [];
-        if (channelJson.success && channelJson.channels) {
-          channelsList = channelJson.channels.map((c: any) => ({
-            id: c.id,
-            name: c.name,
-          }));
-          setWorkspaceChannels(channelsList);
+        if (TEAM_SPACE_ENABLED) {
+          const channelRes = await fetch(`/api/channel?wid=${wid}`);
+          const channelJson = await channelRes.json();
+          if (channelJson.success && channelJson.channels) {
+            channelsList = channelJson.channels.map((c: any) => ({
+              id: c.id,
+              name: c.name,
+            }));
+            setWorkspaceChannels(channelsList);
+          }
         }
 
         // Set up global supabase changes listener
-        channel = supabase
-          .channel("global-topbar-changes")
-          .on(
+        let channelBuilder = supabase.channel("global-topbar-changes");
+
+        if (TEAM_SPACE_ENABLED) {
+          channelBuilder = channelBuilder.on(
             "postgres_changes",
             { event: "INSERT", schema: "public", table: "Message" },
             async (payload) => {
@@ -201,12 +205,15 @@ export function AppTopBar() {
                 description,
                 time: "Just now",
                 read: false,
-                link: newMessage.channelId ? "/tasks/team" : "/tasks/team",
+                link: "/tasks/team",
               };
 
               setNotifications((prev) => [newNotification, ...prev]);
             }
-          )
+          );
+        }
+
+        channel = channelBuilder
           .on(
             "postgres_changes",
             { event: "*", schema: "public", table: "Task" },
@@ -480,10 +487,13 @@ export function AppTopBar() {
     { id: "p-dash", type: "page", title: "Go to Dashboard", subtitle: "Main analytics & overview", action: () => guardedRoutePush("/dashboard") },
     { id: "p-tasks", type: "page", title: "Go to Task List", subtitle: "Complete tasks backlog", action: () => guardedRoutePush("/tasks") },
     { id: "p-mytasks", type: "page", title: "Go to My Tasks", subtitle: "Your assigned workload list", action: () => guardedRoutePush("/tasks/my") },
-    { id: "p-team", type: "page", title: "Go to Team Space", subtitle: "Discussions & updates board", action: () => guardedRoutePush("/tasks/team") },
+    ...(TEAM_SPACE_ENABLED
+      ? [{ id: "p-team", type: "page" as const, title: "Go to Team Space", subtitle: "Discussions & updates board", action: () => guardedRoutePush("/tasks/team") }]
+      : [{ id: "p-activity", type: "page" as const, title: "Go to Activity Feed", subtitle: "Recent workspace updates", action: () => guardedRoutePush("/tasks/activity") }]),
     { id: "p-proj", type: "page", title: "Go to Projects", subtitle: "List of active portfolio projects", action: () => guardedRoutePush("/projects") },
     { id: "p-bb", type: "page", title: "Go to Brain Board", subtitle: "Sticky canvas ideas mapping", action: () => guardedRoutePush("/brain-board") },
     { id: "p-teams", type: "page", title: "Go to Teams Management", subtitle: "Add and manage team members", action: () => guardedRoutePush("/management/teams") },
+    { id: "p-announcements", type: "page", title: "Go to Announcements", subtitle: "Workspace notices and pinned updates", action: () => guardedRoutePush("/management/announcements") },
     { id: "p-settings", type: "page", title: "Go to Settings", subtitle: "Workspace configuration drawer", action: () => guardedRoutePush("/settings") },
     
     // Core Projects (Dynamic from DB)
