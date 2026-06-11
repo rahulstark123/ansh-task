@@ -13,6 +13,7 @@ import {
   LockClosedIcon,
   CreditCardIcon,
   ChatBubbleLeftRightIcon,
+  MegaphoneIcon,
   ClipboardDocumentCheckIcon,
   SparklesIcon,
   Squares2X2Icon,
@@ -21,6 +22,7 @@ import {
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
+import { TEAM_SPACE_ENABLED } from "@/config/features";
 import {
   AppRole,
   DEFAULT_PERMISSION_MATRIX,
@@ -67,33 +69,33 @@ const ROLES = [
     bgSoft: "bg-teal-500/10 border-teal-500/30 text-teal-700 dark:text-teal-300",
     glowColor: "rgba(20, 184, 166, 0.15)",
     icon: KeyIcon,
-    capabilities: ["Invite and manage members", "Configure core system defaults", "Create & edit custom lanes"],
+    capabilities: ["Invite and manage members", "Configure core system defaults", "Post workspace announcements"],
   },
   {
     id: "editor" as const,
     name: "Editor",
     badge: "Content Creator",
-    description: "Active team member executing tasks, participating in team spaces, and creating resources.",
+    description: "Active team member executing tasks and creating resources.",
     color: "from-indigo-500 to-violet-600 dark:from-indigo-400 dark:to-violet-500",
     bgSoft: "bg-indigo-500/10 border-indigo-500/30 text-indigo-700 dark:text-indigo-300",
     glowColor: "rgba(99, 102, 241, 0.15)",
     icon: PencilSquareIcon,
-    capabilities: ["Create, edit, and assign tasks", "Engage in chat channels", "Create brainboard notes"],
+    capabilities: ["Create, edit, and assign tasks", "View activity feed & announcements", "Create brainboard notes"],
   },
   {
     id: "observer" as const,
     name: "Observer",
     badge: "Read Only",
-    description: "Outside collaborator or auditor who views progress, chats, and files without modification power.",
+    description: "Outside collaborator or auditor who views progress and files without modification power.",
     color: "from-slate-500 to-zinc-600 dark:from-slate-400 dark:to-zinc-500",
     bgSoft: "bg-slate-500/10 border-slate-500/30 text-slate-700 dark:text-slate-300",
     glowColor: "rgba(100, 116, 139, 0.15)",
     icon: EyeIcon,
-    capabilities: ["Read-only tasks & Kanban view", "View chats & shared files", "Audit board layouts"],
+    capabilities: ["Read-only tasks & Kanban view", "View activity feed & announcements", "Audit board layouts"],
   },
 ];
 
-const MODULES: PermissionModule[] = [
+const ALL_MODULES: PermissionModule[] = [
   {
     id: "admin",
     name: "Workspace Administration",
@@ -102,6 +104,15 @@ const MODULES: PermissionModule[] = [
       { id: "modify_workspace", name: "Modify Workspace Configurations", description: "Edit workspace name, domain, industry parameters and landing layout." },
       { id: "manage_members", name: "Teammate Access Management", description: "Invite new users, update user profile fields, or remove team members." },
       { id: "setup_integrations", name: "API & Webhook Configurations", description: "Setup Slack integration hooks, custom APIs and workspace tokens." },
+    ],
+  },
+  {
+    id: "announcements",
+    name: "Announcements",
+    icon: MegaphoneIcon,
+    permissions: [
+      { id: "post_announcements", name: "Post & Edit Announcements", description: "Create and update workspace-wide notices for the whole team." },
+      { id: "manage_announcements", name: "Pin, Archive & Delete Announcements", description: "Pin important updates, archive old notices, or remove them permanently." },
     ],
   },
   {
@@ -147,6 +158,8 @@ const MODULES: PermissionModule[] = [
     ],
   },
 ];
+
+const MODULES = ALL_MODULES.filter((mod) => TEAM_SPACE_ENABLED || mod.id !== "chat");
 
 const DEFAULT_PRESETS = DEFAULT_PERMISSION_MATRIX;
 

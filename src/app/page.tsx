@@ -4,7 +4,7 @@ import { LandingPageClient } from "@/components/landing/LandingPageClient";
 const LANDING_TITLE =
   "ANSH Tasks — All-in-One Task & Project Management for MSMEs";
 const LANDING_DESCRIPTION =
-  "Affordable task management, visual brainstorming, and built-in team chat tailored for Micro, Small & Medium Enterprises (MSMEs). Consolidate your tools and move faster.";
+  "Affordable task management, visual brainstorming, activity feed, and workspace announcements tailored for Micro, Small & Medium Enterprises (MSMEs). Consolidate your tools and move faster.";
 
 export const metadata = buildSiteMetadata({
   title: LANDING_TITLE,

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { buildSiteMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy | ANSH Task",
-  description: "Privacy Policy for ANSH Task — how we collect, use, and protect your data.",
-};
+export const metadata: Metadata = buildSiteMetadata({
+  title: "Privacy Policy",
+  description: "Privacy Policy for ANSH Tasks — how we collect, use, and protect your data.",
+  path: "/privacy",
+});
 
 const SECTIONS = [
   {

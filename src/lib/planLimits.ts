@@ -6,8 +6,13 @@ import {
   FREE_PLAN_TEAM_MEMBERS_LIMIT,
   TRIAL_PLAN,
   WorkspacePlan,
+  getUpgradeMessage,
+  isProFeaturePlan,
   isStoredTrialPlan,
+  ProFeatureKey,
+  UPGRADE_REQUIRED_CODE,
 } from "@/lib/plans";
+import { NextResponse } from "next/server";
 
 function getCurrentMonthRange() {
   const now = new Date();
@@ -71,3 +76,18 @@ export {
   FREE_PLAN_PROJECTS_LIMIT,
   FREE_PLAN_TASKS_PER_MONTH_LIMIT,
 };
+
+export async function requireProFeaturePlan(workspaceId: number, feature: ProFeatureKey) {
+  const plan = await getEffectiveWorkspacePlan(workspaceId);
+  if (isProFeaturePlan(plan)) return null;
+
+  return NextResponse.json(
+    {
+      success: false,
+      code: UPGRADE_REQUIRED_CODE,
+      feature,
+      error: getUpgradeMessage(feature),
+    },
+    { status: 403 }
+  );
+}

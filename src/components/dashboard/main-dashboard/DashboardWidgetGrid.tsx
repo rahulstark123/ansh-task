@@ -147,7 +147,7 @@ function WidgetBody({ id }: { id: WidgetId }) {
         <div className="space-y-3">
           {[
             { t: "Ship dashboard widgets", d: "Today · 2h" },
-            { t: "Review Team space IA", d: "Today · EOD" },
+            { t: "Review project milestones", d: "Today · EOD" },
             { t: "Brain board sync notes", d: "Tomorrow" },
           ].map((row) => (
             <div

@@ -173,15 +173,19 @@ export function AppearanceProvider({ children }: { children: React.ReactNode }) 
     if (saved && PALETTES[saved]) {
       setPrimaryColor(saved);
     }
-    const savedCollapse = localStorage.getItem("ansh-sidebar-collapsed");
-    if (savedCollapse === "true") {
-      setIsSidebarCollapsedState(true);
-    }
+  }, []);
+
+  // Auto-collapse sidebar on smaller desktop widths
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 1279px)");
+    const syncSidebar = () => setIsSidebarCollapsedState(mediaQuery.matches);
+    syncSidebar();
+    mediaQuery.addEventListener("change", syncSidebar);
+    return () => mediaQuery.removeEventListener("change", syncSidebar);
   }, []);
 
   const setIsSidebarCollapsed = (collapsed: boolean) => {
     setIsSidebarCollapsedState(collapsed);
-    localStorage.setItem("ansh-sidebar-collapsed", collapsed ? "true" : "false");
   };
 
   // Apply to document variables whenever primaryColor changes
