@@ -169,6 +169,10 @@ const COMPETITOR_COMPARISONS = [
   },
 ] as const;
 
+/** Full-width shell with modern responsive side gutters (not edge-to-edge). */
+const LANDING_SHELL =
+  "mx-auto w-full px-8 sm:px-12 md:px-16 lg:px-24 xl:px-28 2xl:px-32";
+
 export function LandingPageClient() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -240,7 +244,7 @@ export function LandingPageClient() {
 
       {/* Header / Navbar */}
       <header className="sticky top-0 z-50 border-b border-zinc-200/50 bg-zinc-50/80 backdrop-blur-md transition-colors dark:border-zinc-800/50 dark:bg-zinc-950/80">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8 h-16">
+        <div className={`${LANDING_SHELL} flex items-center justify-between h-16`}>
 
           {/* Logo */}
           <Link href="/" className="flex items-center gap-0.5 group">
@@ -349,7 +353,7 @@ export function LandingPageClient() {
 
       {/* Hero Section (1st Section - Crisp and Clear) */}
       <section className="relative z-10 pt-3 pb-16 md:pt-6 md:pb-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className={LANDING_SHELL}>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
 
             {/* Left Content Column */}
@@ -757,7 +761,7 @@ export function LandingPageClient() {
 
       {/* Feature Deep-Dive Grid (Section 2) */}
       <section id="features" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 bg-zinc-100/40 dark:bg-zinc-950/20 relative z-10 scroll-mt-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className={LANDING_SHELL}>
 
           {/* Header */}
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
@@ -872,7 +876,7 @@ export function LandingPageClient() {
 
       {/* Pricing Section */}
       <section id="pricing" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className={LANDING_SHELL}>
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-400 text-xs font-semibold tracking-wide border border-teal-500/20">
               <BriefcaseIcon className="h-3.5 w-3.5" />
@@ -979,7 +983,7 @@ export function LandingPageClient() {
 
       {/* Comparison Section */}
       <section id="compare" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 bg-zinc-100/40 dark:bg-zinc-950/20 relative z-10 scroll-mt-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className={LANDING_SHELL}>
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-xs font-semibold tracking-wide border border-indigo-500/20">
               <SparklesIcon className="h-3.5 w-3.5" />
@@ -1056,7 +1060,7 @@ export function LandingPageClient() {
       {/* Workspace Updates — Activity Feed & Announcements */}
       {!TEAM_SPACE_ENABLED && (
       <section id="workspace-updates" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className={LANDING_SHELL}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative order-2 lg:order-1">
               <div className="absolute inset-0 bg-gradient-to-tr from-teal-500/10 to-indigo-500/10 rounded-2xl blur-3xl pointer-events-none" />
@@ -1126,7 +1130,7 @@ export function LandingPageClient() {
       {/* Team Space Feature (Section 3) */}
       {TEAM_SPACE_ENABLED && (
       <section id="team-space" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className={LANDING_SHELL}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
             {/* Image/Mockup Showcase */}
@@ -1254,7 +1258,7 @@ export function LandingPageClient() {
 
       {/* SEO Optimized FAQ Accordion (Section 4) */}
       <section id="faq" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 bg-zinc-100/40 dark:bg-zinc-950/20 relative z-10 scroll-mt-24">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <div className={`${LANDING_SHELL} max-w-4xl`}>
 
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <h2 className="font-heading text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
@@ -1326,7 +1330,7 @@ export function LandingPageClient() {
         <div className="absolute inset-0 bg-teal-900/10 pointer-events-none" />
         <div className="absolute top-[10%] left-[20%] w-[300px] h-[300px] rounded-full bg-teal-500/5 blur-[80px]" />
 
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 text-center space-y-8 relative">
+        <div className={`${LANDING_SHELL} max-w-5xl text-center space-y-8 relative`}>
           <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/20 text-teal-400 mb-2 border border-teal-500/30">
             <CheckCircleIcon className="h-6 w-6 animate-pulse" />
           </div>
@@ -1350,7 +1354,7 @@ export function LandingPageClient() {
 
       {/* Giant Brand Text Section */}
       <section className="bg-zinc-50 dark:bg-zinc-950 pt-16 pb-8 overflow-hidden relative z-10 border-t border-zinc-200/60 dark:border-zinc-800/40">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center gap-4 text-center">
+        <div className={`${LANDING_SHELL} flex flex-col items-center justify-center gap-4 text-center`}>
           {/* Handled by placeholder logo */}
           <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
             <span>Handled by</span>
@@ -1368,7 +1372,7 @@ export function LandingPageClient() {
 
       {/* Footer */}
       <footer className="bg-zinc-50 dark:bg-zinc-950 relative z-10 pb-12 pt-4">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className={LANDING_SHELL}>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
 
             {/* Brand */}
