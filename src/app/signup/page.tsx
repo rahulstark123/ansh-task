@@ -78,6 +78,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showConnecting, setShowConnecting] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // Read error parameter from URL if redirected from auth callback with failure
   useEffect(() => {
@@ -142,7 +143,7 @@ export default function SignupPage() {
 
   const isPasswordStrong = strengthCount === 4;
   const isMatch = password === confirmPassword;
-  const canSubmit = isPasswordStrong && isMatch && password.length > 0;
+  const canSubmit = isPasswordStrong && isMatch && password.length > 0 && acceptedTerms;
 
   const slide = SLIDES[currentSlide];
   return (
@@ -347,6 +348,7 @@ export default function SignupPage() {
                 
                 sessionStorage.setItem("ansh_onboarding_name", fullName);
                 sessionStorage.setItem("ansh_onboarding_email", email);
+                sessionStorage.setItem("ansh_onboarding_accepted_terms", "true");
                 if (data?.user?.id) {
                   sessionStorage.setItem("ansh_onboarding_uid", data.user.id);
                   posthog.identify(data.user.id, { email, name: fullName });
@@ -512,6 +514,30 @@ export default function SignupPage() {
                     )}
                   </div>
                 )}
+              </div>
+
+              <div className="flex items-start gap-2.5 pt-1">
+                <input
+                  id="accept-terms"
+                  name="accept-terms"
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  required
+                  style={{ colorScheme: "light" }}
+                  className="h-4 w-4 mt-0.5 rounded border border-zinc-300 bg-white text-teal-600 focus:ring-teal-500 accent-teal-600 cursor-pointer"
+                />
+                <label htmlFor="accept-terms" className="text-xs text-zinc-500 leading-normal font-medium cursor-pointer selection:bg-transparent">
+                  I agree to the{" "}
+                  <Link href="/terms" target="_blank" className="font-bold text-teal-600 hover:text-teal-500 hover:underline">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" target="_blank" className="font-bold text-teal-600 hover:text-teal-500 hover:underline">
+                    Privacy Policy
+                  </Link>
+                  .
+                </label>
               </div>
 
               <div className="pt-2">
