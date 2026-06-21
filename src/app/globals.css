@@ -276,3 +276,22 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: #f4f4f5 !important;
 }
 
+/* Infinite Marquee Animation for Ecosystem Section */
+@keyframes marquee-scroll {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 35s linear infinite;
+}
+
+.animate-marquee-hover-pause:hover .animate-marquee {
+  animation-play-state: paused;
+}

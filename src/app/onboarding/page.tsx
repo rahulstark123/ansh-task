@@ -51,6 +51,7 @@ export default function OnboardingPage() {
   const [task1, setTask1] = useState("");
   const [task2, setTask2] = useState("");
   const [task3, setTask3] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -62,6 +63,10 @@ export default function OnboardingPage() {
       const savedEmail = sessionStorage.getItem("ansh_onboarding_email");
       if (savedEmail) {
         setEmail(savedEmail);
+      }
+      const savedAccepted = sessionStorage.getItem("ansh_onboarding_accepted_terms");
+      if (savedAccepted === "true") {
+        setAcceptedTerms(true);
       }
     }
   }, []);
@@ -121,6 +126,7 @@ export default function OnboardingPage() {
         jobTitle: jobTitle === "Other" ? customJobTitle : jobTitle,
         department,
         avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${firstName}`,
+        acceptedTerms,
       },
       workspace: {
         name: workspaceName,

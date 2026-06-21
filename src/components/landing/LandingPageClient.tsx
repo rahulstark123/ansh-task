@@ -169,6 +169,41 @@ const COMPETITOR_COMPARISONS = [
   },
 ] as const;
 
+const ECOSYSTEM_APPS = [
+  {
+    name: "ANSH TASKS",
+    title: "Team task & project tracker",
+    description: "Assign, track and close tasks across teams",
+    image: "/Ansh Task.jpg",
+    dotColor: "#3b82f6",
+    url: "https://tasks.anshapps.com",
+  },
+  {
+    name: "ANSH HR",
+    title: "Human resource management",
+    description: "Employee records, leaves, payroll & more",
+    image: "/ANSH HR.jpg",
+    dotColor: "#a855f7",
+    url: "https://hr.anshapps.com",
+  },
+  {
+    name: "ANSH EXPENSE",
+    title: "Expense & reimbursement tracking",
+    description: "Submit, approve and audit business expenses",
+    image: "/ANSH Expense.jpg",
+    dotColor: "#f97316",
+    url: "https://expense.anshapps.com",
+  },
+  {
+    name: "ANSH VISITOR",
+    title: "Smart lobby & guest management",
+    description: "QR passes, ID verification, check-in logs",
+    image: "/ANSH Visitor.jpg",
+    dotColor: "#0d9488",
+    url: "https://visitor.anshapps.com",
+  },
+];
+
 /** Full-width shell with modern responsive side gutters (not edge-to-edge). */
 const LANDING_SHELL =
   "mx-auto w-full px-8 sm:px-12 md:px-16 lg:px-24 xl:px-28 2xl:px-32";
@@ -755,6 +790,82 @@ export function LandingPageClient() {
               </div>
             </div>
 
+          </div>
+        </div>
+      </section>
+
+      {/* Ecosystem Section (The full Ansh Apps suite marquee) */}
+      <section className="py-16 md:py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 bg-zinc-50/50 dark:bg-zinc-950/20 relative z-10">
+        <div className={LANDING_SHELL}>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+              <span className="text-teal-600 dark:text-teal-400 text-xs font-semibold tracking-wider uppercase mb-2 block">
+                Ecosystem
+              </span>
+              <h2 className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
+                The full <span className="bg-gradient-to-r from-teal-500 to-emerald-600 bg-clip-text text-transparent dark:from-teal-400 dark:to-emerald-500">Ansh Apps</span> suite
+              </h2>
+            </div>
+            <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base max-w-md md:text-right md:leading-relaxed">
+              One ecosystem, every business operation — manage tasks, HR, expenses, bookings and visitors from connected apps.
+            </p>
+          </div>
+        </div>
+
+        {/* Infinite Marquee Container */}
+        <div className="w-full overflow-hidden relative py-4 animate-marquee-hover-pause">
+          {/* Horizontal Gradient Overlays for smooth fading on edges */}
+          <div className="absolute top-0 left-0 bottom-0 w-16 md:w-32 bg-gradient-to-r from-zinc-50 to-transparent dark:from-zinc-950 pointer-events-none z-10" />
+          <div className="absolute top-0 right-0 bottom-0 w-16 md:w-32 bg-gradient-to-l from-zinc-50 to-transparent dark:from-zinc-950 pointer-events-none z-10" />
+
+          {/* Scrolling track */}
+          <div className="animate-marquee flex gap-6">
+            {/* Render cards twice for seamless looping */}
+            {[...ECOSYSTEM_APPS, ...ECOSYSTEM_APPS].map((app, index) => (
+              <a
+                key={`${app.name}-${index}`}
+                href={app.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-[280px] sm:w-[320px] md:w-[350px] shrink-0 flex flex-col bg-white dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 p-3 rounded-[24px] shadow-sm hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:scale-[1.01] transition-all duration-300 cursor-pointer block hover:no-underline"
+              >
+                {/* Image browser mockup */}
+                <div className="relative overflow-hidden rounded-[16px] bg-zinc-950 p-1 border border-zinc-200/50 dark:border-zinc-800 aspect-[16/10]">
+                  <img
+                    src={app.image}
+                    alt={app.title}
+                    className="rounded-[12px] w-full h-full object-cover object-top hover:scale-[1.02] transition-transform duration-500"
+                  />
+                  {/* Live Badge */}
+                  <div className="absolute top-3.5 right-3.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold tracking-wider uppercase border border-emerald-500/30 backdrop-blur-md">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                    </span>
+                    Live
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div className="pt-3.5 px-1 pb-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className="w-2 h-2 rounded-full inline-block"
+                      style={{ backgroundColor: app.dotColor }}
+                    />
+                    <span className="text-[10px] font-extrabold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">
+                      {app.name}
+                    </span>
+                  </div>
+                  <h3 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1 leading-tight">
+                    {app.title}
+                  </h3>
+                  <p className="text-[11px] sm:text-xs text-zinc-500 dark:text-zinc-400 leading-normal">
+                    {app.description}
+                  </p>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
       </section>

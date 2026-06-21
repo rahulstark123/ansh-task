@@ -91,6 +91,7 @@ export async function POST(request: Request) {
           department: user.department,
           avatar: user.avatar,
           workspaceId: createdWorkspace.id,
+          acceptedTerms: user.acceptedTerms || false,
         },
         update: {
           firstName: user.firstName,
@@ -102,6 +103,7 @@ export async function POST(request: Request) {
           department: user.department,
           avatar: user.avatar,
           workspaceId: createdWorkspace.id,
+          acceptedTerms: user.acceptedTerms || false,
         },
       });
 
