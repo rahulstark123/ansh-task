@@ -21,6 +21,8 @@ import {
   formatSupportAttachmentSize,
   validateSupportAttachments,
 } from "@/lib/support-attachments";
+import { resolveStorageUrl } from "@/lib/storage/public-url";
+import { isImageStorageFile } from "@/lib/storage/attachments";
 
 interface Ticket {
   id: string;
@@ -281,7 +283,7 @@ export default function SupportPage() {
     url.split("/").pop()?.replace(/TCK-\d+-/, "") || "Attachment";
 
   const isImageAttachment = (url: string) =>
-    /\.(jpe?g|png|gif|webp)(\?.*)?$/i.test(getAttachmentName(url));
+    isImageStorageFile(url, getAttachmentName(url));
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10 lg:px-10">
@@ -753,12 +755,13 @@ export default function SupportPage() {
                         </h4>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                           {selectedTicket.attachmentUrls.map((url, idx) => {
+                            const resolvedUrl = resolveStorageUrl(url);
                             const name = getAttachmentName(url);
                             const isImage = isImageAttachment(url);
                             return (
                               <a
                                 key={idx}
-                                href={url}
+                                href={resolvedUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="group flex overflow-hidden rounded-xl border border-zinc-200/80 bg-white transition-all hover:border-indigo-300 hover:shadow-md dark:border-white/[0.08] dark:bg-zinc-900/50 dark:hover:border-indigo-500/40"
@@ -768,7 +771,7 @@ export default function SupportPage() {
                                     <div className="relative aspect-video w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
                                       {/* eslint-disable-next-line @next/next/no-img-element */}
                                       <img
-                                        src={url}
+                                        src={resolvedUrl}
                                         alt={name}
                                         className="h-full w-full object-cover transition-transform group-hover:scale-[1.02]"
                                       />

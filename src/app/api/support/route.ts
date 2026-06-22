@@ -1,23 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  buildWorkspaceStorageKey,
+  sanitizeStorageSegment,
+  uploadToR2,
+} from "@/lib/storage/r2";
 import {
   isSupportImageFile,
   validateSupportAttachments,
 } from "@/lib/support-attachments";
 
 export const dynamic = "force-dynamic";
-
-// Initialize S3 Client
-const s3Client = new S3Client({
-  endpoint: process.env.S3_ENDPOINT,
-  region: process.env.S3_REGION,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "",
-  },
-  forcePathStyle: true,
-});
 
 function parseTicketSerial(ticketId: string): number | null {
   const match = /^TCK-(\d+)$/.exec(ticketId);
@@ -62,12 +55,11 @@ export async function GET(request: Request) {
       success: true,
       tickets,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Support GET API Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to fetch support tickets" },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch support tickets";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 
@@ -113,22 +105,21 @@ export async function POST(request: Request) {
           try {
             const bytes = await file.arrayBuffer();
             const buffer = Buffer.from(bytes);
-            const fileName = file.name.replace(/\s+/g, "_");
-            const key = `${workspaceId}/tickets/${ticketId}-${fileName}`;
-
-            await s3Client.send(
-              new PutObjectCommand({
-                Bucket: process.env.S3_BUCKET_NAME || "anshtasks",
-                Key: key,
-                Body: buffer,
-                ContentType: file.type || "application/octet-stream",
-              })
+            const fileName = sanitizeStorageSegment(file.name) || "attachment";
+            const key = buildWorkspaceStorageKey(
+              workspaceId,
+              "tickets",
+              `${ticketId}-${fileName}`
             );
 
-            const url = `https://runubzqcrytlvyflunba.supabase.co/storage/v1/object/public/${process.env.S3_BUCKET_NAME || "anshtasks"}/${key}`;
+            const { url } = await uploadToR2({
+              key,
+              body: buffer,
+              contentType: file.type || "application/octet-stream",
+            });
             attachmentUrls.push(url);
-          } catch (uploadError: any) {
-            console.error(`S3 upload failed for file ${file.name}:`, uploadError);
+          } catch (uploadError: unknown) {
+            console.error(`R2 upload failed for file ${file.name}:`, uploadError);
           }
         }
       }
@@ -147,8 +138,14 @@ export async function POST(request: Request) {
           },
         });
         break;
-      } catch (createError: any) {
-        if (createError?.code === "P2002" && attempt < 2) {
+      } catch (createError: unknown) {
+        if (
+          createError &&
+          typeof createError === "object" &&
+          "code" in createError &&
+          createError.code === "P2002" &&
+          attempt < 2
+        ) {
           continue;
         }
         throw createError;
@@ -167,11 +164,10 @@ export async function POST(request: Request) {
       message: "Ticket created successfully",
       ticket: newTicket,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Support POST API Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to create support ticket" },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to create support ticket";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
