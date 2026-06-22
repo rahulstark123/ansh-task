@@ -21,6 +21,7 @@ import { useEffect, useId, useRef, useState, useMemo } from "react";
 import type { NewTaskPayload, Task, TaskPriority, TaskStatus } from "@/types/task";
 import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
 import posthog from "@/lib/posthog-noop";
+import { uploadFileToStorage } from "@/lib/storage/client-upload";
 
 /* ─── constants ──────────────────────────────────────────── */
 
@@ -427,6 +428,7 @@ export function AddTaskModal({
   const [designation, setDesignation] = useState<string>('');
   const [role, setRole] = useState<string>('');
   const [attachments, setAttachments] = useState<{ name: string; size: number; dataUrl: string }[]>([]);
+  const [attachmentsUploading, setAttachmentsUploading] = useState(false);
   const attachInputRef = useRef<HTMLInputElement>(null);
 
   // project
@@ -834,34 +836,63 @@ export function AddTaskModal({
                     <button
                       type="button"
                       onClick={() => attachInputRef.current?.click()}
-                      className="flex items-center gap-1 rounded-lg border border-dashed border-zinc-300 px-2.5 py-1 text-[10px] font-semibold text-zinc-500 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-white/10 dark:hover:border-indigo-600/50 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-300 transition-all cursor-pointer"
+                      disabled={attachmentsUploading}
+                      className="flex items-center gap-1 rounded-lg border border-dashed border-zinc-300 px-2.5 py-1 text-[10px] font-semibold text-zinc-500 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-white/10 dark:hover:border-indigo-600/50 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-300 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <PaperClipIcon className="h-3 w-3" />
-                      Add files
+                      {attachmentsUploading ? "Uploading…" : "Add files"}
                     </button>
                     <input
                       ref={attachInputRef}
                       type="file"
                       multiple
                       className="hidden"
-                      onChange={(e) => {
+                      disabled={attachmentsUploading}
+                      onChange={async (e) => {
                         const files = Array.from(e.target.files || []);
-                        files.forEach((file) => {
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
+                        if (files.length === 0) return;
+
+                        const wid =
+                          typeof window !== "undefined"
+                            ? parseInt(
+                                sessionStorage.getItem("ansh_onboarding_wid") ?? "1",
+                                10
+                              )
+                            : 1;
+
+                        setAttachmentsUploading(true);
+                        try {
+                          for (const file of files) {
+                            const uploaded = await uploadFileToStorage(file, {
+                              workspaceId: wid,
+                              folder: "attachments",
+                            });
                             setAttachments((prev) => [
                               ...prev,
-                              { name: file.name, size: file.size, dataUrl: ev.target?.result as string },
+                              {
+                                name: uploaded.name,
+                                size: uploaded.size,
+                                dataUrl: uploaded.url,
+                              },
                             ]);
-                          };
-                          reader.readAsDataURL(file);
-                        });
-                        e.target.value = "";
+                          }
+                        } catch (err: unknown) {
+                          const message =
+                            err instanceof Error ? err.message : "Failed to upload file";
+                          console.error("Task attachment upload error:", err);
+                          alert(message);
+                        } finally {
+                          setAttachmentsUploading(false);
+                          e.target.value = "";
+                        }
                       }}
                     />
                   </div>
 
                   {/* File chips */}
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                    Max 2 MB per file. Images are auto-compressed before upload.
+                  </p>
                   {attachments.length > 0 && (
                     <div className="space-y-1.5">
                       {attachments.map((att, idx) => (
@@ -893,10 +924,11 @@ export function AddTaskModal({
                     <button
                       type="button"
                       onClick={() => attachInputRef.current?.click()}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-3 text-[11px] font-semibold text-zinc-400 transition-all cursor-pointer hover:border-[var(--app-primary-soft-border)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] dark:border-white/[0.06] dark:hover:border-[var(--app-primary-soft-border)] dark:hover:bg-[var(--app-primary-soft)]"
+                      disabled={attachmentsUploading}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-3 text-[11px] font-semibold text-zinc-400 transition-all cursor-pointer hover:border-[var(--app-primary-soft-border)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] dark:border-white/[0.06] dark:hover:border-[var(--app-primary-soft-border)] dark:hover:bg-[var(--app-primary-soft)] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <PaperClipIcon className="h-4 w-4" />
-                      Click to attach files
+                      {attachmentsUploading ? "Uploading…" : "Click to attach files"}
                     </button>
                   )}
                 </div>

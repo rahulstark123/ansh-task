@@ -16,6 +16,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
+import { resolveStorageUrl } from "@/lib/storage/public-url";
 
 // Phone Input Imports
 import "react-phone-input-2/lib/style.css";
@@ -316,6 +317,10 @@ export default function ProfileSettingsPage() {
       const formData = new FormData();
       formData.append("file", file);
       formData.append("email", email);
+      const wid = sessionStorage.getItem("ansh_onboarding_wid");
+      if (wid) {
+        formData.append("workspaceId", wid);
+      }
 
       const res = await fetch("/api/profile/upload", {
         method: "POST",
@@ -373,7 +378,7 @@ export default function ProfileSettingsPage() {
               </div>
             ) : (
               <>
-                <img src={avatar || "https://api.dicebear.com/7.x/bottts/svg?seed=Ansh"} alt="Profile Avatar" className="h-full w-full object-cover" />
+                <img src={avatar ? resolveStorageUrl(avatar) : "https://api.dicebear.com/7.x/bottts/svg?seed=Ansh"} alt="Profile Avatar" className="h-full w-full object-cover" />
                 <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   <ArrowUpTrayIcon className="h-5 w-5 text-white mb-1" />
                   <span className="text-[9px] font-bold text-white uppercase tracking-wider">Upload</span>

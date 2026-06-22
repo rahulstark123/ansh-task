@@ -1,65 +1,70 @@
 import { NextResponse } from "next/server";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  buildSharedStorageKey,
+  buildWorkspaceStorageKey,
+  sanitizeStorageSegment,
+  uploadToR2,
+} from "@/lib/storage/r2";
 
 export const dynamic = "force-dynamic";
-
-// Initialize S3 Client
-const s3Client = new S3Client({
-  endpoint: process.env.S3_ENDPOINT,
-  region: process.env.S3_REGION,
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || "",
-  },
-  forcePathStyle: true,
-});
 
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File;
-    const email = formData.get("email") as string;
+    const file = formData.get("file") as File | null;
+    const email = formData.get("email") as string | null;
+    const workspaceIdParam = formData.get("workspaceId") as string | null;
 
     if (!file) {
-      return NextResponse.json({ success: false, error: "No file uploaded" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "No file uploaded" },
+        { status: 400 }
+      );
     }
 
     if (!email) {
-      return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Email is required" },
+        { status: 400 }
+      );
     }
 
-    // Server-side size validation (< 500KB)
     if (file.size > 500 * 1024) {
-      return NextResponse.json({ success: false, error: "File size exceeds 500KB limit" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "File size exceeds 500KB limit" },
+        { status: 400 }
+      );
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const sanitizedFileName = file.name.replace(/\s+/g, "_");
-    const sanitizedEmail = email.replace(/[^a-zA-Z0-9]/g, "_");
-    const key = `profiles/${sanitizedEmail}-${Date.now()}-${sanitizedFileName}`;
+    const sanitizedFileName = sanitizeStorageSegment(file.name) || "avatar";
+    const sanitizedEmail = sanitizeStorageSegment(email);
+    const objectName = `${sanitizedEmail}-${Date.now()}-${sanitizedFileName}`;
 
-    await s3Client.send(
-      new PutObjectCommand({
-        Bucket: process.env.S3_BUCKET_NAME || "anshtasks",
-        Key: key,
-        Body: buffer,
-        ContentType: file.type || "image/jpeg",
-      })
-    );
+    const workspaceId = workspaceIdParam
+      ? Number.parseInt(workspaceIdParam, 10)
+      : NaN;
 
-    // Supabase public storage url
-    const publicUrl = `https://runubzqcrytlvyflunba.supabase.co/storage/v1/object/public/${process.env.S3_BUCKET_NAME || "anshtasks"}/${key}`;
+    const key =
+      Number.isFinite(workspaceId) && workspaceId > 0
+        ? buildWorkspaceStorageKey(workspaceId, "profiles", objectName)
+        : buildSharedStorageKey("profiles", objectName);
+
+    const { url } = await uploadToR2({
+      key,
+      body: buffer,
+      contentType: file.type || "image/jpeg",
+    });
 
     return NextResponse.json({
       success: true,
-      url: publicUrl,
+      url,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Avatar upload error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to upload avatar" },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to upload avatar";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

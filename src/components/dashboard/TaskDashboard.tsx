@@ -44,6 +44,13 @@ import {
 } from "@/lib/plans";
 import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
 import { DEFAULT_TASK_PAGE_SIZE } from "@/lib/task-list-query";
+import { uploadFileToStorage } from "@/lib/storage/client-upload";
+import { resolveStorageUrl } from "@/lib/storage/public-url";
+import {
+  downloadStorageFile,
+  isImageStorageFile,
+  previewStorageFile,
+} from "@/lib/storage/attachments";
 
 
 
@@ -133,14 +140,12 @@ function noteWasEdited(note: TaskNote) {
 }
 
 function openAttachment(att: TaskAttachment) {
-  const link = document.createElement("a");
-  link.href = att.dataUrl;
-  link.download = att.name;
-  link.target = "_blank";
-  link.rel = "noopener noreferrer";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const href = resolveStorageUrl(att.dataUrl);
+  previewStorageFile(href);
+}
+
+async function downloadAttachmentFile(att: TaskAttachment): Promise<void> {
+  await downloadStorageFile(resolveStorageUrl(att.dataUrl), att.name);
 }
 
 /** Map a raw Prisma task row to the frontend Task shape */
@@ -768,6 +773,7 @@ export function TaskDashboard({
 
   const [tempDue, setTempDue] = useState("No date");
   const [tempAttachments, setTempAttachments] = useState<TaskAttachment[]>([]);
+  const [attachmentsUploading, setAttachmentsUploading] = useState(false);
   const detailAttachInputRef = useRef<HTMLInputElement>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [taskToComplete, setTaskToComplete] = useState<Task | null>(null);
@@ -1166,22 +1172,44 @@ export function TaskDashboard({
     }
   }
 
-  function handleDetailFilesSelected(files: FileList | null) {
+  async function handleDetailFilesSelected(files: FileList | null) {
     if (!files?.length) return;
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
+
+    setAttachmentsUploading(true);
+    try {
+      const wid = getWid();
+      for (const file of Array.from(files)) {
+        const uploaded = await uploadFileToStorage(file, {
+          workspaceId: wid,
+          folder: "attachments",
+        });
         setTempAttachments((prev) => [
           ...prev,
           {
-            name: file.name,
-            size: file.size,
-            dataUrl: ev.target?.result as string,
+            name: uploaded.name,
+            size: uploaded.size,
+            dataUrl: uploaded.url,
           },
         ]);
-      };
-      reader.readAsDataURL(file);
-    });
+      }
+    } catch (err: unknown) {
+      console.error("Task attachment upload error:", err);
+      showToast(
+        err instanceof Error ? err.message : "Failed to upload attachment",
+        "error" as any
+      );
+    } finally {
+      setAttachmentsUploading(false);
+    }
+  }
+
+  async function handleDownloadAttachment(att: TaskAttachment) {
+    try {
+      await downloadAttachmentFile(att);
+    } catch (err) {
+      console.error("Download attachment error:", err);
+      showToast("Failed to download attachment", "error" as any);
+    }
   }
 
   function handleTitleChange(id: string, newTitle: string) {
@@ -2704,24 +2732,29 @@ export function TaskDashboard({
                         <button
                           type="button"
                           onClick={() => detailAttachInputRef.current?.click()}
-                          className="flex items-center gap-1 rounded-lg border border-dashed border-zinc-300 px-2.5 py-1 text-[10px] font-semibold text-zinc-500 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-white/10 dark:hover:border-indigo-600/50 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-300 transition-all"
+                          disabled={attachmentsUploading}
+                          className="flex items-center gap-1 rounded-lg border border-dashed border-zinc-300 px-2.5 py-1 text-[10px] font-semibold text-zinc-500 hover:border-indigo-400 hover:bg-indigo-50 hover:text-indigo-600 dark:border-white/10 dark:hover:border-indigo-600/50 dark:hover:bg-indigo-950/20 dark:hover:text-indigo-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <PaperClipIcon className="h-3 w-3" />
-                          Add files
+                          {attachmentsUploading ? "Uploading…" : "Add files"}
                         </button>
                         <input
                           ref={detailAttachInputRef}
                           type="file"
                           multiple
                           className="hidden"
+                          disabled={attachmentsUploading}
                           onChange={(e) => {
-                            handleDetailFilesSelected(e.target.files);
+                            void handleDetailFilesSelected(e.target.files);
                             e.target.value = "";
                           }}
                         />
                       </>
                     )}
                   </div>
+                  <p className="text-[10px] text-zinc-400 dark:text-zinc-500">
+                    Max 2 MB per file. Images are auto-compressed before upload.
+                  </p>
 
                   {(() => {
                     const list = isEditingTaskDetails
@@ -2739,8 +2772,71 @@ export function TaskDashboard({
                     }
 
                     return (
-                      <div className="space-y-1.5">
-                        {list.map((att, idx) => (
+                      <div className="space-y-2">
+                        {list.map((att, idx) => {
+                          const previewUrl = resolveStorageUrl(att.dataUrl);
+                          const isImage = isImageStorageFile(att.dataUrl, att.name);
+
+                          if (isImage) {
+                            return (
+                              <div
+                                key={`${att.name}-${idx}`}
+                                className="overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.06] dark:bg-zinc-900/60"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => openAttachment(att)}
+                                  className="block w-full text-left"
+                                  title="Preview image"
+                                >
+                                  <div className="relative aspect-video w-full overflow-hidden bg-zinc-100 dark:bg-zinc-950">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={previewUrl}
+                                      alt={att.name}
+                                      className="h-full w-full object-contain"
+                                    />
+                                  </div>
+                                </button>
+                                <div className="flex items-center gap-2 px-3 py-2">
+                                  <PaperClipIcon className="h-3.5 w-3.5 shrink-0 text-indigo-400" />
+                                  <button
+                                    type="button"
+                                    onClick={() => openAttachment(att)}
+                                    className="flex-1 truncate text-left text-[11px] font-semibold text-zinc-700 hover:text-[var(--app-primary)] dark:text-zinc-300 dark:hover:text-teal-400 transition-colors"
+                                    title="Preview image"
+                                  >
+                                    {att.name}
+                                  </button>
+                                  <span className="shrink-0 text-[10px] text-zinc-400 dark:text-zinc-500">
+                                    {formatAttachmentSize(att.size)}
+                                  </span>
+                                  {!isEditingTaskDetails && (
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleDownloadAttachment(att)}
+                                      className="shrink-0 rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors"
+                                      title="Download"
+                                    >
+                                      <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                  {isEditingTaskDetails && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setTempAttachments((prev) => prev.filter((_, i) => i !== idx))}
+                                      className="shrink-0 rounded p-0.5 text-zinc-400 hover:bg-rose-50 hover:text-rose-500 dark:hover:bg-rose-950/30 dark:hover:text-rose-400 transition-colors"
+                                      title="Remove attachment"
+                                    >
+                                      <TrashIcon className="h-3 w-3" />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
                           <div
                             key={`${att.name}-${idx}`}
                             className="flex items-center gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50 px-3 py-2 dark:border-white/[0.06] dark:bg-zinc-900/60"
@@ -2750,7 +2846,7 @@ export function TaskDashboard({
                               type="button"
                               onClick={() => openAttachment(att)}
                               className="flex-1 truncate text-left text-[11px] font-semibold text-zinc-700 hover:text-[var(--app-primary)] dark:text-zinc-300 dark:hover:text-teal-400 transition-colors"
-                              title="Open or download"
+                              title="Open file"
                             >
                               {att.name}
                             </button>
@@ -2760,7 +2856,7 @@ export function TaskDashboard({
                             {!isEditingTaskDetails && (
                               <button
                                 type="button"
-                                onClick={() => openAttachment(att)}
+                                onClick={() => void handleDownloadAttachment(att)}
                                 className="shrink-0 rounded p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200 transition-colors"
                                 title="Download"
                               >
@@ -2778,7 +2874,8 @@ export function TaskDashboard({
                               </button>
                             )}
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     );
                   })()}
@@ -2787,10 +2884,11 @@ export function TaskDashboard({
                     <button
                       type="button"
                       onClick={() => detailAttachInputRef.current?.click()}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-3 text-[11px] font-semibold text-zinc-400 hover:border-indigo-300 hover:bg-indigo-50/40 hover:text-indigo-500 dark:border-white/[0.06] dark:hover:bg-indigo-950/10 transition-all"
+                      disabled={attachmentsUploading}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-200 py-3 text-[11px] font-semibold text-zinc-400 hover:border-indigo-300 hover:bg-indigo-50/40 hover:text-indigo-500 dark:border-white/[0.06] dark:hover:bg-indigo-950/10 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <PaperClipIcon className="h-4 w-4" />
-                      Click to attach files
+                      {attachmentsUploading ? "Uploading…" : "Click to attach files"}
                     </button>
                   )}
                 </div>
