@@ -75,6 +75,25 @@ export async function POST(request: Request) {
         skipDuplicates: true,
       });
 
+      const defaultDesignations = [
+        "Software Engineer",
+        "Senior Software Engineer",
+        "Product Manager",
+        "Designer",
+        "HR Executive",
+        "Member",
+      ];
+      await tx.workspaceDesignation.createMany({
+        data: defaultDesignations.map((d) => ({ name: d, workspaceId: createdWorkspace.id })),
+        skipDuplicates: true,
+      });
+
+      const defaultLocations = ["Remote", "Hybrid", "On-site"];
+      await tx.workspaceLocation.createMany({
+        data: defaultLocations.map((l) => ({ name: l, workspaceId: createdWorkspace.id })),
+        skipDuplicates: true,
+      });
+
       // 2. Ensure the workspace creator becomes the owner of the new workspace
       const ownerEmail = user.email || "ansh@example.com";
       const createdUser = await tx.user.upsert({

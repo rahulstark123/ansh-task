@@ -9,6 +9,7 @@ import { usePermissionAccess } from "@/lib/usePermissionAccess";
 const LINKS = [
   { href: "/settings/profile", label: "Profile" },
   { href: "/settings/company", label: "Company" },
+  { href: "/settings/workspace", label: "Workspace" },
   { href: "/settings/permissions", label: "Permissions" },
   { href: "/settings/defaults", label: "Defaults" },
   { href: "/settings/billing", label: "Billing" },

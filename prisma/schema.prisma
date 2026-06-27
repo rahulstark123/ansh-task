@@ -25,6 +25,17 @@ model User {
   language   String?
   reportsTo  String?
   acceptedTerms Boolean @default(false)
+  dateOfBirth DateTime?
+  bloodGroup  String?
+  personalEmail String?
+  emergencyContactName String?
+  emergencyContactPhone String?
+  employeeCode String?
+  officeBranch String?
+  workLocation String?
+  joiningDate DateTime?
+  employmentStatus String @default("Active")
+  reportingHr String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -70,6 +81,9 @@ model Workspace {
   tasks       Task[]
   roles       WorkspaceRole[]
   departments WorkspaceDepartment[]
+  designations WorkspaceDesignation[]
+  branches    WorkspaceBranch[]
+  locations   WorkspaceLocation[]
   brainboardNotes BrainboardNote[]
   tickets     Ticket[]
   channels    Channel[]
@@ -92,6 +106,39 @@ model WorkspaceRole {
 }
 
 model WorkspaceDepartment {
+  id          String    @id @default(uuid())
+  name        String
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, name])
+}
+
+model WorkspaceDesignation {
+  id          String    @id @default(uuid())
+  name        String
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, name])
+}
+
+model WorkspaceBranch {
+  id          String    @id @default(uuid())
+  name        String
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, name])
+}
+
+model WorkspaceLocation {
   id          String    @id @default(uuid())
   name        String
   workspaceId Int

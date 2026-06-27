@@ -35,12 +35,26 @@ import { TEAM_SPACE_ENABLED } from "@/config/features";
 
 // Define accent options to showcase the app's dynamic styling
 const ACCENTS = [
+  { id: "blue", name: "Blue", color: "#0078FF", class: "bg-blue-600 focus:ring-blue-400" },
+  { id: "indigo", name: "Indigo", color: "#6366F1", class: "bg-indigo-600 focus:ring-indigo-400" },
+  { id: "violet", name: "Violet", color: "#9333EA", class: "bg-violet-600 focus:ring-violet-400" },
   { id: "teal", name: "Teal", color: "#0d9488", class: "bg-teal-600 focus:ring-teal-400" },
-  { id: "blue", name: "Blue", color: "#2563eb", class: "bg-blue-600 focus:ring-blue-400" },
-  { id: "indigo", name: "Indigo", color: "#4f46e5", class: "bg-indigo-600 focus:ring-indigo-400" },
-  { id: "violet", name: "Violet", color: "#7c3aed", class: "bg-violet-600 focus:ring-violet-400" },
   { id: "rose", name: "Rose", color: "#e11d48", class: "bg-rose-600 focus:ring-rose-400" },
 ];
+
+/** Ansh Apps logo palette — electric blue → violet → magenta */
+const BRAND_GRADIENT_TEXT =
+  "bg-gradient-to-r from-[#00c6ff] via-[#7000ff] to-[#e040fb] bg-clip-text text-transparent";
+const BRAND_GRADIENT_TEXT_DARK =
+  "dark:from-[#4dc4ff] dark:via-[#8b5cf6] dark:to-[#e879f9]";
+const BRAND_PRIMARY_BTN =
+  "bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white shadow-lg shadow-violet-600/25";
+const BRAND_ACCENT_ICON =
+  "bg-blue-500/10 text-blue-600 dark:text-violet-400";
+const BRAND_ACCENT_PILL =
+  "bg-blue-500/10 text-blue-700 dark:text-violet-400 border border-blue-500/20";
+const BRAND_LINK_HOVER =
+  "hover:text-blue-600 dark:hover:text-violet-400";
 
 const PRICING_PLANS = [
   {
@@ -199,7 +213,7 @@ const ECOSYSTEM_APPS = [
     title: "Smart lobby & guest management",
     description: "QR passes, ID verification, check-in logs",
     image: "/ANSH Visitor.jpg",
-    dotColor: "#0d9488",
+    dotColor: "#0078FF",
     url: "https://visitor.anshapps.com",
   },
 ];
@@ -213,7 +227,7 @@ export function LandingPageClient() {
   const [mounted, setMounted] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<"kanban" | "brain" | "team" | "activity">("kanban");
-  const [selectedAccent, setSelectedAccent] = useState("teal");
+  const [selectedAccent, setSelectedAccent] = useState("blue");
   const [selectedTeamChannel, setSelectedTeamChannel] = useState("general");
   const [faqOpen, setFaqOpen] = useState<Record<number, boolean>>({});
   const [billingLocale, setBillingLocale] = useState<BillingLocaleInfo | null>(
@@ -253,7 +267,7 @@ export function LandingPageClient() {
 
   const getAccentColor = () => {
     const accent = ACCENTS.find((a) => a.id === selectedAccent);
-    return accent ? accent.color : "#0d9488";
+    return accent ? accent.color : "#0078FF";
   };
 
   const activeTeamChannel =
@@ -262,19 +276,19 @@ export function LandingPageClient() {
   if (!mounted) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-zinc-50 text-zinc-900 transition-colors duration-300 dark:bg-zinc-950 dark:text-zinc-100 selection:bg-teal-500/20 selection:text-teal-600 dark:selection:text-teal-400">
+    <div className="relative min-h-screen overflow-x-hidden bg-zinc-50 text-zinc-900 transition-colors duration-300 dark:bg-zinc-950 dark:text-zinc-100 selection:bg-violet-500/20 selection:text-blue-700 dark:selection:text-violet-400">
 
       {/* Background Gradients */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute -top-[30%] -left-[10%] h-[70%] w-[50%] rounded-full bg-teal-500/10 blur-[120px] dark:bg-teal-500/5" />
-        <div className="absolute top-[20%] -right-[10%] h-[60%] w-[40%] rounded-full bg-blue-500/10 blur-[100px] dark:bg-blue-500/5" />
-        <div className="absolute bottom-[10%] left-[20%] h-[50%] w-[50%] rounded-full bg-indigo-500/10 blur-[130px] dark:bg-indigo-500/5" />
+        <div className="absolute -top-[30%] -left-[10%] h-[70%] w-[50%] rounded-full bg-[#00c6ff]/10 blur-[120px] dark:bg-[#00c6ff]/5" />
+        <div className="absolute top-[20%] -right-[10%] h-[60%] w-[40%] rounded-full bg-[#7000ff]/10 blur-[100px] dark:bg-[#7000ff]/5" />
+        <div className="absolute bottom-[10%] left-[20%] h-[50%] w-[50%] rounded-full bg-[#e040fb]/10 blur-[130px] dark:bg-[#e040fb]/5" />
       </div>
 
       {/* Header / Navbar */}
@@ -288,17 +302,17 @@ export function LandingPageClient() {
               alt="ANSH Logo" 
               className="h-12 w-12 shrink-0 object-contain group-hover:scale-105 transition-transform duration-200 -mr-1.5 mt-1" 
             />
-            <span className="font-heading text-xl font-bold tracking-tight bg-gradient-to-r from-zinc-900 to-zinc-700 bg-clip-text text-transparent dark:from-zinc-50 dark:to-zinc-300">
+            <span className="font-heading text-xl font-bold tracking-tight bg-gradient-to-r from-[#00c6ff] via-[#7000ff] to-[#e040fb] bg-clip-text text-transparent">
               ANSH Task
             </span>
           </Link>
 
           {/* Desktop Nav Links */}
           <nav className="hidden md:flex items-center gap-8 text-[14px] font-medium text-zinc-600 dark:text-zinc-400">
-            <a href="#features" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Features</a>
-            <a href="#pricing" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Pricing</a>
-            <a href="#compare" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">Why ANSH</a>
-            <a href="#faq" className="hover:text-teal-600 dark:hover:text-teal-400 transition-colors">FAQ</a>
+            <a href="#features" className="hover:text-blue-600 dark:hover:text-violet-400 transition-colors">Features</a>
+            <a href="#pricing" className="hover:text-blue-600 dark:hover:text-violet-400 transition-colors">Pricing</a>
+            <a href="#compare" className="hover:text-blue-600 dark:hover:text-violet-400 transition-colors">Why ANSH</a>
+            <a href="#faq" className="hover:text-blue-600 dark:hover:text-violet-400 transition-colors">FAQ</a>
           </nav>
 
           {/* Desktop Right Actions */}
@@ -307,21 +321,21 @@ export function LandingPageClient() {
             <div className="flex items-center rounded-lg bg-zinc-200/60 p-1 dark:bg-zinc-900 border border-zinc-300/30 dark:border-zinc-800">
               <button
                 onClick={() => setTheme("light")}
-                className={`p-1.5 rounded-md transition-all ${theme === "light" ? "bg-white text-teal-600 shadow-sm dark:bg-zinc-800 dark:text-teal-400" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"}`}
+                className={`p-1.5 rounded-md transition-all ${theme === "light" ? "bg-white text-blue-600 shadow-sm dark:bg-zinc-800 dark:text-violet-400" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"}`}
                 title="Light Mode"
               >
                 <SunIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setTheme("system")}
-                className={`p-1.5 rounded-md transition-all ${theme === "system" ? "bg-white text-teal-600 shadow-sm dark:bg-zinc-800 dark:text-teal-400" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"}`}
+                className={`p-1.5 rounded-md transition-all ${theme === "system" ? "bg-white text-blue-600 shadow-sm dark:bg-zinc-800 dark:text-violet-400" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"}`}
                 title="System Theme"
               >
                 <ComputerDesktopIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setTheme("dark")}
-                className={`p-1.5 rounded-md transition-all ${theme === "dark" ? "bg-white text-teal-600 shadow-sm dark:bg-zinc-800 dark:text-teal-400" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"}`}
+                className={`p-1.5 rounded-md transition-all ${theme === "dark" ? "bg-white text-blue-600 shadow-sm dark:bg-zinc-800 dark:text-violet-400" : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400"}`}
                 title="Dark Mode"
               >
                 <MoonIcon className="h-4 w-4" />
@@ -359,19 +373,19 @@ export function LandingPageClient() {
             className="md:hidden absolute top-16 left-0 right-0 z-40 bg-zinc-50 dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 px-6 py-6 space-y-4 shadow-xl"
           >
             <nav className="flex flex-col gap-4 text-base font-semibold">
-              <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Features</a>
-              <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Pricing</a>
-              <a href="#compare" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">Why ANSH</a>
-              <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-teal-600">FAQ</a>
+              <a href="#features" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-violet-400">Features</a>
+              <a href="#pricing" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-violet-400">Pricing</a>
+              <a href="#compare" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-violet-400">Why ANSH</a>
+              <a href="#faq" onClick={() => setMobileMenuOpen(false)} className="text-zinc-600 dark:text-zinc-400 hover:text-blue-600 dark:hover:text-violet-400">FAQ</a>
             </nav>
             <div className="h-px bg-zinc-200 dark:bg-zinc-800 my-4" />
             <div className="flex flex-col gap-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-zinc-500">Theme</span>
                 <div className="flex items-center rounded-lg bg-zinc-200/60 p-1 dark:bg-zinc-900 border border-zinc-300/30 dark:border-zinc-800">
-                  <button onClick={() => setTheme("light")} className={`p-1.5 rounded-md ${theme === "light" ? "bg-white text-teal-600 dark:bg-zinc-800" : "text-zinc-500"}`}><SunIcon className="h-4 w-4" /></button>
-                  <button onClick={() => setTheme("system")} className={`p-1.5 rounded-md ${theme === "system" ? "bg-white text-teal-600 dark:bg-zinc-800" : "text-zinc-500"}`}><ComputerDesktopIcon className="h-4 w-4" /></button>
-                  <button onClick={() => setTheme("dark")} className={`p-1.5 rounded-md ${theme === "dark" ? "bg-white text-teal-600 dark:bg-zinc-800" : "text-zinc-500"}`}><MoonIcon className="h-4 w-4" /></button>
+                  <button onClick={() => setTheme("light")} className={`p-1.5 rounded-md ${theme === "light" ? "bg-white text-blue-600 dark:bg-zinc-800 dark:text-violet-400" : "text-zinc-500"}`}><SunIcon className="h-4 w-4" /></button>
+                  <button onClick={() => setTheme("system")} className={`p-1.5 rounded-md ${theme === "system" ? "bg-white text-blue-600 dark:bg-zinc-800 dark:text-violet-400" : "text-zinc-500"}`}><ComputerDesktopIcon className="h-4 w-4" /></button>
+                  <button onClick={() => setTheme("dark")} className={`p-1.5 rounded-md ${theme === "dark" ? "bg-white text-blue-600 dark:bg-zinc-800 dark:text-violet-400" : "text-zinc-500"}`}><MoonIcon className="h-4 w-4" /></button>
                 </div>
               </div>
               <Link
@@ -395,7 +409,7 @@ export function LandingPageClient() {
             <div className="lg:col-span-6 space-y-8 text-center lg:text-left">
 
               {/* Product Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-400 text-xs font-semibold tracking-wide border border-teal-500/20">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-700 dark:text-violet-400 text-xs font-semibold tracking-wide border border-violet-500/20">
                 <SparklesIcon className="h-3.5 w-3.5" />
                 Built for MSMEs & Growing Businesses
               </div>
@@ -403,7 +417,7 @@ export function LandingPageClient() {
               {/* Main Headline */}
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-[54px] font-extrabold tracking-tight leading-[1.1] text-zinc-900 dark:text-white">
                 Run Your Entire{" "}
-                <span className="bg-gradient-to-r from-teal-500 to-emerald-600 bg-clip-text text-transparent dark:from-teal-400 dark:to-emerald-500">
+                <span className="bg-gradient-to-r from-[#00c6ff] via-[#7000ff] to-[#e040fb] bg-clip-text text-transparent dark:from-[#4dc4ff] dark:via-[#8b5cf6] dark:to-[#e879f9]">
                   MSME Tasks & Operations
                 </span>{" "}
                 in One Simple Workspace
@@ -417,7 +431,7 @@ export function LandingPageClient() {
               {/* Value Props: What ANSH Task Does (Crisp & Clear) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto lg:mx-0 text-left bg-zinc-200/40 dark:bg-zinc-900/50 border border-zinc-300/20 dark:border-zinc-800/40 p-5 rounded-2xl">
                 <div className="flex items-start gap-2.5">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 mt-0.5">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400 mt-0.5">
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
@@ -427,7 +441,7 @@ export function LandingPageClient() {
                 </div>
 
                 <div className="flex items-start gap-2.5">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 mt-0.5">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400 mt-0.5">
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
@@ -437,7 +451,7 @@ export function LandingPageClient() {
                 </div>
 
                 <div className="flex items-start gap-2.5">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 mt-0.5">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400 mt-0.5">
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
@@ -447,7 +461,7 @@ export function LandingPageClient() {
                 </div>
 
                 <div className="flex items-start gap-2.5">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 mt-0.5">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400 mt-0.5">
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
@@ -457,7 +471,7 @@ export function LandingPageClient() {
                 </div>
 
                 <div className="flex items-start gap-2.5">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 mt-0.5">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400 mt-0.5">
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
@@ -468,7 +482,7 @@ export function LandingPageClient() {
 
                 {TEAM_SPACE_ENABLED && (
                 <div className="flex items-start gap-2.5">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400 mt-0.5">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400 mt-0.5">
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
@@ -483,7 +497,7 @@ export function LandingPageClient() {
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                 <Link
                   href="/signup"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold px-8 py-4 shadow-lg shadow-teal-600/20 active:scale-[0.98] transition-all"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 hover:from-blue-700 hover:to-violet-700 text-white shadow-lg shadow-violet-600/25 font-semibold px-8 py-4 active:scale-[0.98] transition-all"
                 >
                   Start 14-Day Free Trial
                   <ArrowRightIcon className="h-5 w-5" />
@@ -504,7 +518,7 @@ export function LandingPageClient() {
                 <p className="text-lg sm:text-xl font-bold text-zinc-800 dark:text-zinc-200 tracking-tight">
                   Built from Bharat for the World
                 </p>
-                <p className="text-sm sm:text-base font-semibold text-teal-600 dark:text-teal-400 tracking-wide">
+                <p className="text-sm sm:text-base font-semibold text-blue-600 dark:text-violet-400 tracking-wide">
                   encouraging Vasudhaiva Kutumbakam
                 </p>
               </div>
@@ -513,7 +527,7 @@ export function LandingPageClient() {
 
             {/* Right Interactive Mockup Column */}
             <div id="preview" className="lg:col-span-6 relative scroll-mt-24">
-              <div className="absolute inset-0 bg-teal-500/10 rounded-3xl blur-2xl transform rotate-2 pointer-events-none" />
+              <div className="absolute inset-0 bg-violet-500/10 rounded-3xl blur-2xl transform rotate-2 pointer-events-none" />
 
               {/* Main Mockup Window */}
               <div className="relative border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900/90 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-sm">
@@ -595,7 +609,7 @@ export function LandingPageClient() {
                           <span className="px-1.5 py-0.5 rounded bg-zinc-200 dark:bg-zinc-800 text-[10px]">1</span>
                         </div>
                         <div className="bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-200/80 dark:border-zinc-800 shadow-xs space-y-2.5">
-                          <span className="inline-block px-2 py-0.5 rounded bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 text-[10px] font-bold" style={{ backgroundColor: `${getAccentColor()}20`, color: getAccentColor() }}>Marketing</span>
+                          <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-violet-900/30 dark:text-violet-400 text-[10px] font-bold" style={{ backgroundColor: `${getAccentColor()}20`, color: getAccentColor() }}>Marketing</span>
                           <h5 className="text-xs font-semibold leading-tight text-zinc-800 dark:text-zinc-200">Launch Diwali promo campaign</h5>
                           <div className="flex items-center justify-between pt-1">
                             <span className="text-[10px] text-zinc-400 font-medium">May 21</span>
@@ -614,7 +628,7 @@ export function LandingPageClient() {
                           <span className="inline-block px-2 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 text-[10px] font-bold">Operations</span>
                           <h5 className="text-xs font-semibold leading-tight line-through text-zinc-500 dark:text-zinc-400">Inventory restock & supplier setup</h5>
                           <div className="flex items-center justify-between pt-1">
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
+                            <span className="text-[10px] text-violet-600 dark:text-violet-400 font-semibold flex items-center gap-0.5">
                               <CheckIcon className="h-3 w-3 stroke-[3]" /> Done
                             </span>
                             <div className="w-5 h-5 rounded-full bg-zinc-300 dark:bg-zinc-700 text-[8px] flex items-center justify-center font-bold">JD</div>
@@ -645,8 +659,8 @@ export function LandingPageClient() {
                         <p className="text-[10px] text-zinc-600 dark:text-zinc-300 leading-tight">Draft 10% coupon codes for regular wholesale distributors and bulk buyers.</p>
                       </div>
 
-                      <div className="absolute bottom-2 left-6 w-52 bg-teal-100 dark:bg-teal-950/40 p-3.5 rounded-xl border border-teal-200/80 dark:border-teal-900/30 shadow-sm rotate-[-1deg] space-y-1" style={{ borderColor: `${getAccentColor()}30` }}>
-                        <span className="text-[10px] font-semibold text-teal-800 dark:text-teal-400" style={{ color: getAccentColor() }}>Operations</span>
+                      <div className="absolute bottom-2 left-6 w-52 bg-blue-100 dark:bg-violet-950/40 p-3.5 rounded-xl border border-blue-200/80 dark:border-violet-900/30 shadow-sm rotate-[-1deg] space-y-1" style={{ borderColor: `${getAccentColor()}30` }}>
+                        <span className="text-[10px] font-semibold text-blue-800 dark:text-violet-400" style={{ color: getAccentColor() }}>Operations</span>
                         <h6 className="text-xs font-bold text-zinc-900 dark:text-zinc-150">Onboard new supplier</h6>
                         <p className="text-[10px] text-zinc-600 dark:text-zinc-300 leading-tight">Verify GST details, business registration, and bank routing before placing first order.</p>
                       </div>
@@ -702,7 +716,7 @@ export function LandingPageClient() {
                               onClick={() => setSelectedTeamChannel(channel.id)}
                               className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[11px] font-semibold transition-all ${
                                 selectedTeamChannel === channel.id
-                                  ? "bg-teal-500/15 text-teal-700 dark:text-teal-300"
+                                  ? "bg-blue-500/15 text-blue-700 dark:text-violet-300"
                                   : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                               }`}
                             >
@@ -724,7 +738,7 @@ export function LandingPageClient() {
 
                       <div className="flex flex-1 flex-col rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 shadow-xs">
                         <div className="flex items-center gap-2 border-b border-zinc-100 pb-2 mb-3 dark:border-zinc-800">
-                          <ChatBubbleLeftRightIcon className="h-4 w-4 text-teal-600" style={{ color: getAccentColor() }} />
+                          <ChatBubbleLeftRightIcon className="h-4 w-4 text-blue-600" style={{ color: getAccentColor() }} />
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5">
                               {activeTeamChannel.isPrivate ? (
@@ -799,11 +813,11 @@ export function LandingPageClient() {
         <div className={LANDING_SHELL}>
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
             <div>
-              <span className="text-teal-600 dark:text-teal-400 text-xs font-semibold tracking-wider uppercase mb-2 block">
+              <span className="text-blue-600 dark:text-violet-400 text-xs font-semibold tracking-wider uppercase mb-2 block">
                 Ecosystem
               </span>
               <h2 className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white">
-                The full <span className="bg-gradient-to-r from-teal-500 to-emerald-600 bg-clip-text text-transparent dark:from-teal-400 dark:to-emerald-500">Ansh Apps</span> suite
+                The full <span className="bg-gradient-to-r from-[#00c6ff] via-[#7000ff] to-[#e040fb] bg-clip-text text-transparent dark:from-[#4dc4ff] dark:via-[#8b5cf6] dark:to-[#e879f9]">Ansh Apps</span> suite
               </h2>
             </div>
             <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base max-w-md md:text-right md:leading-relaxed">
@@ -827,7 +841,7 @@ export function LandingPageClient() {
                 href={app.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-[280px] sm:w-[320px] md:w-[350px] shrink-0 flex flex-col bg-white dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 p-3 rounded-[24px] shadow-sm hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:scale-[1.01] transition-all duration-300 cursor-pointer block hover:no-underline"
+                className="w-[280px] sm:w-[320px] md:w-[350px] shrink-0 flex flex-col bg-white dark:bg-zinc-900/40 border border-zinc-200/80 dark:border-zinc-800/80 p-3 rounded-[24px] shadow-sm hover:border-blue-500/30 dark:hover:border-violet-500/20 hover:scale-[1.01] transition-all duration-300 cursor-pointer block hover:no-underline"
               >
                 {/* Image browser mockup */}
                 <div className="relative overflow-hidden rounded-[16px] bg-zinc-950 p-1 border border-zinc-200/50 dark:border-zinc-800 aspect-[16/10]">
@@ -837,10 +851,10 @@ export function LandingPageClient() {
                     className="rounded-[12px] w-full h-full object-cover object-top hover:scale-[1.02] transition-transform duration-500"
                   />
                   {/* Live Badge */}
-                  <div className="absolute top-3.5 right-3.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-extrabold tracking-wider uppercase border border-emerald-500/30 backdrop-blur-md">
+                  <div className="absolute top-3.5 right-3.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-violet-500/10 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 text-[10px] font-extrabold tracking-wider uppercase border border-violet-500/30 backdrop-blur-md">
                     <span className="relative flex h-1.5 w-1.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-violet-500"></span>
                     </span>
                     Live
                   </div>
@@ -888,8 +902,8 @@ export function LandingPageClient() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
 
             {/* Feature 1 */}
-            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-blue-500/30 dark:hover:border-violet-500/20 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-violet-400 mb-6 group-hover:scale-105 transition-transform duration-200">
                 <ClipboardDocumentListIcon className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Dynamic Kanban Board</h3>
@@ -899,8 +913,8 @@ export function LandingPageClient() {
             </div>
 
             {/* Feature 2 */}
-            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-blue-500/30 dark:hover:border-violet-500/20 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-violet-400 mb-6 group-hover:scale-105 transition-transform duration-200">
                 <LightBulbIcon className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Collaborative Brain Boards</h3>
@@ -911,8 +925,8 @@ export function LandingPageClient() {
 
             {/* Feature 3 — Activity Feed */}
             {!TEAM_SPACE_ENABLED && (
-            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-blue-500/30 dark:hover:border-violet-500/20 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-violet-400 mb-6 group-hover:scale-105 transition-transform duration-200">
                 <BoltIcon className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Activity Feed</h3>
@@ -924,8 +938,8 @@ export function LandingPageClient() {
 
             {/* Feature — Announcements */}
             {!TEAM_SPACE_ENABLED && (
-            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-blue-500/30 dark:hover:border-violet-500/20 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-violet-400 mb-6 group-hover:scale-105 transition-transform duration-200">
                 <MegaphoneIcon className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Workspace Announcements</h3>
@@ -937,8 +951,8 @@ export function LandingPageClient() {
 
             {/* Feature 3 — Team Space (when enabled) */}
             {TEAM_SPACE_ENABLED && (
-            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-blue-500/30 dark:hover:border-violet-500/20 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-violet-400 mb-6 group-hover:scale-105 transition-transform duration-200">
                 <ChatBubbleLeftRightIcon className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Team Space</h3>
@@ -949,8 +963,8 @@ export function LandingPageClient() {
             )}
 
             {/* Feature 4 */}
-            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-blue-500/30 dark:hover:border-violet-500/20 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-violet-400 mb-6 group-hover:scale-105 transition-transform duration-200">
                 <UsersIcon className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Granular Team Management</h3>
@@ -960,19 +974,19 @@ export function LandingPageClient() {
             </div>
 
             {/* Feature 5 */}
-            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-blue-500/30 dark:hover:border-violet-500/20 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-violet-400 mb-6 group-hover:scale-105 transition-transform duration-200">
                 <PaintBrushIcon className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Beautiful Accent customization</h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                Switch accent colors in real-time. From cool teals to royal blues and rich purples, make the workspace feel like home, supporting light, system, and dark modes.
+                Switch accent colors in real-time. From electric blues to rich indigos and vibrant violets, make the workspace feel like home, supporting light, system, and dark modes.
               </p>
             </div>
 
             {/* Feature 6 */}
-            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-teal-500/30 dark:hover:border-teal-500/20 hover:shadow-md transition-all duration-300">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+            <div className="group bg-white dark:bg-zinc-900/60 border border-zinc-200/80 dark:border-zinc-800/60 p-8 rounded-2xl shadow-xs hover:border-blue-500/30 dark:hover:border-violet-500/20 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-violet-400 mb-6 group-hover:scale-105 transition-transform duration-200">
                 <QuestionMarkCircleIcon className="h-6 w-6" />
               </div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Integrated Support Hub</h3>
@@ -989,7 +1003,7 @@ export function LandingPageClient() {
       <section id="pricing" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24">
         <div className={LANDING_SHELL}>
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-400 text-xs font-semibold tracking-wide border border-teal-500/20">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-700 dark:text-violet-400 text-xs font-semibold tracking-wide border border-violet-500/20">
               <BriefcaseIcon className="h-3.5 w-3.5" />
               Simple Pricing
             </div>
@@ -1021,7 +1035,7 @@ export function LandingPageClient() {
                 key={plan.id}
                 className={`relative rounded-3xl border p-8 shadow-sm transition-all ${
                   plan.highlighted
-                    ? "border-teal-500/30 bg-zinc-900 text-white shadow-xl shadow-teal-950/15 dark:bg-zinc-900"
+                    ? "border-violet-500/30 bg-zinc-900 text-white shadow-xl shadow-violet-950/15 dark:bg-zinc-900"
                     : "border-zinc-200/80 bg-white dark:border-zinc-800/60 dark:bg-zinc-900/60"
                 }`}
               >
@@ -1030,8 +1044,8 @@ export function LandingPageClient() {
                     <span
                       className={`inline-flex rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
                         plan.highlighted
-                          ? "bg-teal-500/20 text-teal-300"
-                          : "bg-teal-500/10 text-teal-700 dark:text-teal-400"
+                          ? "bg-blue-500/20 text-violet-300"
+                          : "bg-blue-500/10 text-blue-700 dark:text-violet-400"
                       }`}
                     >
                       {plan.badge}
@@ -1062,8 +1076,8 @@ export function LandingPageClient() {
                         className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
                           feature.included
                             ? plan.highlighted
-                              ? "bg-teal-500/20 text-teal-300"
-                              : "bg-teal-500/10 text-teal-600 dark:text-teal-400"
+                              ? "bg-blue-500/20 text-violet-300"
+                              : "bg-blue-500/10 text-blue-600 dark:text-violet-400"
                             : "bg-zinc-200/70 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
                         }`}
                       >
@@ -1081,7 +1095,7 @@ export function LandingPageClient() {
                 </div>
 
                 <div className="mt-8 border-t border-zinc-200/10 pt-6">
-                  <p className={`text-xs font-semibold ${plan.highlighted ? "text-teal-300" : "text-zinc-500 dark:text-zinc-400"}`}>
+                  <p className={`text-xs font-semibold ${plan.highlighted ? "text-violet-300" : "text-zinc-500 dark:text-zinc-400"}`}>
                     {"note" in plan ? plan.note : "No credit card needed to start"}
                   </p>
                 </div>
@@ -1114,7 +1128,7 @@ export function LandingPageClient() {
                 key={item.title}
                 className="rounded-2xl border border-zinc-200/80 bg-white p-8 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/60"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/10 text-teal-600 dark:text-teal-400 mb-5">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-violet-400 mb-5">
                   {index === 0 ? (
                     <ClipboardDocumentListIcon className="h-6 w-6" />
                   ) : index === 1 ? (
@@ -1132,7 +1146,7 @@ export function LandingPageClient() {
                 <div className="space-y-3">
                   {item.points.map((point) => (
                     <div key={point} className="flex items-start gap-2.5">
-                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400">
                         <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                       </div>
                       <span className="text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
@@ -1147,8 +1161,8 @@ export function LandingPageClient() {
 
           <div className="mt-10 rounded-3xl border border-zinc-200/80 bg-white p-6 shadow-sm dark:border-zinc-800/60 dark:bg-zinc-900/60">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="rounded-2xl border border-teal-500/20 bg-teal-500/5 p-5">
-                <h4 className="text-sm font-black uppercase tracking-widest text-teal-700 dark:text-teal-400">
+              <div className="rounded-2xl border border-violet-500/20 bg-blue-500/5 p-5">
+                <h4 className="text-sm font-black uppercase tracking-widest text-blue-700 dark:text-violet-400">
                   The ANSH Task Model for MSMEs
                 </h4>
                 <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
@@ -1174,7 +1188,7 @@ export function LandingPageClient() {
         <div className={LANDING_SHELL}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative order-2 lg:order-1">
-              <div className="absolute inset-0 bg-gradient-to-tr from-teal-500/10 to-indigo-500/10 rounded-2xl blur-3xl pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-violet-500/10 to-indigo-500/10 rounded-2xl blur-3xl pointer-events-none" />
               <div className="relative border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl p-6 overflow-hidden">
                 <div className="flex items-center justify-between pb-4 mb-4 border-b border-zinc-100 dark:border-zinc-800">
                   <div className="flex items-center gap-1.5">
@@ -1187,7 +1201,7 @@ export function LandingPageClient() {
                 <div className="space-y-3">
                   {ACTIVITY_PREVIEW.map((item) => (
                     <div key={item.title} className="flex gap-3 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-950/30 p-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 text-white">
                         <BoltIcon className="h-4 w-4" />
                       </div>
                       <div className="min-w-0">
@@ -1202,7 +1216,7 @@ export function LandingPageClient() {
             </div>
 
             <div className="space-y-6 order-1 lg:order-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-400 text-xs font-semibold tracking-wide border border-teal-500/20">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-700 dark:text-violet-400 text-xs font-semibold tracking-wide border border-violet-500/20">
                 <BoltIcon className="h-3.5 w-3.5" />
                 Workspace Updates
               </div>
@@ -1214,19 +1228,19 @@ export function LandingPageClient() {
               </p>
               <div className="space-y-3.5 pt-2">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400">
                     <CheckIcon className="h-4 w-4 stroke-[3]" />
                   </div>
                   <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Automatic timeline — tasks, projects, tickets, and team joins</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400">
                     <CheckIcon className="h-4 w-4 stroke-[3]" />
                   </div>
                   <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Pinned announcements for GST deadlines, closures, and policy updates</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400">
                     <CheckIcon className="h-4 w-4 stroke-[3]" />
                   </div>
                   <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Included on Pro — no extra Slack subscription required</span>
@@ -1246,7 +1260,7 @@ export function LandingPageClient() {
 
             {/* Image/Mockup Showcase */}
             <div className="relative order-2 lg:order-1">
-              <div className="absolute inset-0 bg-gradient-to-tr from-teal-500/10 to-indigo-500/10 rounded-2xl blur-3xl pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-tr from-blue-500/10 via-violet-500/10 to-indigo-500/10 rounded-2xl blur-3xl pointer-events-none" />
               <div className="relative border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl p-6 overflow-hidden">
                 <div className="flex items-center justify-between pb-4 mb-4 border-b border-zinc-100 dark:border-zinc-800">
                   <div className="flex items-center gap-1.5">
@@ -1268,7 +1282,7 @@ export function LandingPageClient() {
                           onClick={() => setSelectedTeamChannel(channel.id)}
                           className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-[11px] font-semibold transition-all ${
                             selectedTeamChannel === channel.id
-                              ? "bg-teal-500/15 text-teal-700 dark:text-teal-300"
+                              ? "bg-blue-500/15 text-blue-700 dark:text-violet-300"
                               : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-900"
                           }`}
                         >
@@ -1306,7 +1320,7 @@ export function LandingPageClient() {
                     <div className="space-y-3 flex-1">
                       {activeTeamChannel.messages.map((message) => (
                         <div key={`${message.author}-${message.time}`} className="flex gap-2">
-                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-500 text-[9px] font-bold text-white">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 text-[9px] font-bold text-white">
                             {message.initials}
                           </div>
                           <div className="min-w-0">
@@ -1330,7 +1344,7 @@ export function LandingPageClient() {
 
             {/* Right Content Column */}
             <div className="space-y-6 order-1 lg:order-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 text-teal-700 dark:text-teal-400 text-xs font-semibold tracking-wide border border-teal-500/20">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-700 dark:text-violet-400 text-xs font-semibold tracking-wide border border-violet-500/20">
                 <ChatBubbleLeftRightIcon className="h-3.5 w-3.5" />
                 Team Space
               </div>
@@ -1342,19 +1356,19 @@ export function LandingPageClient() {
               </p>
               <div className="space-y-3.5 pt-2">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400">
                     <CheckIcon className="h-4 w-4 stroke-[3]" />
                   </div>
                   <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Public and private channels with role-based access</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400">
                     <CheckIcon className="h-4 w-4 stroke-[3]" />
                   </div>
                   <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Direct messages for quick 1:1 coordination</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-teal-500/10 text-teal-600 dark:text-teal-400">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400">
                     <CheckIcon className="h-4 w-4 stroke-[3]" />
                   </div>
                   <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">Included on Pro — no extra Slack subscription required</span>
@@ -1388,7 +1402,7 @@ export function LandingPageClient() {
               },
               {
                 q: "Can I customize the design system and theme accent colors?",
-                a: "Yes. ANSH Task comes with a built-in Appearance Drawer. You can select custom accent colors (Teal, Indigo, Blue, Violet, Rose) and toggle between dark, light, or system themes. These modifications apply globally across all sub-pages in your workspace.",
+                a: "Yes. ANSH Task comes with a built-in Appearance Drawer. You can select custom accent colors (Blue, Indigo, Violet, Teal, Rose) and toggle between dark, light, or system themes. These modifications apply globally across all sub-pages in your workspace.",
               },
               {
                 q: "Is there built-in customer support ticketing?",
@@ -1438,11 +1452,12 @@ export function LandingPageClient() {
 
       {/* CTA Footer Section (Section 5) */}
       <section className="py-20 bg-zinc-900 text-white relative z-10 overflow-hidden">
-        <div className="absolute inset-0 bg-teal-900/10 pointer-events-none" />
-        <div className="absolute top-[10%] left-[20%] w-[300px] h-[300px] rounded-full bg-teal-500/5 blur-[80px]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0078ff]/10 via-[#7000ff]/10 to-[#e040fb]/10 pointer-events-none" />
+        <div className="absolute top-[10%] left-[20%] w-[300px] h-[300px] rounded-full bg-[#7000ff]/10 blur-[80px]" />
+        <div className="absolute bottom-[5%] right-[15%] w-[250px] h-[250px] rounded-full bg-[#00c6ff]/10 blur-[70px]" />
 
         <div className={`${LANDING_SHELL} max-w-5xl text-center space-y-8 relative`}>
-          <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500/20 text-teal-400 mb-2 border border-teal-500/30">
+          <div className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/20 text-violet-300 mb-2 border border-violet-500/30">
             <CheckCircleIcon className="h-6 w-6 animate-pulse" />
           </div>
           <h2 className="font-heading text-3xl sm:text-5xl font-extrabold tracking-tight max-w-3xl mx-auto">
@@ -1454,7 +1469,7 @@ export function LandingPageClient() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <Link
               href="/signup"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-teal-500 hover:bg-teal-600 text-zinc-950 font-bold px-8 py-4 shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 active:scale-[0.98] transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#00c6ff] to-[#9333ea] hover:from-[#00b4ea] hover:to-[#7c22d4] text-white font-bold px-8 py-4 shadow-lg shadow-violet-500/25 hover:shadow-violet-500/35 active:scale-[0.98] transition-all"
             >
               Start 14-Day Free Trial
               <ArrowRightIcon className="h-5 w-5" />
@@ -1507,14 +1522,14 @@ export function LandingPageClient() {
             <div>
               <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Product</h4>
               <ul className="space-y-2.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                <li><a href="#features" className="hover:text-teal-600">Kanban Board</a></li>
-                <li><a href="#pricing" className="hover:text-teal-600">Pricing</a></li>
-                <li><a href="#features" className="hover:text-teal-600">Brain Board</a></li>
-                <li><a href="#workspace-updates" className="hover:text-teal-600">Activity Feed</a></li>
-                <li><a href="#workspace-updates" className="hover:text-teal-600">Announcements</a></li>
-                <li><a href="#features" className="hover:text-teal-600">Doc Sharing</a></li>
+                <li><a href="#features" className="hover:text-blue-600 dark:hover:text-violet-400">Kanban Board</a></li>
+                <li><a href="#pricing" className="hover:text-blue-600 dark:hover:text-violet-400">Pricing</a></li>
+                <li><a href="#features" className="hover:text-blue-600 dark:hover:text-violet-400">Brain Board</a></li>
+                <li><a href="#workspace-updates" className="hover:text-blue-600 dark:hover:text-violet-400">Activity Feed</a></li>
+                <li><a href="#workspace-updates" className="hover:text-blue-600 dark:hover:text-violet-400">Announcements</a></li>
+                <li><a href="#features" className="hover:text-blue-600 dark:hover:text-violet-400">Doc Sharing</a></li>
                 {TEAM_SPACE_ENABLED && (
-                <li><a href="#team-space" className="hover:text-teal-600">Team Spaces</a></li>
+                <li><a href="#team-space" className="hover:text-blue-600 dark:hover:text-violet-400">Team Spaces</a></li>
                 )}
               </ul>
             </div>
@@ -1523,9 +1538,9 @@ export function LandingPageClient() {
             <div>
               <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Account</h4>
               <ul className="space-y-2.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                <li><Link href="/login" className="hover:text-teal-600">Sign In</Link></li>
-                <li><Link href="/signup" className="hover:text-teal-600">Sign Up</Link></li>
-                <li><Link href="/support" className="hover:text-teal-600">Support Desk</Link></li>
+                <li><Link href="/login" className="hover:text-blue-600 dark:hover:text-violet-400">Sign In</Link></li>
+                <li><Link href="/signup" className="hover:text-blue-600 dark:hover:text-violet-400">Sign Up</Link></li>
+                <li><Link href="/support" className="hover:text-blue-600 dark:hover:text-violet-400">Support Desk</Link></li>
               </ul>
             </div>
 
@@ -1537,7 +1552,7 @@ export function LandingPageClient() {
               </p>
               <a
                 href="mailto:hello@anshapps.com"
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-600 hover:text-teal-700 dark:text-teal-400 dark:hover:text-teal-300"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-violet-400 dark:hover:text-violet-300"
               >
                 <EnvelopeIcon className="h-4 w-4" />
                 hello@anshapps.com

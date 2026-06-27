@@ -3,6 +3,13 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+function parseOptionalDate(value: unknown): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -10,21 +17,18 @@ export async function GET(request: Request) {
     const email = searchParams.get("email");
 
     if (!id && !email) {
-      return NextResponse.json({ success: false, error: "Either id or email parameter is required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Either id or email parameter is required" },
+        { status: 400 }
+      );
     }
 
     let user = null;
     if (id) {
-      user = await prisma.user.findUnique({
-        where: { id },
-      });
+      user = await prisma.user.findUnique({ where: { id } });
     } else if (email) {
-      user = await prisma.user.findUnique({
-        where: { email },
-      });
+      user = await prisma.user.findUnique({ where: { email } });
 
-      // If the user doesn't exist in the database, let's create a placeholder
-      // matching their supabase login so we have a record to modify.
       if (!user) {
         user = await prisma.user.create({
           data: {
@@ -38,19 +42,47 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ success: true, user });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error in profile GET API:", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to fetch profile";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }
 
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { email, firstName, lastName, phone, jobTitle, department, timezone, language, bio, avatar } = body;
+    const {
+      email,
+      firstName,
+      lastName,
+      phone,
+      jobTitle,
+      designation,
+      department,
+      timezone,
+      language,
+      bio,
+      avatar,
+      dateOfBirth,
+      bloodGroup,
+      personalEmail,
+      emergencyContactName,
+      emergencyContactPhone,
+      employeeCode,
+      officeBranch,
+      workLocation,
+      joiningDate,
+      employmentStatus,
+      reportsTo,
+      reportingHr,
+    } = body;
 
     if (!email) {
-      return NextResponse.json({ success: false, error: "Email is required to update profile" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Email is required to update profile" },
+        { status: 400 }
+      );
     }
 
     const updatedUser = await prisma.user.update({
@@ -60,17 +92,31 @@ export async function PATCH(request: Request) {
         lastName,
         phone,
         jobTitle,
+        designation,
         department,
         timezone,
         language,
         bio,
         avatar,
+        dateOfBirth: parseOptionalDate(dateOfBirth),
+        bloodGroup,
+        personalEmail,
+        emergencyContactName,
+        emergencyContactPhone,
+        employeeCode,
+        officeBranch,
+        workLocation,
+        joiningDate: parseOptionalDate(joiningDate),
+        employmentStatus,
+        reportsTo,
+        reportingHr,
       },
     });
 
     return NextResponse.json({ success: true, user: updatedUser });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error in profile PATCH API:", err);
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Failed to update profile";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

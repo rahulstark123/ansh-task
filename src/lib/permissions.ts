@@ -106,6 +106,7 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionMatrix = {
 const PATH_PERMISSION_RULES: Array<{ prefix: string; permission: string }> = [
   { prefix: "/management/teams", permission: "manage_members" },
   { prefix: "/settings/company", permission: "modify_workspace" },
+  { prefix: "/settings/workspace", permission: "modify_workspace" },
   { prefix: "/settings/defaults", permission: "modify_workspace" },
   { prefix: "/settings/permissions", permission: "manage_members" },
   { prefix: "/settings/billing", permission: "view_invoices" },
