@@ -1,14 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import {
   FREE_PLAN_TEAM_MEMBERS_LIMIT,
-  TRIAL_PLAN,
   WorkspacePlan,
 } from "@/lib/plans";
-import {
-  activateDueSubscriptions,
-  getScheduledProSubscription,
-  isActiveTrialWorkspace,
-} from "@/lib/billing/subscription-lifecycle";
+import { resolveWorkspaceBillingState } from "@/lib/billing/subscription-lifecycle";
 
 export type WorkspaceSeatsInfo = {
   plan: WorkspacePlan;
@@ -24,39 +19,12 @@ export type WorkspaceSeatsInfo = {
 export async function getWorkspaceSeatsInfo(
   workspaceId: number
 ): Promise<WorkspaceSeatsInfo> {
-  await activateDueSubscriptions(workspaceId);
-
-  const now = new Date();
-
-  const [memberCount, workspace, activeSubscription] = await Promise.all([
+  const [memberCount, billing] = await Promise.all([
     prisma.user.count({ where: { workspaceId } }),
-    prisma.workspace.findUnique({
-      where: { id: workspaceId },
-      select: { plan: true, planExpiresAt: true },
-    }),
-    prisma.subscription.findFirst({
-      where: {
-        workspaceId,
-        status: "ACTIVE",
-        plan: "pro",
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-      },
-      orderBy: { createdAt: "desc" },
-      select: { seatsCount: true, billingCycle: true },
-    }),
+    resolveWorkspaceBillingState(workspaceId),
   ]);
 
-  const storedPlan = workspace?.plan ?? "free";
-  const isTrial = isActiveTrialWorkspace(
-    storedPlan,
-    workspace?.planExpiresAt,
-    now
-  );
-  const scheduledPro = isTrial
-    ? await getScheduledProSubscription(workspaceId)
-    : null;
-
-  if (storedPlan === "free" || (!isTrial && !activeSubscription)) {
+  if (billing.effectivePlan === "free") {
     const purchased = FREE_PLAN_TEAM_MEMBERS_LIMIT;
     return {
       plan: "free",
@@ -70,27 +38,24 @@ export async function getWorkspaceSeatsInfo(
     };
   }
 
-  if (isTrial) {
+  if (billing.isTrial) {
     return {
-      plan: TRIAL_PLAN,
+      plan: billing.effectivePlan,
       isTrial: true,
-      hasScheduledPro: Boolean(scheduledPro),
-      scheduledProStartsAt: scheduledPro?.startsAt ?? null,
+      hasScheduledPro: billing.hasScheduledPro,
+      scheduledProStartsAt: billing.scheduledProStartsAt,
       seatsUsed: memberCount,
-      seatsPurchased: scheduledPro?.seatsCount ?? null,
+      seatsPurchased: billing.latestPaidSubscription?.seatsCount ?? null,
       seatsVacant: null,
-      billingCycle:
-        scheduledPro?.billingCycle === "yearly"
-          ? "yearly"
-          : scheduledPro?.billingCycle === "monthly"
-            ? "monthly"
-            : null,
+      billingCycle: billing.billingCycle,
     };
   }
 
-  const purchased = Math.max(activeSubscription!.seatsCount, memberCount);
-  const billingCycle =
-    activeSubscription!.billingCycle === "yearly" ? "yearly" : "monthly";
+  const seatHint =
+    billing.activeSubscription?.seatsCount ??
+    billing.latestPaidSubscription?.seatsCount ??
+    memberCount;
+  const purchased = Math.max(seatHint, memberCount, 1);
 
   return {
     plan: "pro",
@@ -100,7 +65,7 @@ export async function getWorkspaceSeatsInfo(
     seatsUsed: memberCount,
     seatsPurchased: purchased,
     seatsVacant: Math.max(0, purchased - memberCount),
-    billingCycle,
+    billingCycle: billing.billingCycle,
   };
 }
 

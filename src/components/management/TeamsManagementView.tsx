@@ -36,6 +36,11 @@ import {
 } from "@/lib/plans";
 import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
 import Link from "next/link";
+import {
+  TeammateWizardModal,
+  type TeammateFormValues,
+} from "@/components/team/TeammateWizardModal";
+import { getEmployeeDisplayName } from "@/lib/team/employee-options";
 
 type TaskMock = {
   id?: string;
@@ -69,6 +74,17 @@ type Member = {
   dept: string;
   reportsTo: string;
   joinedDate: string;
+  dateOfBirth?: string | null;
+  bloodGroup?: string | null;
+  personalEmail?: string | null;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  employeeCode?: string | null;
+  officeBranch?: string | null;
+  workLocation?: string | null;
+  joiningDate?: string | null;
+  employmentStatus?: string | null;
+  reportingHr?: string | null;
   tasks: TaskMock[];
   activities: ActivityMock[];
 };
@@ -363,18 +379,29 @@ const mapDbUserToMember = (user: any): Member => {
 
   return {
     id: user.id,
-    name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email.split("@")[0],
+    name: getEmployeeDisplayName(user),
     email: user.email,
     phone: formatMemberPhone(user.phone),
     role: roleLabel,
     designation: user.designation || user.jobTitle || "Member",
     dept: user.department || "Engineering",
     reportsTo: user.reportsTo || "None",
-    joinedDate: new Date(user.createdAt).toLocaleDateString("en-US", {
+    joinedDate: new Date(user.joiningDate || user.createdAt).toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
       year: "numeric",
     }),
+    dateOfBirth: user.dateOfBirth,
+    bloodGroup: user.bloodGroup,
+    personalEmail: user.personalEmail,
+    emergencyContactName: user.emergencyContactName,
+    emergencyContactPhone: user.emergencyContactPhone,
+    employeeCode: user.employeeCode,
+    officeBranch: user.officeBranch,
+    workLocation: user.workLocation,
+    joiningDate: user.joiningDate,
+    employmentStatus: user.employmentStatus,
+    reportingHr: user.reportingHr,
     tasks: user.tasks || [],
     activities: [
       { time: "Just now", description: "Created an account" }
@@ -475,6 +502,7 @@ export function TeamsManagementView() {
   const openAddMemberModal = () => {
     if (!enforcePermission(canManageMembers)) return;
     if (!enforceTeamMemberLimit()) return;
+    void fetchTeam();
     setIsAddModalOpen(true);
   };
 
@@ -571,6 +599,9 @@ export function TeamsManagementView() {
     "Sales",
     "Marketing",
   ]);
+  const [availableBranches, setAvailableBranches] = useState<string[]>([]);
+  const [availableLocations, setAvailableLocations] = useState<string[]>([]);
+  const [wizardSubmitting, setWizardSubmitting] = useState(false);
   const [isCreatingDept, setIsCreatingDept] = useState(false);
   const [newDeptName, setNewDeptName] = useState("");
 
@@ -618,13 +649,14 @@ export function TeamsManagementView() {
         if (json.departments && json.departments.length > 0) {
           setAvailableDepts(json.departments);
         }
-        const designationsFromMembers = json.members
-          .map((m: any) => (m.designation || m.jobTitle || "").trim())
-          .filter((d: string) => d.length > 0);
-        if (designationsFromMembers.length > 0) {
-          setAvailableDesignations((prev) =>
-            Array.from(new Set([...prev, ...designationsFromMembers]))
-          );
+        if (json.branches) {
+          setAvailableBranches(json.branches);
+        }
+        if (json.locations) {
+          setAvailableLocations(json.locations);
+        }
+        if (json.designations && json.designations.length > 0) {
+          setAvailableDesignations(json.designations);
         }
         setActiveWorkspaceId(json.workspaceId);
 
@@ -655,6 +687,101 @@ export function TeamsManagementView() {
       fetchTeam();
     }
   }, [activeTab, selectedMember?.id]);
+
+  const employeeOptions = useMemo(
+    () =>
+      members
+        .map((member) => ({ id: member.id, name: member.name.trim() }))
+        .filter((member) => member.name.length > 0),
+    [members]
+  );
+
+  const submitTeammatePayload = async (
+    values: TeammateFormValues,
+    mode: "add" | "edit",
+    memberId?: string
+  ) => {
+    const payload = {
+      name: values.name,
+      email: values.email.trim(),
+      phone: values.phone?.trim() || null,
+      role: values.role,
+      designation: values.designation || "",
+      dept: values.dept,
+      reportsTo: values.reportsTo,
+      reportingHr: values.reportingHr,
+      password: values.password || undefined,
+      confirmPassword: values.confirmPassword || undefined,
+      dateOfBirth: values.dateOfBirth || null,
+      bloodGroup: values.bloodGroup || null,
+      personalEmail: values.personalEmail || null,
+      emergencyContactName: values.emergencyContactName || null,
+      emergencyContactPhone: values.emergencyContactPhone || null,
+      employeeCode: values.employeeCode || null,
+      officeBranch: values.officeBranch || null,
+      workLocation: values.workLocation || null,
+      joiningDate: values.joiningDate || null,
+      employmentStatus: values.employmentStatus || "Active",
+      workspaceId: activeWorkspaceId,
+      ...(mode === "edit" && memberId ? { id: memberId } : {}),
+    };
+
+    const res = await fetch("/api/team", {
+      method: mode === "add" ? "POST" : "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return res.json();
+  };
+
+  const handleWizardAdd = async (values: TeammateFormValues) => {
+    if (!enforcePermission(canManageMembers)) return;
+    if (!enforceTeamMemberLimit()) return;
+    setWizardSubmitting(true);
+    try {
+      const json = await submitTeammatePayload(values, "add");
+      if (json.success) {
+        showToast(`${values.name} added to team successfully!`, "success");
+        fetchTeam();
+        setIsAddModalOpen(false);
+      } else {
+        if (json.code === "SEATS_LIMIT") {
+          showToast(json.error || "No vacant seats. Add more in Billing.", "error");
+          return;
+        }
+        if (isUpgradeRequiredError(json)) {
+          guardPlanFeature(json.feature || "teamMembersLimit", json.error);
+          return;
+        }
+        showToast(json.error || "Failed to add team member", "error");
+      }
+    } catch (err) {
+      showToast("An error occurred while adding team member.", "error");
+      console.error("Error adding member:", err);
+    } finally {
+      setWizardSubmitting(false);
+    }
+  };
+
+  const handleWizardEdit = async (values: TeammateFormValues) => {
+    if (!enforcePermission(canManageMembers) || !editingMember) return;
+    setWizardSubmitting(true);
+    try {
+      const json = await submitTeammatePayload(values, "edit", editingMember.id);
+      if (json.success) {
+        showToast("Team member updated successfully!", "success");
+        fetchTeam();
+        setEditingMember(null);
+      } else {
+        showToast(json.error || "Failed to update team member", "error");
+      }
+    } catch (err) {
+      showToast("An error occurred while updating team member.", "error");
+      console.error("Error updating member:", err);
+    } finally {
+      setWizardSubmitting(false);
+    }
+  };
 
   const handleAddMember = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -715,6 +842,7 @@ export function TeamsManagementView() {
 
   const handleStartEdit = (member: Member) => {
     if (!enforcePermission(canManageMembers)) return;
+    void fetchTeam();
     setEditingMember(member);
     setEditName(member.name);
     setEditEmail(member.email);
@@ -1442,953 +1570,37 @@ export function TeamsManagementView() {
       </AnimatePresence>
 
       {/* ADD MEMBER MODAL */}
-      <AnimatePresence>
-        {isAddModalOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setIsAddModalOpen(false);
-                setIsCreatingDesignation(false);
-                setNewDesignationName("");
-                setIsAddDesignationOpen(false);
-              }}
-              className="fixed inset-0 z-50 bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
-            />
-
-            {/* Modal Dialog */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="fixed inset-0 z-50 m-auto flex h-fit w-full max-w-[480px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418]"
-            >
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-white/5">
-                <div className="flex items-center gap-2">
-                  <UserPlusIcon className="h-5 w-5 text-[var(--app-primary)]" />
-                  <h3 className="font-heading text-lg font-bold text-zinc-900 dark:text-zinc-50">
-                    Add Team Member
-                  </h3>
-                </div>
-                <button
-                  onClick={() => {
-                    setIsAddModalOpen(false);
-                    setIsCreatingDesignation(false);
-                    setNewDesignationName("");
-                    setIsAddDesignationOpen(false);
-                  }}
-                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleAddMember} className="mt-4 space-y-4">
-                {/* Name */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Maya Patel"
-                    className="mt-2 block w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                  />
-                </div>
-
-                {/* Email Address */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g. maya@ansh.ai"
-                    className="mt-2 block w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                  />
-                </div>
-
-                {/* Phone Number */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Phone Number
-                  </label>
-                  <div className="mt-2">
-                    <PhoneInput
-                      country="us"
-                      value={phone}
-                      onChange={(value) => setPhone(value ? `+${value}` : "")}
-                      enableSearch={true}
-                      countryCodeEditable={false}
-                      inputProps={{
-                        name: "phone",
-                        placeholder: "Enter phone number (optional)",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Designation Row with custom creation option */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Designation
-                  </label>
-
-                  <div className="mt-2 flex items-center gap-2">
-                    {isCreatingDesignation ? (
-                      <div className="flex flex-1 items-center gap-2">
-                        <input
-                          type="text"
-                          autoFocus
-                          value={newDesignationName}
-                          onChange={(e) => setNewDesignationName(e.target.value)}
-                          placeholder="Type new designation..."
-                          className="flex-1 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleCreateDesignation}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--app-primary)] text-white shadow-sm hover:brightness-110 active:scale-95"
-                          title="Save Custom Designation"
-                        >
-                          <CheckIcon className="h-4.5 w-4.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsCreatingDesignation(false);
-                            setNewDesignationName("");
-                          }}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400"
-                          title="Cancel"
-                        >
-                          <XMarkIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative min-w-0 flex-1">
-                          <button
-                            type="button"
-                            onClick={() => setIsAddDesignationOpen(!isAddDesignationOpen)}
-                            className={DROPDOWN_TRIGGER_CLASS}
-                          >
-                            <SelectValue value={designation || "Select designation"} />
-                            <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isAddDesignationOpen ? "rotate-180" : ""}`} />
-                          </button>
-
-                          <AnimatePresence>
-                            {isAddDesignationOpen && (
-                              <>
-                                <div className="fixed inset-0 z-30" onClick={() => setIsAddDesignationOpen(false)} />
-                                <motion.div
-                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
-                                >
-                                  {availableDesignations.map((d) => {
-                                    const isSelected = designation === d;
-                                    return (
-                                      <button
-                                        key={d}
-                                        type="button"
-                                        onClick={() => {
-                                          setDesignation(d);
-                                          setIsAddDesignationOpen(false);
-                                        }}
-                                        className={`${DROPDOWN_OPTION_CLASS} ${
-                                          isSelected
-                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                        }`}
-                                      >
-                                        <SelectValue value={d} />
-                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
-                                      </button>
-                                    );
-                                  })}
-                                </motion.div>
-                              </>
-                            )}
-                          </AnimatePresence>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setIsCreatingDesignation(true)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                          title="Create custom designation"
-                        >
-                          <PlusIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                  
-                {/* Password Field */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Password
-                  </label>
-                  <div className="relative mt-2">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Create teammate password"
-                      className="block w-full rounded-xl border border-zinc-200 pl-4 pr-10 py-3 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                    >
-                      {showPassword ? (
-                        <EyeSlashIcon className="h-4.5 w-4.5" />
-                      ) : (
-                        <EyeIcon className="h-4.5 w-4.5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Role row (fixed roles only) */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Role
-                  </label>
-                  <div className="relative mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsAddRoleOpen(!isAddRoleOpen)}
-                      className={DROPDOWN_TRIGGER_CLASS}
-                    >
-                      <SelectValue value={role} />
-                      <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isAddRoleOpen ? "rotate-180" : ""}`} />
-                    </button>
-
-                    <AnimatePresence>
-                      {isAddRoleOpen && (
-                        <>
-                          <div className="fixed inset-0 z-30" onClick={() => setIsAddRoleOpen(false)} />
-                          <motion.div
-                            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                            className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
-                          >
-                            {availableRoles.map((r) => {
-                              const isSelected = role === r;
-                              return (
-                                <button
-                                  key={r}
-                                  type="button"
-                                  onClick={() => {
-                                    setRole(r);
-                                    setIsAddRoleOpen(false);
-                                  }}
-                                  className={`${DROPDOWN_OPTION_CLASS} ${
-                                    isSelected
-                                      ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                      : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                  }`}
-                                >
-                                  <SelectValue value={r} />
-                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
-                                </button>
-                              );
-                            })}
-                          </motion.div>
-                        </>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-
-                {/* Department Row with custom creation option */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Department
-                  </label>
-                  
-                  <div className="mt-2 flex items-center gap-2">
-                    {isCreatingDept ? (
-                      <div className="flex flex-1 items-center gap-2">
-                        <input
-                          type="text"
-                          autoFocus
-                          value={newDeptName}
-                          onChange={(e) => setNewDeptName(e.target.value)}
-                          placeholder="Type new dept..."
-                          className="flex-1 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleCreateDept}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--app-primary)] text-white shadow-sm hover:brightness-110 active:scale-95"
-                          title="Save Custom Department"
-                        >
-                          <CheckIcon className="h-4.5 w-4.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsCreatingDept(false);
-                            setNewDeptName("");
-                          }}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400"
-                          title="Cancel"
-                        >
-                          <XMarkIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative min-w-0 flex-1">
-                          <button
-                            type="button"
-                            onClick={() => setIsAddDeptOpen(!isAddDeptOpen)}
-                            className={DROPDOWN_TRIGGER_CLASS}
-                          >
-                            <SelectValue value={dept} />
-                            <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isAddDeptOpen ? "rotate-180" : ""}`} />
-                          </button>
-                          
-                          <AnimatePresence>
-                            {isAddDeptOpen && (
-                              <>
-                                <div className="fixed inset-0 z-30" onClick={() => setIsAddDeptOpen(false)} />
-                                <motion.div
-                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
-                                >
-                                  {availableDepts.map((d) => {
-                                    const isSelected = dept === d;
-                                    return (
-                                      <button
-                                        key={d}
-                                        type="button"
-                                        onClick={() => {
-                                          setDept(d);
-                                          setIsAddDeptOpen(false);
-                                        }}
-                                        className={`${DROPDOWN_OPTION_CLASS} ${
-                                          isSelected
-                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                        }`}
-                                      >
-                                        <SelectValue value={d} />
-                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
-                                      </button>
-                                    );
-                                  })}
-                                </motion.div>
-                              </>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                        
-                        <button
-                          type="button"
-                          onClick={() => setIsCreatingDept(true)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                          title="Create custom department"
-                        >
-                          <PlusIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Reports To Row */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Reports To
-                  </label>
-                  <div className="relative mt-2">
-                  <div className="relative mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsAddReportsOpen(!isAddReportsOpen)}
-                      className={DROPDOWN_TRIGGER_CLASS}
-                    >
-                      <SelectValue value={reportsTo === "None" ? "None (Direct / Exec)" : reportsTo} />
-                      <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isAddReportsOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    
-                    <AnimatePresence>
-                      {isAddReportsOpen && (
-                        <>
-                          <div className="fixed inset-0 z-30" onClick={() => setIsAddReportsOpen(false)} />
-                          <motion.div
-                            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                            className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setReportsTo("None");
-                                setIsAddReportsOpen(false);
-                              }}
-                              className={`${DROPDOWN_OPTION_CLASS} ${
-                                reportsTo === "None"
-                                  ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                  : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                              }`}
-                            >
-                              <SelectValue value="None (Direct / Exec)" />
-                              {reportsTo === "None" && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
-                            </button>
-                            
-                            {members.map((m) => {
-                              const isSelected = reportsTo === m.name;
-                              return (
-                                <button
-                                  key={m.id}
-                                  type="button"
-                                  onClick={() => {
-                                    setReportsTo(m.name);
-                                    setIsAddReportsOpen(false);
-                                  }}
-                                  className={`${DROPDOWN_OPTION_CLASS} ${
-                                    isSelected
-                                      ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                      : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                  }`}
-                                >
-                                  <SelectValue value={m.name} />
-                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
-                                </button>
-                              );
-                            })}
-                          </motion.div>
-                        </>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  </div>
-                </div>
-
-                {/* Form Buttons */}
-                <div className="flex gap-3 pt-4 border-t border-zinc-100 dark:border-white/5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsAddModalOpen(false);
-                      setIsCreatingDesignation(false);
-                      setNewDesignationName("");
-                      setIsAddDesignationOpen(false);
-                      setIsCreatingDept(false);
-                    }}
-                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 rounded-xl bg-[var(--app-primary)] py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all"
-                  >
-                    Add to Team
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <TeammateWizardModal
+        open={isAddModalOpen}
+        mode="add"
+        workspaceId={activeWorkspaceId}
+        roles={availableRoles}
+        departments={availableDepts}
+        designations={availableDesignations}
+        branches={availableBranches}
+        locations={availableLocations}
+        employees={employeeOptions}
+        submitting={wizardSubmitting}
+        onClose={() => setIsAddModalOpen(false)}
+        onSubmit={handleWizardAdd}
+      />
 
       {/* EDIT MEMBER MODAL */}
-      <AnimatePresence>
-        {editingMember && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setEditingMember(null);
-                setIsCreatingDesignation(false);
-                setNewDesignationName("");
-                setIsEditDesignationOpen(false);
-              }}
-              className="fixed inset-0 z-50 bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
-            />
-
-            {/* Modal Dialog */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="fixed inset-0 z-50 m-auto flex h-fit w-full max-w-[480px] flex-col rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418]"
-            >
-              <div className="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-white/5">
-                <div className="flex items-center gap-2">
-                  <PencilSquareIcon className="h-5 w-5 text-[var(--app-primary)]" />
-                  <h3 className="font-heading text-lg font-bold text-zinc-900 dark:text-zinc-50">
-                    Edit Team Member
-                  </h3>
-                </div>
-                <button
-                  onClick={() => {
-                    setEditingMember(null);
-                    setIsCreatingDesignation(false);
-                    setNewDesignationName("");
-                    setIsEditDesignationOpen(false);
-                  }}
-                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
-                >
-                  <XMarkIcon className="h-5 w-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveEdit} className="mt-4 space-y-4">
-                {/* Name */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="e.g. Maya Patel"
-                    className="mt-2 block w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                  />
-                </div>
-
-                {/* Email Address */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={editEmail}
-                    onChange={(e) => setEditEmail(e.target.value)}
-                    placeholder="e.g. maya@ansh.ai"
-                    className="mt-2 block w-full rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                  />
-                </div>
-
-                {/* Phone Number */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Phone Number
-                  </label>
-                  <div className="mt-2">
-                    <PhoneInput
-                      country="us"
-                      value={editPhone}
-                      onChange={(value) => setEditPhone(value ? `+${value}` : "")}
-                      enableSearch={true}
-                      countryCodeEditable={false}
-                      inputProps={{
-                        name: "phone",
-                        placeholder: "Enter phone number (optional)",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Designation Row with custom creation option */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Designation
-                  </label>
-
-                  <div className="mt-2 flex items-center gap-2">
-                    {isCreatingDesignation ? (
-                      <div className="flex flex-1 items-center gap-2">
-                        <input
-                          type="text"
-                          autoFocus
-                          value={newDesignationName}
-                          onChange={(e) => setNewDesignationName(e.target.value)}
-                          placeholder="Type new designation..."
-                          className="flex-1 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleCreateDesignation}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--app-primary)] text-white shadow-sm hover:brightness-110 active:scale-95"
-                          title="Save Custom Designation"
-                        >
-                          <CheckIcon className="h-4.5 w-4.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsCreatingDesignation(false);
-                            setNewDesignationName("");
-                          }}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400"
-                          title="Cancel"
-                        >
-                          <XMarkIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative min-w-0 flex-1">
-                          <button
-                            type="button"
-                            onClick={() => setIsEditDesignationOpen(!isEditDesignationOpen)}
-                            className={DROPDOWN_TRIGGER_CLASS}
-                          >
-                            <SelectValue value={editDesignation || "Select designation"} />
-                            <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isEditDesignationOpen ? "rotate-180" : ""}`} />
-                          </button>
-
-                          <AnimatePresence>
-                            {isEditDesignationOpen && (
-                              <>
-                                <div className="fixed inset-0 z-30" onClick={() => setIsEditDesignationOpen(false)} />
-                                <motion.div
-                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
-                                >
-                                  {availableDesignations.map((d) => {
-                                    const isSelected = editDesignation === d;
-                                    return (
-                                      <button
-                                        key={d}
-                                        type="button"
-                                        onClick={() => {
-                                          setEditDesignation(d);
-                                          setIsEditDesignationOpen(false);
-                                        }}
-                                        className={`${DROPDOWN_OPTION_CLASS} ${
-                                          isSelected
-                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                        }`}
-                                      >
-                                        <SelectValue value={d} />
-                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
-                                      </button>
-                                    );
-                                  })}
-                                </motion.div>
-                              </>
-                            )}
-                          </AnimatePresence>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setIsCreatingDesignation(true)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                          title="Create custom designation"
-                        >
-                          <PlusIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Password Field (Optional) */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Password (leave blank to keep unchanged)
-                  </label>
-                  <div className="relative mt-2">
-                    <input
-                      type={showEditPassword ? "text" : "password"}
-                      value={editPassword}
-                      onChange={(e) => setEditPassword(e.target.value)}
-                      placeholder="New password"
-                      className="block w-full rounded-xl border border-zinc-200 pl-4 pr-10 py-3 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowEditPassword(!showEditPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                    >
-                      {showEditPassword ? (
-                        <EyeSlashIcon className="h-4.5 w-4.5" />
-                      ) : (
-                        <EyeIcon className="h-4.5 w-4.5" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Role row (fixed roles only) */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Role
-                  </label>
-                  <div className="relative mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditRoleOpen(!isEditRoleOpen)}
-                      className={DROPDOWN_TRIGGER_CLASS}
-                    >
-                      <SelectValue value={editRole} />
-                      <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isEditRoleOpen ? "rotate-180" : ""}`} />
-                    </button>
-
-                    <AnimatePresence>
-                      {isEditRoleOpen && (
-                        <>
-                          <div className="fixed inset-0 z-30" onClick={() => setIsEditRoleOpen(false)} />
-                          <motion.div
-                            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                            className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
-                          >
-                            {availableRoles.map((r) => {
-                              const isSelected = editRole === r;
-                              return (
-                                <button
-                                  key={r}
-                                  type="button"
-                                  onClick={() => {
-                                    setEditRole(r);
-                                    setIsEditRoleOpen(false);
-                                  }}
-                                  className={`${DROPDOWN_OPTION_CLASS} ${
-                                    isSelected
-                                      ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                      : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                  }`}
-                                >
-                                  <SelectValue value={r} />
-                                  {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
-                                </button>
-                              );
-                            })}
-                          </motion.div>
-                        </>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-
-                {/* Department Row with custom creation option */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Department
-                  </label>
-                  
-                  <div className="mt-2 flex items-center gap-2">
-                    {isCreatingDept ? (
-                      <div className="flex flex-1 items-center gap-2">
-                        <input
-                          type="text"
-                          autoFocus
-                          value={newDeptName}
-                          onChange={(e) => setNewDeptName(e.target.value)}
-                          placeholder="Type new dept..."
-                          className="flex-1 rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-900 outline-none focus:border-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleCreateDept}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--app-primary)] text-white shadow-sm hover:brightness-110 active:scale-95"
-                          title="Save Custom Department"
-                        >
-                          <CheckIcon className="h-4.5 w-4.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsCreatingDept(false);
-                            setNewDeptName("");
-                          }}
-                          className="flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400"
-                          title="Cancel"
-                        >
-                          <XMarkIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="relative min-w-0 flex-1">
-                          <button
-                            type="button"
-                            onClick={() => setIsEditDeptOpen(!isEditDeptOpen)}
-                            className={DROPDOWN_TRIGGER_CLASS}
-                          >
-                            <SelectValue value={editDept} />
-                            <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isEditDeptOpen ? "rotate-180" : ""}`} />
-                          </button>
-                          
-                          <AnimatePresence>
-                            {isEditDeptOpen && (
-                              <>
-                                <div className="fixed inset-0 z-30" onClick={() => setIsEditDeptOpen(false)} />
-                                <motion.div
-                                  initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                                  exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                                  className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
-                                >
-                                  {availableDepts.map((d) => {
-                                    const isSelected = editDept === d;
-                                    return (
-                                      <button
-                                        key={d}
-                                        type="button"
-                                        onClick={() => {
-                                          setEditDept(d);
-                                          setIsEditDeptOpen(false);
-                                        }}
-                                        className={`${DROPDOWN_OPTION_CLASS} ${
-                                          isSelected
-                                            ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                            : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                        }`}
-                                      >
-                                        <SelectValue value={d} />
-                                        {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
-                                      </button>
-                                    );
-                                  })}
-                                </motion.div>
-                              </>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                        
-                        <button
-                          type="button"
-                          onClick={() => setIsCreatingDept(true)}
-                          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 hover:border-[var(--app-primary)] hover:bg-[var(--app-primary-soft)] hover:text-[var(--app-primary)] transition-all dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                          title="Create custom department"
-                        >
-                          <PlusIcon className="h-4.5 w-4.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Reports To Row */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                    Reports To
-                  </label>
-                  <div className="relative mt-2">
-                  <div className="relative mt-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditReportsOpen(!isEditReportsOpen)}
-                      className={DROPDOWN_TRIGGER_CLASS}
-                    >
-                      <SelectValue value={editReportsTo === "None" ? "None (Direct / Exec)" : editReportsTo} />
-                      <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-200 ${isEditReportsOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    
-                    <AnimatePresence>
-                      {isEditReportsOpen && (
-                        <>
-                          <div className="fixed inset-0 z-30" onClick={() => setIsEditReportsOpen(false)} />
-                          <motion.div
-                            initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                            className="absolute left-0 right-0 z-40 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
-                          >
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditReportsTo("None");
-                                setIsEditReportsOpen(false);
-                              }}
-                              className={`${DROPDOWN_OPTION_CLASS} ${
-                                editReportsTo === "None"
-                                  ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                  : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                              }`}
-                            >
-                              <SelectValue value="None (Direct / Exec)" />
-                              {editReportsTo === "None" && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
-                            </button>
-                            
-                            {members
-                              .filter((m) => m.id !== editingMember.id)
-                              .map((m) => {
-                                const isSelected = editReportsTo === m.name;
-                                return (
-                                  <button
-                                    key={m.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setEditReportsTo(m.name);
-                                      setIsEditReportsOpen(false);
-                                    }}
-                                    className={`${DROPDOWN_OPTION_CLASS} ${
-                                      isSelected
-                                        ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                        : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                    }`}
-                                  >
-                                    <SelectValue value={m.name} />
-                                    {isSelected && <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--app-primary)] stroke-[3]" />}
-                                  </button>
-                                );
-                              })}
-                          </motion.div>
-                        </>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                  </div>
-                </div>
-
-                {/* Form Buttons */}
-                <div className="flex gap-3 pt-4 border-t border-zinc-100 dark:border-white/5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingMember(null);
-                      setIsCreatingDesignation(false);
-                      setNewDesignationName("");
-                      setIsEditDesignationOpen(false);
-                      setIsCreatingDept(false);
-                    }}
-                    className="flex-1 rounded-xl border border-zinc-200 py-3 text-xs font-bold text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="flex-1 rounded-xl bg-[var(--app-primary)] py-3 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-98 transition-all"
-                  >
-                    Save Changes
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <TeammateWizardModal
+        open={!!editingMember}
+        mode="edit"
+        member={editingMember}
+        workspaceId={activeWorkspaceId}
+        roles={availableRoles}
+        departments={availableDepts}
+        designations={availableDesignations}
+        branches={availableBranches}
+        locations={availableLocations}
+        employees={employeeOptions}
+        submitting={wizardSubmitting}
+        onClose={() => setEditingMember(null)}
+        onSubmit={handleWizardEdit}
+      />
 
       {/* DELETE TEAM MEMBER CONFIRMATION MODAL */}
       <AnimatePresence>

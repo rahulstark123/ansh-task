@@ -33,6 +33,7 @@ import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 
 import { AddTaskModal } from "@/components/tasks/AddTaskModal";
+import { AppSelect } from "@/components/ui/AppSelect";
 import type { NewTaskPayload, Task, TaskNote, TaskPriority, TaskStatus } from "@/types/task";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
@@ -651,6 +652,8 @@ export function TaskDashboard({
   const [filterAssignees, setFilterAssignees] = useState<string[]>([]);
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
   const [filterLabels, setFilterLabels] = useState<string[]>([]);
+  const [filterProjectId, setFilterProjectId] = useState("all");
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const [openFilterDropdown, setOpenFilterDropdown] = useState<"assignee" | "category" | "label" | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
@@ -665,6 +668,7 @@ export function TaskDashboard({
       if (filterAssignees.length > 0) params.set("assignees", filterAssignees.join(","));
       if (filterCategories.length > 0) params.set("categories", filterCategories.join(","));
       if (filterLabels.length > 0) params.set("labels", filterLabels.join(","));
+      if (filterProjectId !== "all") params.set("projectId", filterProjectId);
       if (taskModule === "my" && currentUserEmail) {
         params.set("scope", "my");
         params.set("email", currentUserEmail);
@@ -677,6 +681,7 @@ export function TaskDashboard({
       filterAssignees,
       filterCategories,
       filterLabels,
+      filterProjectId,
       taskModule,
       currentUserEmail,
     ]
@@ -733,13 +738,51 @@ export function TaskDashboard({
   }, [loadAllTasks]);
 
   useEffect(() => {
+    async function loadProjects() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const wid = getWid();
+        const email = user?.email ?? "";
+        const res = await fetch(
+          `/api/project?wid=${wid}&email=${encodeURIComponent(email)}`
+        );
+        const json = await res.json();
+        if (json.success && Array.isArray(json.projects)) {
+          setProjects(
+            json.projects.map((p: { id: string; name: string }) => ({
+              id: p.id,
+              name: p.name,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Error loading projects:", err);
+      }
+    }
+    loadProjects();
+  }, []);
+
+  useEffect(() => {
     if (viewMode !== "table") return;
     loadTableTasks(tablePage);
   }, [viewMode, tablePage, loadTableTasks]);
 
   useEffect(() => {
     setTablePage(1);
-  }, [searchQuery, filterPriority, filterAssignees, filterCategories, filterLabels, taskModule]);
+  }, [searchQuery, filterPriority, filterAssignees, filterCategories, filterLabels, filterProjectId, taskModule]);
+
+  const projectFilterOptions = useMemo(
+    () => [
+      { value: "all", label: "All projects" },
+      ...projects.map((project) => ({ value: project.id, label: project.name })),
+    ],
+    [projects]
+  );
+
+  const selectedProjectName = useMemo(
+    () => projects.find((project) => project.id === filterProjectId)?.name ?? null,
+    [projects, filterProjectId]
+  );
 
   const tableStartIndex = tableTotal === 0 ? 0 : (tablePage - 1) * DEFAULT_TASK_PAGE_SIZE + 1;
   const tableEndIndex = Math.min(tablePage * DEFAULT_TASK_PAGE_SIZE, tableTotal);
@@ -883,10 +926,12 @@ export function TaskDashboard({
             : filterAssignees.includes(task.assignee || "Unassigned"));
       const matchesCategory = filterCategories.length === 0 ? true : (task.category && filterCategories.includes(task.category));
       const matchesLabel = filterLabels.length === 0 ? true : (task.labels && task.labels.some((l) => filterLabels.includes(l)));
+      const matchesProject =
+        filterProjectId === "all" ? true : task.projectId === filterProjectId;
 
-      return matchesSearch && matchesPriority && matchesAssignee && matchesCategory && matchesLabel;
+      return matchesSearch && matchesPriority && matchesAssignee && matchesCategory && matchesLabel && matchesProject;
     });
-  }, [moduleTasks, searchQuery, filterPriority, filterAssignees, filterCategories, filterLabels]);
+  }, [moduleTasks, searchQuery, filterPriority, filterAssignees, filterCategories, filterLabels, filterProjectId]);
 
   // Aggregate columns counts
   const columnsCounts = useMemo(() => {
@@ -1472,6 +1517,7 @@ export function TaskDashboard({
     setFilterAssignees([]);
     setFilterCategories([]);
     setFilterLabels([]);
+    setFilterProjectId("all");
   }
 
   const hasActiveFilters =
@@ -1479,7 +1525,8 @@ export function TaskDashboard({
     filterPriority !== "All" ||
     filterAssignees.length > 0 ||
     filterCategories.length > 0 ||
-    filterLabels.length > 0;
+    filterLabels.length > 0 ||
+    filterProjectId !== "all";
 
   return (
     <div className="flex h-[calc(100vh-3.75rem)] w-full flex-col overflow-hidden bg-transparent dark:bg-zinc-950">
@@ -1565,6 +1612,18 @@ export function TaskDashboard({
           </div>
 
           <div className="flex items-center gap-2.5">
+            <div className="min-w-[10.5rem]">
+              <AppSelect
+                value={filterProjectId}
+                onChange={setFilterProjectId}
+                options={projectFilterOptions}
+                placeholder="All projects"
+                size="sm"
+                emptyMessage="No projects yet"
+                className="w-full"
+              />
+            </div>
+
             {/* Sliding View Toggle (Table / Board) */}
             <div className="relative flex rounded-xl bg-stone-100 p-1 dark:bg-zinc-900/90 ring-1 ring-black/5 dark:ring-white/5">
               
@@ -1626,7 +1685,7 @@ export function TaskDashboard({
         </div>
 
         {/* Active Filter Badges Display */}
-        {(filterPriority !== "All" || filterAssignees.length > 0 || filterCategories.length > 0 || filterLabels.length > 0 || searchQuery !== "") && (
+        {(filterPriority !== "All" || filterAssignees.length > 0 || filterCategories.length > 0 || filterLabels.length > 0 || filterProjectId !== "all" || searchQuery !== "") && (
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-zinc-100 dark:border-white/5">
             <span className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Applied Filters:</span>
             
@@ -1670,6 +1729,16 @@ export function TaskDashboard({
               </span>
             ))}
  
+            {filterProjectId !== "all" && selectedProjectName && (
+              <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
+                <span>Project:</span>
+                <span className="text-zinc-450 font-normal">{selectedProjectName}</span>
+                <button onClick={() => setFilterProjectId("all")} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white cursor-pointer">
+                  <XMarkIcon className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            )}
+
             {filterLabels.map((labelName) => (
               <span key={labelName} className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
                 <span>Label:</span>

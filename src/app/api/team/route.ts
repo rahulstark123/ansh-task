@@ -24,6 +24,13 @@ function toRoleLabel(role: "owner" | "admin" | "editor" | "observer") {
   return role === "admin" ? "Admin" : role === "observer" ? "Observer" : "Editor";
 }
 
+function parseOptionalDate(value: unknown): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -48,13 +55,25 @@ export async function GET(request: Request) {
       workspaceId = 1;
     }
 
-    // Parallel fetch roles, departments, members, and tasks in one roundtrip
-    let [dbRoles, dbDepts, members, dbTasks] = await Promise.all([
+    // Parallel fetch roles, departments, branches, locations, members, and tasks in one roundtrip
+    let [dbRoles, dbDepts, dbDesignations, dbBranches, dbLocations, members, dbTasks] = await Promise.all([
       prisma.workspaceRole.findMany({
         where: { workspaceId },
         orderBy: { name: "asc" },
       }),
       prisma.workspaceDepartment.findMany({
+        where: { workspaceId },
+        orderBy: { name: "asc" },
+      }),
+      prisma.workspaceDesignation.findMany({
+        where: { workspaceId },
+        orderBy: { name: "asc" },
+      }),
+      prisma.workspaceBranch.findMany({
+        where: { workspaceId },
+        orderBy: { name: "asc" },
+      }),
+      prisma.workspaceLocation.findMany({
         where: { workspaceId },
         orderBy: { name: "asc" },
       }),
@@ -77,14 +96,34 @@ export async function GET(request: Request) {
 
     const defaultRoles = [...FIXED_TEAM_ROLES];
     const defaultDepts = ["Engineering", "Product", "Design", "Sales", "Marketing"];
+    const defaultDesignations = [
+      "Software Engineer",
+      "Senior Software Engineer",
+      "Product Manager",
+      "Designer",
+      "HR Executive",
+      "Member",
+    ];
+    const defaultLocations = ["Remote", "Hybrid", "On-site"];
 
     // Optimistically check if defaults are missing to avoid unnecessary DB writes
     const missingRoles = defaultRoles.filter(
       (r) => !dbRoles.some((role) => role.name.toLowerCase() === r.toLowerCase())
     );
     const missingDepts = defaultDepts.filter((d) => !dbDepts.some((dept) => dept.name === d));
+    const missingDesignations = defaultDesignations.filter(
+      (d) => !dbDesignations.some((item) => item.name === d)
+    );
+    const missingLocations = defaultLocations.filter(
+      (l) => !dbLocations.some((loc) => loc.name === l)
+    );
 
-    if (missingRoles.length > 0 || missingDepts.length > 0) {
+    if (
+      missingRoles.length > 0 ||
+      missingDepts.length > 0 ||
+      missingDesignations.length > 0 ||
+      missingLocations.length > 0
+    ) {
       await Promise.all([
         missingRoles.length > 0
           ? prisma.workspaceRole.createMany({
@@ -98,10 +137,22 @@ export async function GET(request: Request) {
               skipDuplicates: true,
             })
           : Promise.resolve(),
+        missingDesignations.length > 0
+          ? prisma.workspaceDesignation.createMany({
+              data: missingDesignations.map((d) => ({ name: d, workspaceId: workspaceId! })),
+              skipDuplicates: true,
+            })
+          : Promise.resolve(),
+        missingLocations.length > 0
+          ? prisma.workspaceLocation.createMany({
+              data: missingLocations.map((l) => ({ name: l, workspaceId: workspaceId! })),
+              skipDuplicates: true,
+            })
+          : Promise.resolve(),
       ]);
 
       // Re-fetch only after seeding
-      [dbRoles, dbDepts] = await Promise.all([
+      [dbRoles, dbDepts, dbDesignations, dbBranches, dbLocations] = await Promise.all([
         prisma.workspaceRole.findMany({
           where: { workspaceId },
           orderBy: { name: "asc" },
@@ -110,7 +161,41 @@ export async function GET(request: Request) {
           where: { workspaceId },
           orderBy: { name: "asc" },
         }),
+        prisma.workspaceDesignation.findMany({
+          where: { workspaceId },
+          orderBy: { name: "asc" },
+        }),
+        prisma.workspaceBranch.findMany({
+          where: { workspaceId },
+          orderBy: { name: "asc" },
+        }),
+        prisma.workspaceLocation.findMany({
+          where: { workspaceId },
+          orderBy: { name: "asc" },
+        }),
       ]);
+    }
+
+    if (!dbDesignations.length) {
+      const memberDesignations = Array.from(
+        new Set(
+          members
+            .flatMap((member) => [member.designation, member.jobTitle])
+            .filter((value): value is string => Boolean(value?.trim()))
+            .map((value) => value.trim())
+        )
+      );
+
+      if (memberDesignations.length > 0) {
+        await prisma.workspaceDesignation.createMany({
+          data: memberDesignations.map((name) => ({ name, workspaceId: workspaceId! })),
+          skipDuplicates: true,
+        });
+        dbDesignations = await prisma.workspaceDesignation.findMany({
+          where: { workspaceId },
+          orderBy: { name: "asc" },
+        });
+      }
     }
 
     // Map tasks to members using assignee name, email, first name, and legacy "Me" for owners
@@ -163,6 +248,9 @@ export async function GET(request: Request) {
         dbRoles.some((r) => r.name.toLowerCase() === fixedRole.toLowerCase())
       ),
       departments: dbDepts.map((d) => d.name),
+      designations: dbDesignations.map((d) => d.name),
+      branches: dbBranches.map((b) => b.name),
+      locations: dbLocations.map((l) => l.name),
       workspaceId,
     });
   } catch (error: any) {
@@ -177,13 +265,42 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email, role, designation, dept, reportsTo, password, phone, workspaceId } = body;
+    const {
+      name,
+      email,
+      role,
+      designation,
+      dept,
+      reportsTo,
+      password,
+      confirmPassword,
+      phone,
+      workspaceId,
+      dateOfBirth,
+      bloodGroup,
+      personalEmail,
+      emergencyContactName,
+      emergencyContactPhone,
+      employeeCode,
+      officeBranch,
+      workLocation,
+      joiningDate,
+      employmentStatus,
+      reportingHr,
+    } = body;
     const safeRole = normalizeRole(role);
     const safeRoleLabel = toRoleLabel(safeRole);
  
     if (!email || !name) {
       return NextResponse.json(
         { success: false, error: "Name and Email are required fields" },
+        { status: 400 }
+      );
+    }
+
+    if (confirmPassword !== undefined && confirmPassword !== password) {
+      return NextResponse.json(
+        { success: false, error: "Password and confirm password do not match" },
         { status: 400 }
       );
     }
@@ -214,7 +331,7 @@ export async function POST(request: Request) {
       );
     }
  
-    // Upsert role and department in parallel to save a DB roundtrip
+    // Upsert role, department, branch, and location in parallel to save a DB roundtrip
     await Promise.all([
       prisma.workspaceRole.upsert({
         where: { workspaceId_name: { workspaceId: wid, name: safeRoleLabel } },
@@ -225,6 +342,27 @@ export async function POST(request: Request) {
         ? prisma.workspaceDepartment.upsert({
             where: { workspaceId_name: { workspaceId: wid, name: dept } },
             create: { workspaceId: wid, name: dept },
+            update: {},
+          })
+        : Promise.resolve(),
+      designation
+        ? prisma.workspaceDesignation.upsert({
+            where: { workspaceId_name: { workspaceId: wid, name: designation } },
+            create: { workspaceId: wid, name: designation },
+            update: {},
+          })
+        : Promise.resolve(),
+      officeBranch
+        ? prisma.workspaceBranch.upsert({
+            where: { workspaceId_name: { workspaceId: wid, name: officeBranch } },
+            create: { workspaceId: wid, name: officeBranch },
+            update: {},
+          })
+        : Promise.resolve(),
+      workLocation
+        ? prisma.workspaceLocation.upsert({
+            where: { workspaceId_name: { workspaceId: wid, name: workLocation } },
+            create: { workspaceId: wid, name: workLocation },
             update: {},
           })
         : Promise.resolve(),
@@ -271,6 +409,17 @@ export async function POST(request: Request) {
         department: dept || "Engineering",
         reportsTo: reportsTo || "None",
         workspaceId: wid,
+        dateOfBirth: parseOptionalDate(dateOfBirth),
+        bloodGroup: bloodGroup || null,
+        personalEmail: personalEmail || null,
+        emergencyContactName: emergencyContactName || null,
+        emergencyContactPhone: emergencyContactPhone || null,
+        employeeCode: employeeCode || null,
+        officeBranch: officeBranch || null,
+        workLocation: workLocation || null,
+        joiningDate: parseOptionalDate(joiningDate),
+        employmentStatus: employmentStatus || undefined,
+        reportingHr: reportingHr || null,
       },
     });
  
@@ -302,7 +451,29 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, name, email, role, designation, dept, reportsTo, password, phone, workspaceId } = body;
+    const {
+      id,
+      name,
+      email,
+      role,
+      designation,
+      dept,
+      reportsTo,
+      password,
+      phone,
+      workspaceId,
+      dateOfBirth,
+      bloodGroup,
+      personalEmail,
+      emergencyContactName,
+      emergencyContactPhone,
+      employeeCode,
+      officeBranch,
+      workLocation,
+      joiningDate,
+      employmentStatus,
+      reportingHr,
+    } = body;
     const safeRole = role !== undefined ? normalizeRole(role) : undefined;
     const safeRoleLabel = safeRole ? toRoleLabel(safeRole) : null;
  
@@ -315,7 +486,7 @@ export async function PATCH(request: Request) {
  
     const wid = workspaceId ? parseInt(workspaceId, 10) : 1;
  
-    // Upsert role and department in parallel to save a DB roundtrip
+    // Upsert role, department, branch, and location in parallel to save a DB roundtrip
     await Promise.all([
       safeRoleLabel
         ? prisma.workspaceRole.upsert({
@@ -328,6 +499,27 @@ export async function PATCH(request: Request) {
         ? prisma.workspaceDepartment.upsert({
             where: { workspaceId_name: { workspaceId: wid, name: dept } },
             create: { workspaceId: wid, name: dept },
+            update: {},
+          })
+        : Promise.resolve(),
+      designation
+        ? prisma.workspaceDesignation.upsert({
+            where: { workspaceId_name: { workspaceId: wid, name: designation } },
+            create: { workspaceId: wid, name: designation },
+            update: {},
+          })
+        : Promise.resolve(),
+      officeBranch
+        ? prisma.workspaceBranch.upsert({
+            where: { workspaceId_name: { workspaceId: wid, name: officeBranch } },
+            create: { workspaceId: wid, name: officeBranch },
+            update: {},
+          })
+        : Promise.resolve(),
+      workLocation
+        ? prisma.workspaceLocation.upsert({
+            where: { workspaceId_name: { workspaceId: wid, name: workLocation } },
+            create: { workspaceId: wid, name: workLocation },
             update: {},
           })
         : Promise.resolve(),
@@ -355,6 +547,19 @@ export async function PATCH(request: Request) {
               ? phone.trim()
               : null
             : undefined,
+        dateOfBirth: dateOfBirth !== undefined ? parseOptionalDate(dateOfBirth) : undefined,
+        bloodGroup: bloodGroup !== undefined ? bloodGroup || null : undefined,
+        personalEmail: personalEmail !== undefined ? personalEmail || null : undefined,
+        emergencyContactName:
+          emergencyContactName !== undefined ? emergencyContactName || null : undefined,
+        emergencyContactPhone:
+          emergencyContactPhone !== undefined ? emergencyContactPhone || null : undefined,
+        employeeCode: employeeCode !== undefined ? employeeCode || null : undefined,
+        officeBranch: officeBranch !== undefined ? officeBranch || null : undefined,
+        workLocation: workLocation !== undefined ? workLocation || null : undefined,
+        joiningDate: joiningDate !== undefined ? parseOptionalDate(joiningDate) : undefined,
+        employmentStatus: employmentStatus !== undefined ? employmentStatus : undefined,
+        reportingHr: reportingHr !== undefined ? reportingHr || null : undefined,
       },
     });
  

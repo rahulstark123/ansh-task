@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
 import { getWorkspaceSeatsInfo } from "@/lib/billing/seats";
+import { resolveWorkspaceBillingState } from "@/lib/billing/subscription-lifecycle";
 
 export const dynamic = "force-dynamic";
 
@@ -9,44 +9,23 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const wid = parseInt(searchParams.get("wid") ?? "1", 10);
 
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: wid },
-      select: { plan: true, planExpiresAt: true },
-    });
-
-    if (!workspace) {
-      return NextResponse.json(
-        { success: false, error: "Workspace not found" },
-        { status: 404 }
-      );
-    }
-
+    const billing = await resolveWorkspaceBillingState(wid);
     const seats = await getWorkspaceSeatsInfo(wid);
 
-    const activeSubscription = await prisma.subscription.findFirst({
-      where: {
-        workspaceId: wid,
-        status: "ACTIVE",
-        plan: "pro",
-        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
-      },
-      orderBy: { createdAt: "desc" },
-      select: { startsAt: true, expiresAt: true },
-    });
-
     const subscriptionExpiresAt =
-      activeSubscription?.expiresAt ?? workspace.planExpiresAt;
+      billing.activeSubscription?.expiresAt ?? billing.planExpiresAt;
 
     return NextResponse.json({
       success: true,
       plan: seats.plan,
-      planExpiresAt: workspace.planExpiresAt?.toISOString() ?? null,
+      storedPlan: billing.storedPlan,
+      planExpiresAt: billing.planExpiresAt?.toISOString() ?? null,
       subscriptionStartsAt:
-        activeSubscription?.startsAt?.toISOString() ?? null,
+        billing.activeSubscription?.startsAt?.toISOString() ?? null,
       subscriptionExpiresAt: subscriptionExpiresAt?.toISOString() ?? null,
       isTrial: seats.isTrial,
       trialEndsAt: seats.isTrial
-        ? workspace.planExpiresAt?.toISOString() ?? null
+        ? billing.planExpiresAt?.toISOString() ?? null
         : null,
       hasScheduledPro: seats.hasScheduledPro,
       scheduledProStartsAt: seats.scheduledProStartsAt?.toISOString() ?? null,
@@ -54,13 +33,12 @@ export async function GET(request: Request) {
       seatsPurchased: seats.seatsPurchased,
       seatsVacant: seats.seatsVacant,
       billingCycle: seats.billingCycle,
-      canAddSeats: seats.plan === "pro",
+      canAddSeats: seats.plan === "pro" && !seats.isTrial,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[billing/status] Error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message || "Failed to fetch plan" },
-      { status: 500 }
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch plan";
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

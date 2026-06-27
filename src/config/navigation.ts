@@ -141,6 +141,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/settings": "Settings",
   "/settings/profile": "Profile",
   "/settings/company": "Company",
+  "/settings/workspace": "Workspace",
   "/settings/permissions": "Permissions",
   "/settings/defaults": "Task Defaults",
   "/settings/billing": "Billing",
