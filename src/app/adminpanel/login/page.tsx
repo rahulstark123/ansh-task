@@ -10,6 +10,7 @@ export default function AdminLoginPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [passcode, setPasscode] = useState("");
+  const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
@@ -30,7 +31,7 @@ export default function AdminLoginPage() {
       const passcodeRes = await fetch("/api/admin/verify-passcode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passcode }),
+        body: JSON.stringify({ passcode, pin }),
         credentials: "include",
       });
       const passcodeJson = await passcodeRes.json();
@@ -75,7 +76,7 @@ export default function AdminLoginPage() {
     );
   }
 
-  const canSubmit = password.trim() && passcode.trim();
+  const canSubmit = password.trim() && passcode.trim() && pin.trim();
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#0b0f1a] px-4">
@@ -135,6 +136,22 @@ export default function AdminLoginPage() {
               value={passcode}
               onChange={(e) => setPasscode(e.target.value)}
               placeholder="Enter admin passcode"
+              className="mt-2 block w-full rounded-xl border border-white/10 bg-[#0b0f1a] px-4 py-3 text-sm text-zinc-100 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+              PIN <span className="text-rose-400">*</span>
+            </label>
+            <input
+              type="password"
+              required
+              autoComplete="off"
+              inputMode="numeric"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="Enter admin PIN"
               className="mt-2 block w-full rounded-xl border border-white/10 bg-[#0b0f1a] px-4 py-3 text-sm text-zinc-100 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
             />
           </div>
