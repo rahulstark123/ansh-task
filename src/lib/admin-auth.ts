@@ -3,9 +3,26 @@ import { supabase } from "@/lib/supabase";
 export const ADMIN_EMAIL =
   (process.env.ADMIN_EMAIL || "tasks@anshapps.com").trim().toLowerCase();
 
+export const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || "Khushi@Simran";
+
+export const ADMIN_PASSCODE_COOKIE = "admin_passcode_ok";
+
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
   return email.trim().toLowerCase() === ADMIN_EMAIL;
+}
+
+export function verifyAdminPasscode(passcode: string | null | undefined): boolean {
+  if (!passcode) return false;
+  return passcode === ADMIN_PASSCODE;
+}
+
+export function hasAdminPasscodeCookie(request: Request): boolean {
+  const cookieHeader = request.headers.get("cookie") || "";
+  return cookieHeader.split(";").some((part) => {
+    const [name, value] = part.trim().split("=");
+    return name === ADMIN_PASSCODE_COOKIE && value === "1";
+  });
 }
 
 /** Resolve Bearer token from request and verify admin email via Supabase. */
@@ -14,6 +31,10 @@ export async function getAdminUserFromRequest(request: Request) {
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
   if (!token) {
+    return { user: null, error: "Unauthorized" as const };
+  }
+
+  if (!hasAdminPasscodeCookie(request)) {
     return { user: null, error: "Unauthorized" as const };
   }
 
