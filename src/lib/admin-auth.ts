@@ -5,7 +5,11 @@ export const ADMIN_EMAIL =
 
 export const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || "Khushi@Simran";
 
+export const ADMIN_PIN = process.env.ADMIN_PIN || "30042026";
+
 export const ADMIN_PASSCODE_COOKIE = "admin_passcode_ok";
+
+export const ADMIN_PIN_COOKIE = "admin_pin_ok";
 
 export function isAdminEmail(email: string | null | undefined): boolean {
   if (!email) return false;
@@ -17,12 +21,29 @@ export function verifyAdminPasscode(passcode: string | null | undefined): boolea
   return passcode === ADMIN_PASSCODE;
 }
 
-export function hasAdminPasscodeCookie(request: Request): boolean {
+export function verifyAdminPin(pin: string | null | undefined): boolean {
+  if (!pin) return false;
+  return pin === ADMIN_PIN;
+}
+
+function hasCookie(request: Request, cookieName: string): boolean {
   const cookieHeader = request.headers.get("cookie") || "";
   return cookieHeader.split(";").some((part) => {
     const [name, value] = part.trim().split("=");
-    return name === ADMIN_PASSCODE_COOKIE && value === "1";
+    return name === cookieName && value === "1";
   });
+}
+
+export function hasAdminPasscodeCookie(request: Request): boolean {
+  return hasCookie(request, ADMIN_PASSCODE_COOKIE);
+}
+
+export function hasAdminPinCookie(request: Request): boolean {
+  return hasCookie(request, ADMIN_PIN_COOKIE);
+}
+
+export function hasAdminAuthCookies(request: Request): boolean {
+  return hasAdminPasscodeCookie(request) && hasAdminPinCookie(request);
 }
 
 /** Resolve Bearer token from request and verify admin email via Supabase. */
@@ -34,7 +55,7 @@ export async function getAdminUserFromRequest(request: Request) {
     return { user: null, error: "Unauthorized" as const };
   }
 
-  if (!hasAdminPasscodeCookie(request)) {
+  if (!hasAdminAuthCookies(request)) {
     return { user: null, error: "Unauthorized" as const };
   }
 
