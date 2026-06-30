@@ -20,11 +20,22 @@ export async function authFetch(url: string, options: RequestInit = {}) {
     headers.set("Content-Type", "application/json");
   }
 
-  return fetch(url, { ...options, headers });
+  return fetch(url, { ...options, headers, credentials: "include" });
 }
 
 export async function ensureAdminSession(): Promise<boolean> {
   const { data } = await supabase.auth.getSession();
   const email = data.session?.user?.email?.trim().toLowerCase();
-  return Boolean(email && email === ADMIN_EMAIL_CLIENT);
+  if (!email || email !== ADMIN_EMAIL_CLIENT) return false;
+
+  try {
+    const res = await fetch("/api/admin/session", {
+      headers: { Authorization: `Bearer ${data.session!.access_token}` },
+      credentials: "include",
+    });
+    const json = await res.json();
+    return Boolean(json.success);
+  } catch {
+    return false;
+  }
 }

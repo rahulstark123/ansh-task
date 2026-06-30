@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Support Admin | ANSH Task",
+  title: "ANSH Admin | Support Desk",
   robots: "noindex, nofollow",
 };
 
 export default function AdminPanelLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+    <div className="min-h-screen bg-[#0b0f1a] text-zinc-100">
       {children}
     </div>
   );
