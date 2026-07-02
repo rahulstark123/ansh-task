@@ -32,6 +32,7 @@ import {
 import type { BillingLocaleInfo } from "@/lib/billing/charge-region";
 import { formatChargeAmount } from "@/lib/billing/charge-region";
 import { TEAM_SPACE_ENABLED } from "@/config/features";
+import { TrustCompliance } from "@/components/shared/trust-compliance";
 
 // Define accent options to showcase the app's dynamic styling
 const ACCENTS = [
@@ -1447,6 +1448,13 @@ export function LandingPageClient() {
             ))}
           </div>
 
+        </div>
+      </section>
+
+      {/* Trust & Compliance Section */}
+      <section className="bg-zinc-50/80 py-8 dark:bg-zinc-950/70 relative z-10">
+        <div className={LANDING_SHELL}>
+          <TrustCompliance showDescription />
         </div>
       </section>
 
