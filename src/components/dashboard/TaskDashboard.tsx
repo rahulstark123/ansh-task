@@ -819,7 +819,13 @@ export function TaskDashboard({
   const [attachmentsUploading, setAttachmentsUploading] = useState(false);
   const detailAttachInputRef = useRef<HTMLInputElement>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
-  const [taskToComplete, setTaskToComplete] = useState<Task | null>(null);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{
+    task: Task;
+    newStatus: TaskStatus;
+    previousStatus: TaskStatus;
+  } | null>(null);
+  const [statusChangeNote, setStatusChangeNote] = useState("");
+  const [statusChangeSaving, setStatusChangeSaving] = useState(false);
 
   // Sync selected task to edit state
   useEffect(() => {
@@ -962,14 +968,88 @@ export function TaskDashboard({
     }
   }
 
-  function applyTaskComplete(id: string) {
-    updateTaskInLists(id, (t) => ({ ...t, done: true, status: "done" as TaskStatus }));
-    if (selectedTask?.id === id) {
-      setSelectedTask((prev) => (prev ? { ...prev, done: true, status: "done" } : null));
-      setTempStatus("done");
+  function applyStatusChange(id: string, newStatus: TaskStatus) {
+    updateTaskInLists(id, (t) => ({ ...t, status: newStatus, done: newStatus === "done" }));
+    if (selectedTask && selectedTask.id === id) {
+      setSelectedTask((prev) => (prev ? { ...prev, status: newStatus, done: newStatus === "done" } : null));
+      if (isEditingTaskDetails) setTempStatus(newStatus);
     }
-    patchTask(id, { done: true, status: "done" });
-    showToast("Task completed 🎉", "success");
+    patchTask(id, { status: newStatus, done: newStatus === "done" });
+    if (newStatus === "done") {
+      showToast("Task completed 🎉", "success");
+    } else {
+      showToast(`Task status updated to "${statusLabelMap[newStatus] || newStatus}"`, "info");
+    }
+  }
+
+  async function saveStatusChangeNote(
+    taskId: string,
+    previousStatus: TaskStatus,
+    newStatus: TaskStatus,
+    note: string
+  ) {
+    if (!note.trim() || !currentUserEmail) return;
+
+    const fromLabel = statusLabelMap[previousStatus] || previousStatus;
+    const toLabel = statusLabelMap[newStatus] || newStatus;
+    const content = `[${fromLabel} → ${toLabel}] ${note.trim()}`;
+
+    try {
+      const res = await fetch("/api/task/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskId,
+          content,
+          email: currentUserEmail,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.note && selectedTask?.id === taskId) {
+        setTaskNotes((prev) => [json.note, ...prev]);
+      }
+    } catch (err) {
+      console.error("Status change note error:", err);
+    }
+  }
+
+  function requestStatusChange(id: string, newStatus: TaskStatus) {
+    if (!enforcePermission(canEditTasks)) return;
+    const task = tasks.find((t) => t.id === id) ?? tableTasks.find((t) => t.id === id);
+    if (!task) return;
+
+    const previousStatus = getEffectiveStatus(task);
+    if (newStatus === previousStatus) return;
+
+    setStatusChangeNote("");
+    setPendingStatusChange({ task, newStatus, previousStatus });
+  }
+
+  async function confirmStatusChange() {
+    if (!pendingStatusChange) return;
+
+    const { task, newStatus, previousStatus } = pendingStatusChange;
+    const note = statusChangeNote.trim();
+    setStatusChangeSaving(true);
+
+    try {
+      applyStatusChange(task.id, newStatus);
+      await saveStatusChangeNote(task.id, previousStatus, newStatus, note);
+      setPendingStatusChange(null);
+      setStatusChangeNote("");
+    } finally {
+      setStatusChangeSaving(false);
+    }
+  }
+
+  function cancelStatusChange() {
+    setPendingStatusChange(null);
+    setStatusChangeNote("");
+  }
+
+  function requestMarkComplete(task: Task) {
+    if (task.done) return;
+    requestStatusChange(task.id, "done");
   }
 
   function applyTaskIncomplete(id: string) {
@@ -980,11 +1060,6 @@ export function TaskDashboard({
     }
     patchTask(id, { done: false, status: "todo" });
     showToast("Task marked as incomplete", "success");
-  }
-
-  function requestMarkComplete(task: Task) {
-    if (task.done) return;
-    setTaskToComplete(task);
   }
 
   function handleToggleDone(id: string) {
@@ -1008,19 +1083,7 @@ export function TaskDashboard({
   };
 
   function handleStatusChange(id: string, newStatus: TaskStatus) {
-    if (!enforcePermission(canEditTasks)) return;
-    const task = tasks.find((t) => t.id === id) ?? tableTasks.find((t) => t.id === id);
-    if (newStatus === "done" && task && !task.done) {
-      requestMarkComplete(task);
-      return;
-    }
-    updateTaskInLists(id, (t) => ({ ...t, status: newStatus, done: newStatus === "done" }));
-    if (selectedTask && selectedTask.id === id) {
-      setSelectedTask((prev) => (prev ? { ...prev, status: newStatus, done: newStatus === "done" } : null));
-      if (isEditingTaskDetails) setTempStatus(newStatus);
-    }
-    patchTask(id, { status: newStatus, done: newStatus === "done" });
-    showToast(`Task status updated to "${statusLabelMap[newStatus]}"`, "info");
+    requestStatusChange(id, newStatus);
   }
 
   function handleHoldToggle() {
@@ -3484,59 +3547,106 @@ export function TaskDashboard({
         )}
       </AnimatePresence>
 
-      {/* MARK COMPLETE CONFIRMATION MODAL */}
+      {/* TASK STATUS CHANGE MODAL */}
       <AnimatePresence>
-        {taskToComplete && (
+        {pendingStatusChange && (
           <>
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setTaskToComplete(null)}
+              onClick={cancelStatusChange}
               className="fixed inset-0 z-[200] bg-zinc-950/20 backdrop-blur-sm dark:bg-black/50"
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="fixed left-1/2 top-1/2 z-[210] w-[calc(100%-2rem)] max-w-[400px] min-w-0 -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418] flex"
+              className="fixed left-1/2 top-1/2 z-[210] w-[calc(100%-2rem)] max-w-[440px] min-w-0 -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-[#121418] flex"
             >
-              <div className="flex w-full min-w-0 flex-col items-center text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400 mb-4 shadow-sm">
-                  <CheckCircleIcon className="h-6 w-6" />
-                </div>
-                <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
-                  Mark task as complete?
-                </h3>
-                <p className="mt-2 w-full min-w-0 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                  Are you sure you want to mark{" "}
-                  <span
-                    className="inline-block max-w-full truncate align-bottom font-semibold text-zinc-700 dark:text-zinc-300"
-                    title={taskToComplete.title}
+              <div className="flex w-full min-w-0 flex-col">
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-sm ${
+                      pendingStatusChange.newStatus === "done"
+                        ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/30 dark:text-emerald-400"
+                        : "bg-[var(--app-primary-soft)] text-[var(--app-primary)]"
+                    }`}
                   >
-                    &quot;{truncateWithEllipsis(taskToComplete.title, DIALOG_TITLE_MAX_CHARS)}&quot;
-                  </span>{" "}
-                  as complete?
-                </p>
+                    {pendingStatusChange.newStatus === "done" ? (
+                      <CheckCircleIcon className="h-6 w-6" />
+                    ) : (
+                      <ArrowPathIcon className="h-5 w-5" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                      {pendingStatusChange.newStatus === "done"
+                        ? "Mark task as complete?"
+                        : `Move to ${statusLabelMap[pendingStatusChange.newStatus] || pendingStatusChange.newStatus}?`}
+                    </h3>
+                    <p className="mt-1.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                      <span
+                        className="font-semibold text-zinc-700 dark:text-zinc-300"
+                        title={pendingStatusChange.task.title}
+                      >
+                        {truncateWithEllipsis(pendingStatusChange.task.title, DIALOG_TITLE_MAX_CHARS)}
+                      </span>
+                      {" "}will move from{" "}
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                        {statusLabelMap[pendingStatusChange.previousStatus] || pendingStatusChange.previousStatus}
+                      </span>
+                      {" "}to{" "}
+                      <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                        {statusLabelMap[pendingStatusChange.newStatus] || pendingStatusChange.newStatus}
+                      </span>
+                      .
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-5">
+                  <label
+                    htmlFor="status-change-note"
+                    className="text-[11px] font-semibold text-zinc-600 dark:text-zinc-400"
+                  >
+                    Add a note <span className="font-normal text-zinc-400">(optional)</span>
+                  </label>
+                  <textarea
+                    id="status-change-note"
+                    rows={3}
+                    value={statusChangeNote}
+                    onChange={(e) => setStatusChangeNote(e.target.value)}
+                    placeholder="Want to mention anything about this change?"
+                    className="mt-1.5 block w-full resize-none rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-900 outline-none transition-[border-color,box-shadow] placeholder:text-zinc-400 focus:border-[var(--app-primary)] focus:shadow-[0_0_0_3px_var(--app-ring)] dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                  />
+                </div>
               </div>
-              <div className="mt-6 flex items-center justify-center gap-3">
+
+              <div className="mt-6 flex items-center justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setTaskToComplete(null)}
-                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                  onClick={cancelStatusChange}
+                  disabled={statusChangeSaving}
+                  className="rounded-xl border border-zinc-200 px-4 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 disabled:opacity-60 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-zinc-900"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    const id = taskToComplete.id;
-                    setTaskToComplete(null);
-                    applyTaskComplete(id);
-                  }}
-                  className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-emerald-700 active:scale-95 transition-all"
+                  onClick={() => void confirmStatusChange()}
+                  disabled={statusChangeSaving}
+                  className={`rounded-xl px-4 py-2 text-xs font-bold text-white shadow-md active:scale-95 transition-all disabled:opacity-60 ${
+                    pendingStatusChange.newStatus === "done"
+                      ? "bg-emerald-600 hover:bg-emerald-700"
+                      : "bg-[var(--app-primary)] hover:bg-[var(--app-primary-hover)]"
+                  }`}
                 >
-                  Yes, mark complete
+                  {statusChangeSaving
+                    ? "Saving…"
+                    : pendingStatusChange.newStatus === "done"
+                      ? "Yes, mark complete"
+                      : "Update status"}
                 </button>
               </div>
             </motion.div>
