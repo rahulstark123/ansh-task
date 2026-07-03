@@ -35,6 +35,7 @@ import {
   isUpgradeRequiredError,
 } from "@/lib/plans";
 import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
+import { AppMultiSelect } from "@/components/ui/AppMultiSelect";
 
 
 type Project = {
@@ -547,7 +548,6 @@ export function ProjectsListView() {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
 
   const [availableUsers, setAvailableUsers] = useState<{ name: string; initial: string }[]>(AVAILABLE_USERS);
-  const [isTeamDropdownOpen, setIsTeamDropdownOpen] = useState(false);
 
   const fetchProjects = async (wid: number, email: string) => {
     setLoading(true);
@@ -665,6 +665,16 @@ export function ProjectsListView() {
     )
   }));
 
+  const memberOptions = availableUsers.map((user) => ({
+    value: user.name,
+    label: user.name,
+    icon: (
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-black text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+        {user.initial}
+      </span>
+    ),
+  }));
+
   const statusOptions = STATUSES.filter(s => s !== "All").map((s) => ({
     value: s,
     label: s,
@@ -697,10 +707,18 @@ export function ProjectsListView() {
     }
 
     try {
+      const apiPayload: Record<string, unknown> = { id, ...updates };
+      if ("due" in updates) {
+        apiPayload.due = updates.due ? updates.due : null;
+      }
+      if ("startDate" in updates) {
+        apiPayload.startDate = updates.startDate ? updates.startDate : null;
+      }
+
       const res = await fetch("/api/project", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ...updates }),
+        body: JSON.stringify(apiPayload),
       });
       const json = await res.json();
       if (!json.success) {
@@ -724,7 +742,6 @@ export function ProjectsListView() {
     setHealth("good");
     setEstimatedHours("80");
     setSelectedMembers([]);
-    setIsTeamDropdownOpen(false);
   };
 
   const openCreateProjectModal = () => {
@@ -746,7 +763,6 @@ export function ProjectsListView() {
     setHealth(project.health || "good");
     setEstimatedHours(String(project.estimatedHours || 80));
     setSelectedMembers(project.members || []);
-    setIsTeamDropdownOpen(false);
     setIsAddModalOpen(true);
   };
 
@@ -760,8 +776,8 @@ export function ProjectsListView() {
         description: description.trim() || "No description provided.",
         category,
         owner,
-        startDate: startDate || new Date().toISOString().split("T")[0],
-        due: due || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+        startDate: startDate || undefined,
+        due: due || undefined,
         priority,
         status,
         health,
@@ -787,8 +803,8 @@ export function ProjectsListView() {
           description: description.trim() || "No description provided.",
           category,
           owner,
-          startDate: startDate || new Date().toISOString().split("T")[0],
-          due: due || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+          startDate: startDate || undefined,
+          due: due || undefined,
           priority,
           status,
           health,
@@ -836,12 +852,6 @@ export function ProjectsListView() {
       console.error("Error deleting project:", err);
       showToast("An error occurred while deleting the project.", "error");
     }
-  };
-
-  const toggleMemberSelection = (name: string) => {
-    setSelectedMembers((prev) =>
-      prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name]
-    );
   };
 
   if (loading && projects.length === 0) {
@@ -1972,7 +1982,7 @@ export function ProjectsListView() {
                       </div>
                       <div>
                         <label htmlFor="project-due-date" className={projectModalLabel}>
-                          Due date
+                          Due date <span className="font-normal text-zinc-400">(optional)</span>
                         </label>
                         <input
                           id="project-due-date"
@@ -2050,85 +2060,13 @@ export function ProjectsListView() {
                         Assign members who will work on this project.
                       </p>
                     </div>
-                    <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => setIsTeamDropdownOpen((prev) => !prev)}
-                        className="flex min-h-[44px] w-full items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm text-zinc-700 outline-none transition-[border-color,box-shadow] hover:bg-zinc-50 focus:border-[var(--app-primary)] focus:shadow-[0_0_0_3px_var(--app-ring)] dark:border-white/10 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800"
-                      >
-                        <div className="flex min-w-0 flex-1 flex-wrap gap-1.5 text-left">
-                          {selectedMembers.length === 0 ? (
-                            <span className="text-zinc-400">Select team members...</span>
-                          ) : (
-                            selectedMembers.map((memberName) => {
-                              const user = availableUsers.find((u) => u.name === memberName);
-                              const initial = user ? user.initial : (memberName[0]?.toUpperCase() || "");
-                              return (
-                                <span
-                                  key={memberName}
-                                  className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-[var(--app-primary-soft-border)] bg-[var(--app-primary-soft)] px-2 py-0.5 text-[11px] font-medium text-[var(--app-primary-soft-text)]"
-                                >
-                                  <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--app-primary)]/20 text-[8px] font-bold text-[var(--app-primary)]">
-                                    {initial}
-                                  </span>
-                                  <span className="truncate">{memberName}</span>
-                                </span>
-                              );
-                            })
-                          )}
-                        </div>
-                        <ChevronDownIcon
-                          className={`h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200 ${isTeamDropdownOpen ? "rotate-180" : ""}`}
-                        />
-                      </button>
-
-                      <AnimatePresence>
-                        {isTeamDropdownOpen && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-30"
-                              onClick={() => setIsTeamDropdownOpen(false)}
-                            />
-                            <motion.div
-                              initial={{ opacity: 0, y: -4, scale: 0.98 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: -4, scale: 0.98 }}
-                              className="absolute left-0 right-0 z-40 mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-zinc-200 bg-white p-1.5 shadow-xl dark:border-white/10 dark:bg-zinc-900 scrollbar-thin"
-                            >
-                              {availableUsers.map((user) => {
-                                const isSelected = selectedMembers.includes(user.name);
-                                return (
-                                  <button
-                                    key={user.name}
-                                    type="button"
-                                    onClick={() => toggleMemberSelection(user.name)}
-                                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-xs font-semibold text-left transition-colors ${isSelected
-                                        ? "bg-zinc-50 text-zinc-900 dark:bg-zinc-800/50 dark:text-white"
-                                        : "text-zinc-650 hover:bg-zinc-50/50 dark:text-zinc-400 dark:hover:bg-zinc-800/30"
-                                      }`}
-                                  >
-                                    <div className="flex min-w-0 items-center gap-2.5">
-                                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-black text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                        {user.initial}
-                                      </span>
-                                      <span className="truncate">{user.name}</span>
-                                    </div>
-                                    <div
-                                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${isSelected
-                                          ? "border-[var(--app-primary)] bg-[var(--app-primary)] text-white"
-                                          : "border-zinc-300 bg-white dark:border-zinc-750 dark:bg-zinc-900"
-                                        }`}
-                                    >
-                                      {isSelected && <CheckIcon className="h-3 w-3 stroke-[3]" />}
-                                    </div>
-                                  </button>
-                                );
-                              })}
-                            </motion.div>
-                          </>
-                        )}
-                      </AnimatePresence>
-                    </div>
+                    <AppMultiSelect
+                      value={selectedMembers}
+                      onChange={setSelectedMembers}
+                      options={memberOptions}
+                      placeholder="Select team members..."
+                      emptyMessage="No team members in this workspace"
+                    />
                   </section>
                 </div>
 

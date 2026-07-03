@@ -258,6 +258,35 @@ body {
   background-size: 24px 24px;
 }
 
+/* Auth pages (login, signup, etc.) stay light even when app theme is dark */
+.light-theme-forced {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #111114;
+}
+
+.light-theme-forced input,
+.light-theme-forced textarea,
+.light-theme-forced select {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+}
+
+.light-theme-forced input::placeholder,
+.light-theme-forced textarea::placeholder {
+  color: #a1a1aa !important;
+}
+
+.light-theme-forced input:-webkit-autofill,
+.light-theme-forced input:-webkit-autofill:hover,
+.light-theme-forced input:-webkit-autofill:focus,
+.light-theme-forced input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #18181b !important;
+  caret-color: #18181b !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 /* Custom Autofill Styles Override to prevent browser default blue/gray background */
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 

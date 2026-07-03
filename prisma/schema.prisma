@@ -164,7 +164,7 @@ model Project {
   description    String?
   progress       Int      @default(0)
   startDate      DateTime @default(now())
-  due            DateTime
+  due            DateTime?
   priority       String   @default("Normal") // "Urgent" | "High" | "Normal" | "Low"
   status         String   @default("Active") // "Discovery" | "Planning" | "Active" | "Review" | "Completed" | "On Hold"
   health         String   @default("neutral") // "good" | "warn" | "danger" | "neutral"

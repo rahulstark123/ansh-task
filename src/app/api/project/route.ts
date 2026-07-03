@@ -6,6 +6,7 @@ import {
   getWorkspaceProjectCount,
 } from "@/lib/planLimits";
 import { UPGRADE_REQUIRED_CODE } from "@/lib/plans";
+import { formatApiError } from "@/lib/apiErrors";
 
 export const dynamic = "force-dynamic";
 
@@ -42,10 +43,13 @@ export async function GET(request: Request) {
       success: true,
       projects,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Projects GET API Error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to fetch projects" },
+      {
+        success: false,
+        error: formatApiError(error, "Could not load projects. Please try again."),
+      },
       { status: 500 }
     );
   }
@@ -69,14 +73,31 @@ export async function POST(request: Request) {
       workspaceId,
     } = body;
 
-    if (!name || !due) {
+    if (!name) {
       return NextResponse.json(
-        { success: false, error: "Project Name and Due Date are required fields" },
+        { success: false, error: "Project name is required" },
         { status: 400 }
       );
     }
 
-    const wid = workspaceId ? parseInt(workspaceId, 10) : 1;
+    const wid = workspaceId ? parseInt(String(workspaceId), 10) : 1;
+    if (!Number.isFinite(wid)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid workspace. Please refresh the page and try again." },
+        { status: 400 }
+      );
+    }
+
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: wid },
+      select: { id: true },
+    });
+    if (!workspace) {
+      return NextResponse.json(
+        { success: false, error: "Workspace not found. Please refresh the page and try again." },
+        { status: 400 }
+      );
+    }
 
     const currentPlan = await getEffectiveWorkspacePlan(wid);
     if (currentPlan === "free") {
@@ -94,21 +115,23 @@ export async function POST(request: Request) {
       }
     }
 
+    const projectData = {
+      name,
+      description: description || null,
+      category: category || "General",
+      owner: owner || "Aisha Khan",
+      startDate: startDate ? new Date(startDate) : new Date(),
+      priority: priority || "Normal",
+      status: status || "Discovery",
+      health: health || "good",
+      estimatedHours: parseInt(estimatedHours, 10) || 0,
+      members: members || [],
+      workspaceId: wid,
+      ...(due ? { due: new Date(due) } : {}),
+    };
+
     const newProject = await prisma.project.create({
-      data: {
-        name,
-        description: description || null,
-        category: category || "General",
-        owner: owner || "Aisha Khan",
-        startDate: startDate ? new Date(startDate) : new Date(),
-        due: new Date(due),
-        priority: priority || "Normal",
-        status: status || "Discovery",
-        health: health || "good",
-        estimatedHours: parseInt(estimatedHours, 10) || 0,
-        members: members || [],
-        workspaceId: wid,
-      },
+      data: projectData,
     });
 
     return NextResponse.json({
@@ -116,10 +139,13 @@ export async function POST(request: Request) {
       message: "Project created successfully",
       project: newProject,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Projects POST API Error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to create project" },
+      {
+        success: false,
+        error: formatApiError(error, "Could not create the project. Please try again."),
+      },
       { status: 500 }
     );
   }
@@ -159,7 +185,11 @@ export async function PATCH(request: Request) {
         category: category !== undefined ? category : undefined,
         owner: owner !== undefined ? owner : undefined,
         startDate: startDate !== undefined && startDate ? new Date(startDate) : undefined,
-        due: due !== undefined && due ? new Date(due) : undefined,
+        ...(due !== undefined
+          ? due
+            ? { due: new Date(due) }
+            : { due: null }
+          : {}),
         priority: priority !== undefined ? priority : undefined,
         status: status !== undefined ? status : undefined,
         health: health !== undefined ? health : undefined,
@@ -174,10 +204,13 @@ export async function PATCH(request: Request) {
       message: "Project updated successfully",
       project: updatedProject,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Projects PATCH API Error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to update project" },
+      {
+        success: false,
+        error: formatApiError(error, "Could not update the project. Please try again."),
+      },
       { status: 500 }
     );
   }
@@ -211,10 +244,13 @@ export async function DELETE(request: Request) {
       success: true,
       message: "Project deleted successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Projects DELETE API Error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "Failed to delete project" },
+      {
+        success: false,
+        error: formatApiError(error, "Could not delete the project. Please try again."),
+      },
       { status: 500 }
     );
   }
