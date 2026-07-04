@@ -15,6 +15,26 @@ const IMAGE_MIME_TYPES = new Set([
   "image/tiff",
 ]);
 
+export type UploadFolder = "attachments" | "profiles" | "tickets";
+
+export type CompressionTarget = {
+  /** Maximum output size in bytes. */
+  maxBytes: number;
+  /** Longest edge (px) the image is scaled down to before compressing. */
+  maxDimension: number;
+};
+
+/** Per-folder compression targets. Every upload is compressed to one of these. */
+export const COMPRESSION_TARGETS: Record<UploadFolder, CompressionTarget> = {
+  attachments: { maxBytes: TASK_MAX_ATTACHMENT_BYTES, maxDimension: 1920 },
+  tickets: { maxBytes: TASK_MAX_ATTACHMENT_BYTES, maxDimension: 1920 },
+  profiles: { maxBytes: 500 * 1024, maxDimension: 512 },
+};
+
+export function compressionTargetForFolder(folder: string): CompressionTarget {
+  return COMPRESSION_TARGETS[folder as UploadFolder] ?? COMPRESSION_TARGETS.attachments;
+}
+
 function isImageMime(mimeType: string, fileName: string): boolean {
   const mime = mimeType.toLowerCase();
   if (IMAGE_MIME_TYPES.has(mime)) return true;
@@ -26,16 +46,24 @@ function replaceExtension(fileName: string, extension: string): string {
   return `${base || "attachment"}.${extension}`;
 }
 
-/** Server-side compression for task attachments (sharp, Apache-2.0). */
-export async function compressTaskAttachmentBuffer(
+/**
+ * Server-side compression for uploads (sharp, Apache-2.0). Every upload flows
+ * through here so nothing reaches storage uncompressed. Non-image files are only
+ * size-checked (they cannot be re-encoded), while images are always resized and
+ * re-encoded down to the folder's target size.
+ */
+export async function compressUploadBuffer(
   buffer: Buffer,
   mimeType: string,
-  fileName: string
+  fileName: string,
+  target: CompressionTarget = COMPRESSION_TARGETS.attachments
 ): Promise<{ buffer: Buffer; contentType: string; fileName: string }> {
+  const { maxBytes, maxDimension } = target;
+
   if (!isImageMime(mimeType, fileName)) {
-    if (buffer.length > TASK_MAX_ATTACHMENT_BYTES) {
+    if (buffer.length > maxBytes) {
       throw new Error(
-        `File must be 2 MB or less (received: ${formatTaskAttachmentSize(buffer.length)}).`
+        `File must be ${formatTaskAttachmentSize(maxBytes)} or less (received: ${formatTaskAttachmentSize(buffer.length)}).`
       );
     }
     return { buffer, contentType: mimeType || "application/octet-stream", fileName };
@@ -44,8 +72,8 @@ export async function compressTaskAttachmentBuffer(
   let pipeline = sharp(buffer, { animated: true }).rotate();
   const metadata = await pipeline.metadata();
 
-  if (metadata.width && metadata.width > 1920) {
-    pipeline = pipeline.resize(1920, undefined, {
+  if (metadata.width && metadata.width > maxDimension) {
+    pipeline = pipeline.resize(maxDimension, undefined, {
       withoutEnlargement: true,
       fit: "inside",
     });
@@ -59,7 +87,7 @@ export async function compressTaskAttachmentBuffer(
       ? await pipeline.clone().webp({ quality, effort: 4 }).toBuffer()
       : await pipeline.clone().jpeg({ quality, mozjpeg: true }).toBuffer();
 
-    if (output.length <= TASK_MAX_ATTACHMENT_BYTES) {
+    if (output.length <= maxBytes) {
       return {
         buffer: output,
         contentType: hasAlpha ? "image/webp" : "image/jpeg",
@@ -70,12 +98,13 @@ export async function compressTaskAttachmentBuffer(
     quality -= 12;
   }
 
+  const fallbackDimension = Math.max(1, Math.round(maxDimension * (2 / 3)));
   const fallback = await pipeline
-    .resize(1280, undefined, { withoutEnlargement: true, fit: "inside" })
+    .resize(fallbackDimension, undefined, { withoutEnlargement: true, fit: "inside" })
     .webp({ quality: 60, effort: 4 })
     .toBuffer();
 
-  if (fallback.length <= TASK_MAX_ATTACHMENT_BYTES) {
+  if (fallback.length <= maxBytes) {
     return {
       buffer: fallback,
       contentType: "image/webp",
@@ -84,6 +113,6 @@ export async function compressTaskAttachmentBuffer(
   }
 
   throw new Error(
-    `Image is still ${formatTaskAttachmentSize(fallback.length)} after compression. Max allowed is 2 MB.`
+    `Image is still ${formatTaskAttachmentSize(fallback.length)} after compression. Max allowed is ${formatTaskAttachmentSize(maxBytes)}.`
   );
 }

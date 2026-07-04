@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import { compressTaskAttachmentBuffer } from "@/lib/storage/compress-attachment.server";
+import {
+  compressUploadBuffer,
+  compressionTargetForFolder,
+} from "@/lib/storage/compress-attachment.server";
 import {
   buildWorkspaceStorageKey,
   sanitizeStorageSegment,
   uploadToR2,
 } from "@/lib/storage/r2";
-import { TASK_MAX_ATTACHMENT_BYTES } from "@/lib/storage/task-attachments";
 
 export const dynamic = "force-dynamic";
 
@@ -48,34 +50,22 @@ export async function POST(request: Request) {
       );
     }
 
-    if (folder === "profiles" && file.size > 500 * 1024) {
-      return NextResponse.json(
-        { success: false, error: "Profile image must be under 500 KB" },
-        { status: 400 }
-      );
-    }
-
     const bytes = await file.arrayBuffer();
     let buffer: Buffer = Buffer.from(bytes);
     let contentType = file.type || "application/octet-stream";
     let fileName = sanitizeStorageSegment(file.name) || "file";
 
-    if (folder === "attachments") {
-      const compressed = await compressTaskAttachmentBuffer(
-        buffer,
-        contentType,
-        file.name
-      );
-      buffer = compressed.buffer;
-      contentType = compressed.contentType;
-      fileName = sanitizeStorageSegment(compressed.fileName) || fileName;
+    const target = compressionTargetForFolder(folder);
+    const compressed = await compressUploadBuffer(buffer, contentType, file.name, target);
+    buffer = compressed.buffer;
+    contentType = compressed.contentType;
+    fileName = sanitizeStorageSegment(compressed.fileName) || fileName;
 
-      if (buffer.length > TASK_MAX_ATTACHMENT_BYTES) {
-        return NextResponse.json(
-          { success: false, error: "File must be 2 MB or less after compression." },
-          { status: 400 }
-        );
-      }
+    if (buffer.length > target.maxBytes) {
+      return NextResponse.json(
+        { success: false, error: "File is too large even after compression." },
+        { status: 400 }
+      );
     }
 
     const namePrefix = prefix ? sanitizeStorageSegment(prefix) : String(Date.now());

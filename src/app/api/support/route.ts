@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
+  COMPRESSION_TARGETS,
+  compressUploadBuffer,
+} from "@/lib/storage/compress-attachment.server";
+import {
   buildWorkspaceStorageKey,
   sanitizeStorageSegment,
   uploadToR2,
@@ -104,8 +108,14 @@ export async function POST(request: Request) {
           if (file.size === 0 || !isSupportImageFile(file)) continue;
           try {
             const bytes = await file.arrayBuffer();
-            const buffer = Buffer.from(bytes);
-            const fileName = sanitizeStorageSegment(file.name) || "attachment";
+            const compressed = await compressUploadBuffer(
+              Buffer.from(bytes),
+              file.type || "application/octet-stream",
+              file.name,
+              COMPRESSION_TARGETS.tickets
+            );
+            const fileName =
+              sanitizeStorageSegment(compressed.fileName) || "attachment";
             const key = buildWorkspaceStorageKey(
               workspaceId,
               "tickets",
@@ -114,8 +124,8 @@ export async function POST(request: Request) {
 
             const { url } = await uploadToR2({
               key,
-              body: buffer,
-              contentType: file.type || "application/octet-stream",
+              body: compressed.buffer,
+              contentType: compressed.contentType,
             });
             attachmentUrls.push(url);
           } catch (uploadError: unknown) {

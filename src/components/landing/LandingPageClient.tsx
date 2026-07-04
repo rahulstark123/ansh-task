@@ -253,8 +253,11 @@ export function LandingPageClient() {
   );
 
   useEffect(() => {
+    if (!localStorage.getItem("theme")) {
+      setTheme("light");
+    }
     setMounted(true);
-  }, []);
+  }, [setTheme]);
 
   useEffect(() => {
     async function loadFx() {
@@ -293,7 +296,7 @@ export function LandingPageClient() {
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+      <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );

@@ -24,6 +24,10 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
 import { resolveStorageUrl } from "@/lib/storage/public-url";
 import {
+  CLIENT_COMPRESSION_TARGETS,
+  compressImageForUpload,
+} from "@/lib/storage/compress-attachment.client";
+import {
   BLOOD_GROUP_OPTIONS,
   EMPLOYMENT_STATUS_OPTIONS,
   displayOrFallback,
@@ -280,15 +284,20 @@ export function ProfileSettingsView() {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || file.size > 500 * 1024) {
-      showToast("Avatar image must be less than 500KB.", "error");
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      showToast("Avatar image is too large. Please use an image under 15 MB.", "error");
       return;
     }
 
     try {
       setUploading(true);
+      const compressed = await compressImageForUpload(
+        file,
+        CLIENT_COMPRESSION_TARGETS.profiles
+      );
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", compressed);
       formData.append("email", email);
       const wid = sessionStorage.getItem("ansh_onboarding_wid");
       if (wid) formData.append("workspaceId", wid);
