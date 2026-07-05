@@ -82,7 +82,7 @@ export function TrustCompliance({
             Brand Positioning
           </div>
           <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-            Built from Bharat, Ready for the World
+            Built for Bharat, Ready for the World
           </h3>
           {showDescription && (
             <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-300">

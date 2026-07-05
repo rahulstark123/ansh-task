@@ -7,25 +7,38 @@ export const COMPANY_NAME = "ANSH Apps";
 export const COMPANY_URL = "https://anshapps.com";
 
 export const DEFAULT_TITLE =
-  "ANSH Tasks — Task & Project Management App for Teams";
+  "ANSH Tasks — Task & Project Management App for MSME Teams";
 export const DEFAULT_DESCRIPTION =
-  "ANSH Tasks is a modern workspace for Kanban task boards, brain boards, activity feed, announcements, and project management. Free to start — built for fast teams in India and worldwide.";
+  "ANSH Tasks by ANSH Apps is an all-in-one task and project workspace for MSMEs — Kanban boards, Brain Boards, activity feed, announcements, and support. Free to start at tasks.anshapps.com.";
 
-/** Used for link previews (WhatsApp, Slack, LinkedIn, Google). Must be a public file in /public. */
+/** Used when file-based opengraph-image is unavailable. */
 export const OG_IMAGE_PATH = "/logoAnshapps.png";
-export const OG_IMAGE_ALT = "ANSH Tasks logo — task and project management workspace";
+export const OG_IMAGE_ALT =
+  "ANSH Tasks — task and project management workspace for MSME teams by ANSH Apps";
 
 export const SEO_KEYWORDS = [
+  "ANSH Tasks",
+  "ANSH Task",
+  "ansh tasks",
+  "ansh task app",
+  "ANSH Apps",
+  "tasks.anshapps.com",
   "task management app",
   "project management software",
+  "MSME task manager",
+  "MSME project management",
   "kanban board",
   "team collaboration tool",
   "task tracker for teams",
-  "project workspace",
+  "project workspace India",
+  "brain board whiteboard",
   "activity feed",
   "workspace announcements",
-  "ANSH Tasks",
-  "ANSH Apps",
-  "MSME task manager",
   "free task management",
+  "Zoho Projects alternative",
+  "Monday.com alternative India",
 ] as const;
+
+/** Optional: set GOOGLE_SITE_VERIFICATION in env for Search Console. */
+export const GOOGLE_SITE_VERIFICATION =
+  process.env.GOOGLE_SITE_VERIFICATION ?? undefined;

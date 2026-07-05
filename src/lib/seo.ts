@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import { ECOSYSTEM_LINKS, LANDING_FAQS, WHAT_ANSH_TASKS_DOES } from "@/lib/landing-seo";
 import {
   COMPANY_NAME,
   COMPANY_URL,
   DEFAULT_DESCRIPTION,
   DEFAULT_TITLE,
+  GOOGLE_SITE_VERIFICATION,
   OG_IMAGE_ALT,
-  OG_IMAGE_PATH,
   SEO_KEYWORDS,
   SITE_NAME,
   SITE_URL,
@@ -33,9 +34,13 @@ export function buildSiteMetadata(options: BuildMetadataOptions = {}): Metadata 
     authors: [{ name: COMPANY_NAME, url: COMPANY_URL }],
     creator: COMPANY_NAME,
     publisher: COMPANY_NAME,
+    category: "Business",
     alternates: {
       canonical: canonicalUrl,
     },
+    ...(GOOGLE_SITE_VERIFICATION
+      ? { verification: { google: GOOGLE_SITE_VERIFICATION } }
+      : {}),
     robots: options.noIndex
       ? { index: false, follow: false }
       : {
@@ -56,28 +61,37 @@ export function buildSiteMetadata(options: BuildMetadataOptions = {}): Metadata 
       siteName: SITE_NAME,
       title,
       description,
-      images: [
-        {
-          url: OG_IMAGE_PATH,
-          alt: OG_IMAGE_ALT,
-        },
-      ],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [OG_IMAGE_PATH],
     },
     icons: {
       icon: "/anshFavicon.png",
       shortcut: "/anshFavicon.png",
       apple: "/anshFavicon.png",
     },
+    other: {
+      "og:image:alt": OG_IMAGE_ALT,
+    },
   };
 }
 
 export function buildLandingJsonLd() {
+  const faqPage = {
+    "@type": "FAQPage",
+    "@id": `${SITE_URL}/#faq`,
+    mainEntity: LANDING_FAQS.map((faq) => ({
+      "@type": "Question",
+      name: faq.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: faq.answer,
+      },
+    })),
+  };
+
   return {
     "@context": "https://schema.org",
     "@graph": [
@@ -86,32 +100,74 @@ export function buildLandingJsonLd() {
         "@id": `${COMPANY_URL}/#organization`,
         name: COMPANY_NAME,
         url: COMPANY_URL,
-        logo: `${SITE_URL}${OG_IMAGE_PATH}`,
+        logo: `${SITE_URL}/logoAnshapps.png`,
+        sameAs: ECOSYSTEM_LINKS.map((link) => link.url),
       },
       {
         "@type": "WebSite",
         "@id": `${SITE_URL}/#website`,
         name: SITE_NAME,
+        alternateName: ["ANSH Task", "ANSH Tasks App", "tasks.anshapps.com"],
         url: SITE_URL,
-        description: DEFAULT_DESCRIPTION,
+        description: WHAT_ANSH_TASKS_DOES,
         publisher: { "@id": `${COMPANY_URL}/#organization` },
+        inLanguage: "en-IN",
+        isPartOf: { "@id": `${COMPANY_URL}/#organization` },
+      },
+      {
+        "@type": "WebPage",
+        "@id": `${SITE_URL}/#webpage`,
+        url: SITE_URL,
+        name: DEFAULT_TITLE,
+        description: DEFAULT_DESCRIPTION,
+        isPartOf: { "@id": `${SITE_URL}/#website` },
+        about: { "@id": `${SITE_URL}/#software` },
         inLanguage: "en-IN",
       },
       {
         "@type": "SoftwareApplication",
+        "@id": `${SITE_URL}/#software`,
         name: SITE_NAME,
+        alternateName: "ANSH Task",
         applicationCategory: "BusinessApplication",
+        applicationSubCategory: "Project Management",
         operatingSystem: "Web",
         url: SITE_URL,
-        description: DEFAULT_DESCRIPTION,
-        offers: {
-          "@type": "Offer",
-          price: "0",
-          priceCurrency: "INR",
-          description: "Free plan available with upgrade options",
-        },
+        description: WHAT_ANSH_TASKS_DOES,
+        featureList: [
+          "Kanban task boards",
+          "Brain Board visual whiteboard",
+          "Team activity feed",
+          "Workspace announcements",
+          "Role-based permissions",
+          "Integrated support ticketing",
+          "Project management",
+        ],
+        offers: [
+          {
+            "@type": "Offer",
+            name: "Free Plan",
+            price: "0",
+            priceCurrency: "INR",
+            description: "Up to 2 members, 3 projects, 50 tasks per month",
+            url: `${SITE_URL}/signup`,
+          },
+          {
+            "@type": "Offer",
+            name: "Pro Plan",
+            price: "199",
+            priceCurrency: "INR",
+            description: "Unlimited tasks and projects, activity feed, announcements",
+            url: `${SITE_URL}/signup`,
+          },
+        ],
         publisher: { "@id": `${COMPANY_URL}/#organization` },
+        brand: {
+          "@type": "Brand",
+          name: COMPANY_NAME,
+        },
       },
+      faqPage,
     ],
   };
 }

@@ -33,6 +33,8 @@ import {
 import type { BillingLocaleInfo } from "@/lib/billing/charge-region";
 import { formatChargeAmount } from "@/lib/billing/charge-region";
 import { TEAM_SPACE_ENABLED } from "@/config/features";
+import { LANDING_FAQS } from "@/lib/landing-seo";
+import { BharatTagline } from "@/components/shared/bharat-tagline";
 import { TrustCompliance } from "@/components/shared/trust-compliance";
 
 // Define accent options to showcase the app's dynamic styling
@@ -180,7 +182,7 @@ const COMPETITOR_COMPARISONS = [
     summary: "Built for modern execution, not rigid corporate suites.",
     points: [
       "Zoho Projects has a stuffy enterprise interface with rigid, complex workflow setups.",
-      "ANSH Task is visual, lightweight, and combines tasks with visual whiteboards and support natively.",
+      "ANSH Tasks is visual, lightweight, and combines tasks with visual whiteboards and support natively.",
     ],
   },
   {
@@ -188,7 +190,7 @@ const COMPETITOR_COMPARISONS = [
     summary: "Save thousands on seat licenses without dashboard lag.",
     points: [
       "ClickUp & Monday are highly customizable but get expensive quickly and suffer from heavy loading lag.",
-      "ANSH Task is lightweight, highly performant, and packs tasks, brain boards, activity feed, and support under one fixed-rate plan.",
+      "ANSH Tasks is lightweight, highly performant, and packs tasks, brain boards, activity feed, and support under one fixed-rate plan.",
     ],
   },
   {
@@ -196,7 +198,7 @@ const COMPETITOR_COMPARISONS = [
     summary: "No more paying for multiple tools to get tasks and docs.",
     points: [
       "Trello is too basic (no docs/support), while Slack is just messaging (no task boards)—leading to double subscriptions.",
-      "ANSH Task integrates Kanban boards, brain boards, activity feed, announcements, and support in one unified workspace.",
+      "ANSH Tasks integrates Kanban boards, brain boards, activity feed, announcements, and support in one unified workspace.",
     ],
   },
 ] as const;
@@ -324,7 +326,7 @@ export function LandingPageClient() {
               className="h-12 w-12 shrink-0 object-contain group-hover:scale-105 transition-transform duration-200 -mr-1.5 mt-1" 
             />
             <span className="font-heading text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-              ANSH Task
+              ANSH Tasks
             </span>
           </Link>
 
@@ -437,19 +439,22 @@ export function LandingPageClient() {
 
               {/* Main Headline */}
               <h1 className="font-heading text-4xl sm:text-5xl lg:text-[54px] font-extrabold tracking-tight leading-[1.1] text-zinc-900 dark:text-white">
-                Run Your Entire{" "}
                 <span className="bg-gradient-to-r from-[#00c6ff] via-[#7000ff] to-[#e040fb] bg-clip-text text-transparent dark:from-[#4dc4ff] dark:via-[#8b5cf6] dark:to-[#e879f9]">
-                  MSME Tasks & Operations
+                  ANSH Tasks
+                </span>
+                {" — "}Run Your Entire{" "}
+                <span className="text-zinc-900 dark:text-white">
+                  MSME Operations
                 </span>{" "}
-                in One Simple Workspace
+                in One Workspace
               </h1>
 
               {/* Description */}
               <p className="text-zinc-600 dark:text-zinc-300 text-lg md:text-xl font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                ANSH Task combines project management tools, Kanban task boards, collaborative brain boards, activity feed, and workspace announcements into a unified, high-performance workspace.
+                ANSH Tasks combines project management tools, Kanban task boards, collaborative brain boards, activity feed, and workspace announcements into a unified, high-performance workspace.
               </p>
 
-              {/* Value Props: What ANSH Task Does (Crisp & Clear) */}
+              {/* Value Props: What ANSH Tasks Does (Crisp & Clear) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto lg:mx-0 text-left bg-zinc-200/40 dark:bg-zinc-900/50 border border-zinc-300/20 dark:border-zinc-800/40 p-5 rounded-2xl">
                 <div className="flex items-start gap-2.5">
                   <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400 mt-0.5">
@@ -537,7 +542,7 @@ export function LandingPageClient() {
               {/* Trust Section */}
               <div className="pt-6 space-y-2">
                 <p className="text-lg sm:text-xl font-bold text-zinc-800 dark:text-zinc-200 tracking-tight">
-                  Built from Bharat for the World
+                  Built for Bharat, Ready for the World
                 </p>
                 <p className="text-sm sm:text-base font-semibold text-blue-600 dark:text-violet-400 tracking-wide">
                   encouraging Vasudhaiva Kutumbakam
@@ -592,7 +597,7 @@ export function LandingPageClient() {
                     )}
                   </div>
 
-                  <span className="text-xs text-zinc-400 dark:text-zinc-500 font-mono">ansh-task.app</span>
+                  <span className="text-xs text-zinc-400 dark:text-zinc-500 font-mono">tasks.anshapps.com</span>
                 </div>
 
                 {/* Mockup Canvas */}
@@ -915,7 +920,7 @@ export function LandingPageClient() {
               Streamline Your Entire MSME Operations Natively
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
-              No need to pay for 4-5 different software tools. ANSH Task consolidates your core business collaboration under one affordable billing plan.
+              No need to pay for 4-5 different software tools. ANSH Tasks consolidates your core business collaboration under one affordable billing plan.
             </p>
           </div>
 
@@ -1136,7 +1141,7 @@ export function LandingPageClient() {
               Why Teams Switch
             </div>
             <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Why MSMEs choose ANSH Task over Zoho Projects, Monday, ClickUp, and Trello
+              Why MSMEs choose ANSH Tasks over Zoho Projects, Monday, ClickUp, and Trello
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
               We are built for small & medium businesses that want real work execution, cleaner collaboration, and zero setup friction in one product.
@@ -1184,7 +1189,7 @@ export function LandingPageClient() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-violet-500/20 bg-blue-500/5 p-5">
                 <h4 className="text-sm font-black uppercase tracking-widest text-blue-700 dark:text-violet-400">
-                  The ANSH Task Model for MSMEs
+                  The ANSH Tasks Model for MSMEs
                 </h4>
                 <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
                   A unified tool that any non-technical employee can adopt in minutes. Tasks, whiteboards, activity feed, announcements, and support desks all live together. No hidden setups or extra license costs.
@@ -1411,42 +1416,21 @@ export function LandingPageClient() {
               Frequently Asked Questions
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-sm sm:text-base">
-              Got questions about ANSH Task? Find quick answers below.
+              Got questions about ANSH Tasks? Find quick answers below.
             </p>
           </div>
 
           <div className="space-y-4">
-            {[
-              {
-                q: "How does ANSH Task benefit MSMEs compared to other task management apps?",
-                a: "Micro, Small & Medium Enterprises (MSMEs) often end up paying for multiple tools like Zoho/Trello (tasks), Slack (chat), Miro (whiteboards), and Zendesk (support). ANSH Task integrates all of these core functions under one roof at an extremely affordable price point, saving MSMEs up to 80% on software subscriptions and eliminating admin complexity.",
-              },
-              {
-                q: "Can I customize the design system and theme accent colors?",
-                a: "Yes. ANSH Task comes with a built-in Appearance Drawer. You can select custom accent colors (Blue, Indigo, Violet, Teal, Rose) and toggle between dark, light, or system themes. These modifications apply globally across all sub-pages in your workspace.",
-              },
-              {
-                q: "Is there built-in customer support ticketing?",
-                a: "Absolutely. ANSH Task features an integrated Support Center. Users can write, submit, and track the history of support tickets directly from the dashboard sidebar without needing external emails or helpdesks.",
-              },
-              {
-                q: "How does the Brain Board feature work?",
-                a: "The Brain Board is a visual ideation whiteboard. It allows you to place freeform sticky notes, capture sketches, cluster thoughts, and document project scopes. It serves as a creative canvas to map out roadmaps before creating final tasks in the Kanban lists.",
-              },
-              {
-                q: "What database and hosting technologies support ANSH Task?",
-                a: "ANSH Task is built on a modern stack using Next.js for high-fidelity frontend routing, Tailwind CSS for adaptive styling, Prisma ORM for type-safe database queries, and is ready for serverless deployments on platforms like Vercel.",
-              },
-            ].map((faq, index) => (
+            {LANDING_FAQS.map((faq, index) => (
               <div
-                key={index}
+                key={faq.question}
                 className="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-xl overflow-hidden shadow-xs hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors duration-200"
               >
                 <button
                   onClick={() => toggleFaq(index)}
                   className="w-full px-6 py-5 flex items-center justify-between text-left font-bold text-zinc-800 dark:text-zinc-200 hover:text-zinc-900 dark:hover:text-white transition-colors"
                 >
-                  <span className="text-sm md:text-base">{faq.q}</span>
+                  <span className="text-sm md:text-base">{faq.question}</span>
                   <ChevronDownIcon className={`h-4.5 w-4.5 shrink-0 text-zinc-400 transition-transform duration-300 ${faqOpen[index] ? "transform rotate-180" : ""}`} />
                 </button>
 
@@ -1459,7 +1443,7 @@ export function LandingPageClient() {
                       transition={{ duration: 0.25 }}
                     >
                       <div className="px-6 pb-6 text-xs md:text-sm text-zinc-500 dark:text-zinc-400 border-t border-zinc-100 dark:border-zinc-800 pt-4 leading-relaxed">
-                        {faq.a}
+                        {faq.answer}
                       </div>
                     </motion.div>
                   )}
@@ -1521,6 +1505,7 @@ export function LandingPageClient() {
           <h2 className="font-heading text-[10vw] sm:text-[12vw] font-black tracking-tighter leading-none select-none bg-gradient-to-r from-[#00c6ff] via-[#7000ff] to-[#e040fb] bg-clip-text text-transparent pr-4">
             Ansh Apps
           </h2>
+          <BharatTagline size="xl" className="mt-4 sm:mt-6 max-w-5xl px-4" />
         </div>
       </section>
 
@@ -1538,7 +1523,7 @@ export function LandingPageClient() {
                   className="h-8 w-8 shrink-0 object-contain -mr-1" 
                 />
                 <span className="font-heading text-lg font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-                  ANSH Task
+                  ANSH Tasks
                 </span>
               </div>
               <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
@@ -1611,7 +1596,7 @@ export function LandingPageClient() {
 
           {/* Copyrights */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500 dark:text-zinc-400 font-medium">
-            <p>© {new Date().getFullYear()} ANSH Task. All rights reserved.</p>
+            <p>© {new Date().getFullYear()} ANSH Tasks. All rights reserved.</p>
             <div className="flex flex-wrap justify-center sm:justify-end gap-x-4 gap-y-2">
               <Link href="/privacy" className="hover:text-zinc-700 dark:hover:text-zinc-300">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-zinc-700 dark:hover:text-zinc-300">Terms of Service</Link>
