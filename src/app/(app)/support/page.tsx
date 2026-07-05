@@ -23,6 +23,10 @@ import {
 } from "@/lib/support-attachments";
 import { resolveStorageUrl } from "@/lib/storage/public-url";
 import { isImageStorageFile } from "@/lib/storage/attachments";
+import {
+  CLIENT_COMPRESSION_TARGETS,
+  compressImageForUpload,
+} from "@/lib/storage/compress-attachment.client";
 
 interface Ticket {
   id: string;
@@ -193,9 +197,13 @@ export default function SupportPage() {
       formData.append("description", description.trim());
       
       if (files.length > 0) {
-        files.forEach((file) => {
-          formData.append("files", file);
-        });
+        for (const file of files) {
+          const compressed = await compressImageForUpload(
+            file,
+            CLIENT_COMPRESSION_TARGETS.tickets
+          );
+          formData.append("files", compressed);
+        }
       }
 
       const res = await fetch("/api/support", {

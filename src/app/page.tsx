@@ -12,11 +12,24 @@ export const metadata = buildSiteMetadata({
   path: "",
 });
 
+const LANDING_LIGHT_THEME_SCRIPT = `
+(function () {
+  try {
+    if (!localStorage.getItem("theme")) {
+      document.documentElement.classList.remove("dark");
+    }
+  } catch (_) {}
+})();
+`;
+
 export default function LandingPage() {
   const jsonLd = buildLandingJsonLd();
 
   return (
     <>
+      <script
+        dangerouslySetInnerHTML={{ __html: LANDING_LIGHT_THEME_SCRIPT }}
+      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

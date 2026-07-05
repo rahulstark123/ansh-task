@@ -170,13 +170,13 @@ function mapApiTask(t: any): Task {
   };
 }
 
-const COLUMNS: { id: TaskStatus; label: string; bg: string; dot: string; border: string; darkBorder: string }[] = [
-  { id: "todo", label: "To Do", bg: "bg-zinc-100/70 dark:bg-zinc-900/30", dot: "bg-zinc-400", border: "border-zinc-200/80", darkBorder: "dark:border-white/[0.06]" },
-  { id: "in_progress", label: "In Progress", bg: "bg-teal-50/40 dark:bg-teal-950/10", dot: "bg-teal-500", border: "border-teal-100", darkBorder: "dark:border-teal-900/20" },
-  { id: "on_hold", label: "On Hold", bg: "bg-amber-50/40 dark:bg-amber-950/10", dot: "bg-amber-500", border: "border-amber-100", darkBorder: "dark:border-amber-900/20" },
-  { id: "blocked", label: "Blocked", bg: "bg-rose-50/40 dark:bg-rose-950/10", dot: "bg-rose-500", border: "border-rose-100", darkBorder: "dark:border-rose-900/20" },
-  { id: "overdue", label: "Overdue", bg: "bg-red-50/40 dark:bg-red-950/10", dot: "bg-red-600", border: "border-red-100", darkBorder: "dark:border-red-900/20" },
-  { id: "done", label: "Done", bg: "bg-emerald-50/40 dark:bg-emerald-950/10", dot: "bg-emerald-500", border: "border-emerald-100", darkBorder: "dark:border-emerald-900/20" },
+const COLUMNS: { id: TaskStatus; label: string; bg: string; dot: string; border: string; darkBorder: string; headerBorder: string }[] = [
+  { id: "todo", label: "To Do", bg: "bg-zinc-100/80 dark:bg-zinc-900/40", dot: "bg-zinc-400", border: "border-zinc-300", darkBorder: "dark:border-zinc-600/70", headerBorder: "border-b-zinc-300/70 dark:border-b-zinc-600/50" },
+  { id: "in_progress", label: "In Progress", bg: "bg-teal-50/60 dark:bg-teal-950/20", dot: "bg-teal-500", border: "border-teal-300", darkBorder: "dark:border-teal-700/60", headerBorder: "border-b-teal-300/80 dark:border-b-teal-700/50" },
+  { id: "on_hold", label: "On Hold", bg: "bg-amber-50/60 dark:bg-amber-950/20", dot: "bg-amber-500", border: "border-amber-300", darkBorder: "dark:border-amber-700/60", headerBorder: "border-b-amber-300/80 dark:border-b-amber-700/50" },
+  { id: "blocked", label: "Blocked", bg: "bg-rose-50/60 dark:bg-rose-950/20", dot: "bg-rose-500", border: "border-rose-300", darkBorder: "dark:border-rose-700/60", headerBorder: "border-b-rose-300/80 dark:border-b-rose-700/50" },
+  { id: "overdue", label: "Overdue", bg: "bg-red-50/60 dark:bg-red-950/20", dot: "bg-red-600", border: "border-red-400", darkBorder: "dark:border-red-700/60", headerBorder: "border-b-red-400/80 dark:border-b-red-700/50" },
+  { id: "done", label: "Done", bg: "bg-emerald-50/60 dark:bg-emerald-950/20", dot: "bg-emerald-500", border: "border-emerald-300", darkBorder: "dark:border-emerald-700/60", headerBorder: "border-b-emerald-300/80 dark:border-b-emerald-700/50" },
 ];
 
 function isTaskOverdue(due?: string, done?: boolean) {
@@ -542,16 +542,22 @@ export function TaskDashboard({
       "bg-cyan-50/40 dark:bg-cyan-950/10",
     ];
     const borderColors = [
-      "border-indigo-100",
-      "border-purple-100",
-      "border-fuchsia-100",
-      "border-cyan-100",
+      "border-indigo-300",
+      "border-purple-300",
+      "border-fuchsia-300",
+      "border-cyan-300",
     ];
     const darkBorderColors = [
-      "dark:border-indigo-900/20",
-      "dark:border-purple-900/20",
-      "dark:border-fuchsia-900/20",
-      "dark:border-cyan-900/20",
+      "dark:border-indigo-700/60",
+      "dark:border-purple-700/60",
+      "dark:border-fuchsia-700/60",
+      "dark:border-cyan-700/60",
+    ];
+    const headerBorderColors = [
+      "border-b-indigo-300/80 dark:border-b-indigo-700/50",
+      "border-b-purple-300/80 dark:border-b-purple-700/50",
+      "border-b-fuchsia-300/80 dark:border-b-fuchsia-700/50",
+      "border-b-cyan-300/80 dark:border-b-cyan-700/50",
     ];
     const dotColors = [
       "bg-indigo-500",
@@ -569,6 +575,7 @@ export function TaskDashboard({
       dot: dotColors[styleIndex],
       border: borderColors[styleIndex],
       darkBorder: darkBorderColors[styleIndex],
+      headerBorder: headerBorderColors[styleIndex],
     };
   }
 
@@ -1847,15 +1854,15 @@ export function TaskDashboard({
                     key={col.id}
                     onDragOver={(e) => handleDragOver(e, col.id)}
                     onDrop={(e) => handleDrop(e, col.id)}
-                    className={`flex h-full min-h-[400px] w-72 shrink-0 flex-col rounded-2xl border transition-all duration-200 ${col.bg} ${
+                    className={`flex h-full min-h-[400px] w-72 shrink-0 flex-col rounded-2xl border-2 transition-all duration-200 ${col.bg} ${
                       isOver
-                        ? "border-[var(--app-primary)] shadow-[0_0_0_2px_rgba(13,148,136,0.1)] scale-[1.01]"
-                        : `border-transparent`
+                        ? "border-[var(--app-primary)] shadow-[0_0_0_3px_rgba(13,148,136,0.15)] scale-[1.01]"
+                        : `${col.border} ${col.darkBorder} shadow-sm`
                     }`}
                   >
                     
                     {/* Lane Header */}
-                    <div className="flex shrink-0 items-center justify-between px-3 py-3 border-b border-zinc-200/40 dark:border-white/[0.04]">
+                    <div className={`flex shrink-0 items-center justify-between px-3 py-3 border-b ${col.headerBorder ?? "border-b-zinc-200/40 dark:border-b-white/[0.04]"}`}>
                       <div className="flex items-center gap-2">
                         <span className={`h-2 w-2 rounded-full ${col.dot}`} />
                         <span className="font-heading text-[14px] font-bold text-zinc-800 dark:text-zinc-100">

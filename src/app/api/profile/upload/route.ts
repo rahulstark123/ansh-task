@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import {
+  COMPRESSION_TARGETS,
+  compressUploadBuffer,
+} from "@/lib/storage/compress-attachment.server";
+import {
   buildSharedStorageKey,
   buildWorkspaceStorageKey,
   sanitizeStorageSegment,
@@ -7,6 +11,8 @@ import {
 } from "@/lib/storage/r2";
 
 export const dynamic = "force-dynamic";
+
+const MAX_AVATAR_INPUT_BYTES = 15 * 1024 * 1024;
 
 export async function POST(request: Request) {
   try {
@@ -29,16 +35,22 @@ export async function POST(request: Request) {
       );
     }
 
-    if (file.size > 500 * 1024) {
+    if (file.size > MAX_AVATAR_INPUT_BYTES) {
       return NextResponse.json(
-        { success: false, error: "File size exceeds 500KB limit" },
+        { success: false, error: "Avatar image is too large to process." },
         { status: 400 }
       );
     }
 
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const sanitizedFileName = sanitizeStorageSegment(file.name) || "avatar";
+    const compressed = await compressUploadBuffer(
+      Buffer.from(bytes),
+      file.type || "image/jpeg",
+      file.name,
+      COMPRESSION_TARGETS.profiles
+    );
+    const buffer = compressed.buffer;
+    const sanitizedFileName = sanitizeStorageSegment(compressed.fileName) || "avatar";
     const sanitizedEmail = sanitizeStorageSegment(email);
     const objectName = `${sanitizedEmail}-${Date.now()}-${sanitizedFileName}`;
 
@@ -54,7 +66,7 @@ export async function POST(request: Request) {
     const { url } = await uploadToR2({
       key,
       body: buffer,
-      contentType: file.type || "image/jpeg",
+      contentType: compressed.contentType,
     });
 
     return NextResponse.json({

@@ -1,8 +1,7 @@
-import { compressTaskAttachmentFile } from "@/lib/storage/compress-attachment.client";
 import {
-  TASK_MAX_ATTACHMENT_BYTES,
-  taskAttachmentSizeError,
-} from "@/lib/storage/task-attachments";
+  clientCompressionTarget,
+  compressImageForUpload,
+} from "@/lib/storage/compress-attachment.client";
 
 export type StorageFolder = "attachments" | "profiles" | "tickets";
 
@@ -14,16 +13,10 @@ export async function uploadFileToStorage(
     prefix?: string;
   }
 ): Promise<{ url: string; name: string; size: number }> {
-  let fileToUpload = file;
-
-  if (params.folder === "attachments") {
-    if (file.size > TASK_MAX_ATTACHMENT_BYTES * 4) {
-      throw new Error(
-        `${taskAttachmentSizeError(file.size)} Very large files cannot be compressed enough.`
-      );
-    }
-    fileToUpload = await compressTaskAttachmentFile(file);
-  }
+  const fileToUpload = await compressImageForUpload(
+    file,
+    clientCompressionTarget(params.folder)
+  );
 
   const formData = new FormData();
   formData.append("file", fileToUpload);
@@ -46,6 +39,8 @@ export async function uploadFileToStorage(
   return {
     url: json.url,
     name: file.name,
-    size: fileToUpload.size,
+    // Prefer the server-reported size: it reflects the final, sharp-compressed
+    // bytes actually stored, not the lighter client-side pass.
+    size: typeof json.size === "number" ? json.size : fileToUpload.size,
   };
 }

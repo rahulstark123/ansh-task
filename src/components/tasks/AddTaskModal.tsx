@@ -648,6 +648,12 @@ export function AddTaskModal({
     dot: s.dot,
   }));
 
+  const priorityOptions: DropdownOption[] = PRIORITY_OPTIONS.map((p) => ({
+    value: p.key,
+    label: p.label,
+    dot: p.dot,
+  }));
+
   const assigneeOptions: DropdownOption[] = (
     assignees ?? ["Unassigned"]
   ).map((a) => ({
@@ -974,34 +980,17 @@ export function AddTaskModal({
                   />
                 </div>
 
-                {/* Priority — pill buttons */}
+                {/* Priority */}
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                     <ExclamationCircleIcon className="h-3.5 w-3.5" />
                     Priority
                   </label>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {PRIORITY_OPTIONS.map((p) => {
-                      const sel = priorityKey === p.key;
-                      return (
-                        <button
-                          key={p.key}
-                          type="button"
-                          onClick={() => setPriorityKey(p.key)}
-                          className={`flex items-center justify-center gap-1.5 rounded-xl border py-1.5 text-[11px] font-semibold transition-all ${
-                            sel
-                              ? `${p.color} ring-2 ${p.ring}`
-                              : "border-zinc-200 bg-white text-zinc-500 hover:border-zinc-300 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-zinc-400 dark:hover:border-zinc-600"
-                          }`}
-                        >
-                          <span
-                            className={`h-1.5 w-1.5 rounded-full ${p.dot}`}
-                          />
-                          {p.label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <StyledDropdown
+                    value={priorityKey}
+                    onChange={setPriorityKey}
+                    options={priorityOptions}
+                  />
                 </div>
 
                 {/* Assignee */}
