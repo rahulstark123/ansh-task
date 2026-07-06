@@ -8,6 +8,7 @@ import {
   GOOGLE_SITE_VERIFICATION,
   OG_IMAGE_ALT,
   SEO_KEYWORDS,
+  SITE_HOSTNAME,
   SITE_NAME,
   SITE_URL,
 } from "@/lib/site";
@@ -33,7 +34,7 @@ export function buildSiteMetadata(options: BuildMetadataOptions = {}): Metadata 
     applicationName: SITE_NAME,
     authors: [{ name: COMPANY_NAME, url: COMPANY_URL }],
     creator: COMPANY_NAME,
-    publisher: COMPANY_NAME,
+    publisher: SITE_NAME,
     category: "Business",
     alternates: {
       canonical: canonicalUrl,
@@ -72,9 +73,24 @@ export function buildSiteMetadata(options: BuildMetadataOptions = {}): Metadata 
       shortcut: "/anshFavicon.png",
       apple: "/anshFavicon.png",
     },
+    appleWebApp: {
+      title: SITE_NAME,
+    },
     other: {
       "og:image:alt": OG_IMAGE_ALT,
+      "application-name": SITE_NAME,
     },
+  };
+}
+
+/** Standalone WebSite schema — Google's primary signal for SERP site name. */
+export function buildWebSiteNameJsonLd() {
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: SITE_NAME,
+    alternateName: ["ANSH Task", SITE_HOSTNAME],
+    url: `${SITE_URL}/`,
   };
 }
 
@@ -97,6 +113,18 @@ export function buildLandingJsonLd() {
     "@graph": [
       {
         "@type": "Organization",
+        "@id": `${SITE_URL}/#organization`,
+        name: SITE_NAME,
+        url: SITE_URL,
+        logo: `${SITE_URL}/logoAnshapps.png`,
+        parentOrganization: {
+          "@type": "Organization",
+          name: COMPANY_NAME,
+          url: COMPANY_URL,
+        },
+      },
+      {
+        "@type": "Organization",
         "@id": `${COMPANY_URL}/#organization`,
         name: COMPANY_NAME,
         url: COMPANY_URL,
@@ -107,12 +135,11 @@ export function buildLandingJsonLd() {
         "@type": "WebSite",
         "@id": `${SITE_URL}/#website`,
         name: SITE_NAME,
-        alternateName: ["ANSH Task", "ANSH Tasks App", "tasks.anshapps.com"],
-        url: SITE_URL,
+        alternateName: ["ANSH Task", SITE_HOSTNAME],
+        url: `${SITE_URL}/`,
         description: WHAT_ANSH_TASKS_DOES,
-        publisher: { "@id": `${COMPANY_URL}/#organization` },
+        publisher: { "@id": `${SITE_URL}/#organization` },
         inLanguage: "en-IN",
-        isPartOf: { "@id": `${COMPANY_URL}/#organization` },
       },
       {
         "@type": "WebPage",
@@ -161,10 +188,10 @@ export function buildLandingJsonLd() {
             url: `${SITE_URL}/signup`,
           },
         ],
-        publisher: { "@id": `${COMPANY_URL}/#organization` },
+        publisher: { "@id": `${SITE_URL}/#organization` },
         brand: {
           "@type": "Brand",
-          name: COMPANY_NAME,
+          name: SITE_NAME,
         },
       },
       faqPage,

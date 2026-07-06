@@ -39,6 +39,9 @@ export const SEO_KEYWORDS = [
   "Monday.com alternative India",
 ] as const;
 
+/** Subdomain hostname for Google site-name alternateName fallback (must be lowercase). */
+export const SITE_HOSTNAME = "tasks.anshapps.com";
+
 /** Optional: set GOOGLE_SITE_VERIFICATION in env for Search Console. */
 export const GOOGLE_SITE_VERIFICATION =
   process.env.GOOGLE_SITE_VERIFICATION ?? undefined;
