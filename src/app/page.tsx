@@ -1,4 +1,4 @@
-import { buildSiteMetadata, buildLandingJsonLd } from "@/lib/seo";
+import { buildSiteMetadata, buildLandingJsonLd, buildWebSiteNameJsonLd } from "@/lib/seo";
 import { LandingPageClient } from "@/components/landing/LandingPageClient";
 import { LandingSeoContent } from "@/components/landing/LandingSeoContent";
 
@@ -24,12 +24,17 @@ const LANDING_LIGHT_THEME_SCRIPT = `
 `;
 
 export default function LandingPage() {
+  const webSiteNameJsonLd = buildWebSiteNameJsonLd();
   const jsonLd = buildLandingJsonLd();
 
   return (
     <>
       <script
         dangerouslySetInnerHTML={{ __html: LANDING_LIGHT_THEME_SCRIPT }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteNameJsonLd) }}
       />
       <script
         type="application/ld+json"
