@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
 import { COMPANY_NAME, SITE_NAME } from "@/lib/site";
 
+export const runtime = "edge";
+
 export const alt = "ANSH Tasks — Task & Project Management for MSME Teams";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
@@ -16,7 +18,7 @@ export default function OpenGraphImage() {
           flexDirection: "column",
           justifyContent: "center",
           padding: "64px",
-          background: "linear-gradient(135deg, #0f172a 0%, #1e1b4b 45%, #312e81 100%)",
+          backgroundColor: "#1e1b4b",
           color: "#ffffff",
           fontFamily: "system-ui, sans-serif",
         }}
@@ -38,9 +40,7 @@ export default function OpenGraphImage() {
             lineHeight: 1.05,
             letterSpacing: "-0.03em",
             marginBottom: 24,
-            background: "linear-gradient(90deg, #38bdf8, #818cf8, #e879f9)",
-            backgroundClip: "text",
-            color: "transparent",
+            color: "#38bdf8",
           }}
         >
           {SITE_NAME}

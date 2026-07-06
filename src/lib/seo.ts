@@ -8,7 +8,6 @@ import {
   GOOGLE_SITE_VERIFICATION,
   OG_IMAGE_ALT,
   SEO_KEYWORDS,
-  SITE_HOSTNAME,
   SITE_NAME,
   SITE_URL,
 } from "@/lib/site";
@@ -88,8 +87,9 @@ export function buildWebSiteNameJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
+    "@id": `${SITE_URL}/#website`,
     name: SITE_NAME,
-    alternateName: ["ANSH Task", SITE_HOSTNAME],
+    alternateName: ["ANSH Task"],
     url: `${SITE_URL}/`,
   };
 }
@@ -132,20 +132,11 @@ export function buildLandingJsonLd() {
         sameAs: ECOSYSTEM_LINKS.map((link) => link.url),
       },
       {
-        "@type": "WebSite",
-        "@id": `${SITE_URL}/#website`,
-        name: SITE_NAME,
-        alternateName: ["ANSH Task", SITE_HOSTNAME],
-        url: `${SITE_URL}/`,
-        description: WHAT_ANSH_TASKS_DOES,
-        publisher: { "@id": `${SITE_URL}/#organization` },
-        inLanguage: "en-IN",
-      },
-      {
         "@type": "WebPage",
         "@id": `${SITE_URL}/#webpage`,
-        url: SITE_URL,
-        name: DEFAULT_TITLE,
+        url: `${SITE_URL}/`,
+        name: SITE_NAME,
+        headline: DEFAULT_TITLE,
         description: DEFAULT_DESCRIPTION,
         isPartOf: { "@id": `${SITE_URL}/#website` },
         about: { "@id": `${SITE_URL}/#software` },

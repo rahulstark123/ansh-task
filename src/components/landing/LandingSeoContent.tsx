@@ -3,8 +3,6 @@ import { COMPANY_NAME, COMPANY_URL, SITE_NAME, SITE_URL } from "@/lib/site";
 
 /**
  * Server-rendered crawlable content for search engines and no-JS clients.
- * The interactive landing (LandingPageClient) hydrates on top; this ensures
- * Google indexes what ANSH Tasks does even before JavaScript runs.
  */
 export function LandingSeoContent() {
   return (
