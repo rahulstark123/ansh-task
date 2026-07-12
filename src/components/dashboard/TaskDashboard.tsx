@@ -210,7 +210,7 @@ function taskShowsOverdueBadge(task: Task): boolean {
 }
 
 const CATEGORIES = ["Product", "Engineering", "Design", "Operations", "Marketing", "General"];
-const ASSIGNEES = ["Unassigned", "Me", "Alex Rivera", "Jordan Lee", "Sam Chen"];
+const ASSIGNEES = ["Unassigned"];
 
 const ALL_LABELS = ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"];
 
@@ -499,6 +499,10 @@ export function TaskDashboard({
   const [searchQuery, setSearchQuery] = useState("");
 
   const [assigneesList, setAssigneesList] = useState<string[]>(ASSIGNEES);
+  const assigneePickerList = useMemo(
+    () => assigneesList.filter((a) => a.trim().toLowerCase() !== "me"),
+    [assigneesList]
+  );
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [currentUserAssigneeKeys, setCurrentUserAssigneeKeys] = useState<string[]>(["me"]);
 
@@ -611,7 +615,7 @@ export function TaskDashboard({
           setCurrentUserEmail(safeEmail || null);
 
           const baseKeys = [
-            "Me",
+            "Me", // legacy assignee value for current user
             safeEmail,
             safeEmail.includes("@") ? safeEmail.split("@")[0] : "",
           ].filter(Boolean);
@@ -623,7 +627,14 @@ export function TaskDashboard({
             const memberNames = json.members.map((u: any) => {
               return `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email.split("@")[0];
             });
-            const combined = Array.from(new Set(["Unassigned", "Me", ...memberNames]));
+            // Never include legacy "Me" — current user already appears under their account name.
+            const combined = Array.from(
+              new Set(
+                ["Unassigned", ...memberNames].filter(
+                  (name) => name.trim().toLowerCase() !== "me"
+                )
+              )
+            );
             setAssigneesList(combined);
 
             const currentMember = json.members.find(
@@ -2275,7 +2286,7 @@ export function TaskDashboard({
                           </button>
                           {activeDropdown?.taskId === task.id && activeDropdown?.field === "assignee" && (
                             <div className="absolute left-3 top-10 z-30 w-44 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
-                              {assigneesList.map((assignee) => {
+                              {assigneePickerList.map((assignee) => {
                                 const isSelected = task.assignees ? task.assignees.includes(assignee) : task.assignee === assignee;
                                 return (
                                   <button
@@ -2748,8 +2759,8 @@ export function TaskDashboard({
                         <CustomMultiSelect
                           value={tempAssignees}
                           onChange={(val) => setTempAssignees(val)}
-                          options={assigneesList.map((a) => {
-                            const initials = a === "Me" ? "ME" : a === "Unassigned" ? "UN" : a.trim().split(/\s+/).map(n => n[0]).join("").toUpperCase().slice(0, 2);
+                          options={assigneePickerList.map((a) => {
+                            const initials = a === "Unassigned" ? "UN" : a.trim().split(/\s+/).map(n => n[0]).join("").toUpperCase().slice(0, 2);
                             return {
                               value: a,
                               label: a,
@@ -3278,7 +3289,7 @@ export function TaskDashboard({
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onCreate={handleAddTaskFromModal}
-        assignees={assigneesList}
+        assignees={assigneePickerList}
         defaultStatus={addModalDefaultStatus as import("@/types/task").TaskStatus | null}
       />
 
@@ -3291,7 +3302,7 @@ export function TaskDashboard({
         }}
         taskToEdit={editModalTask}
         onUpdate={handleUpdateTaskFromModal}
-        assignees={assigneesList}
+        assignees={assigneePickerList}
       />
 
       {/* Dynamic Filters Modal */}
@@ -3384,7 +3395,7 @@ export function TaskDashboard({
                             {filterAssignees.length === 0 && <CheckIcon className="h-4 w-4 text-[var(--app-primary)]" />}
                           </button>
                           <div className="h-px bg-zinc-100 dark:bg-white/5 my-1" />
-                          {assigneesList.map((a) => {
+                          {assigneePickerList.map((a) => {
                             const isSelected = filterAssignees.includes(a);
                             return (
                               <button

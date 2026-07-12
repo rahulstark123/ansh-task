@@ -612,29 +612,32 @@ export function AddTaskModal({
 
   const assigneeOptions: DropdownOption[] = (
     assignees ?? ["Unassigned"]
-  ).map((a) => ({
-    value: a,
-    label: a,
-    icon:
-      a === "Unassigned" ? (
-        <UserIcon className="h-3.5 w-3.5" />
-      ) : (
-        <span
-          className="flex h-4 w-4 items-center justify-center rounded-full text-[7px] font-black text-white"
-          style={{
-            backgroundColor: `hsl(${[...a].reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0) % 360}, 55%, 42%)`,
-          }}
-        >
-          {a
-            .trim()
-            .split(/\s+/)
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2)}
-        </span>
-      ),
-  }));
+  )
+    // "Me" is a legacy alias for the current user — never show it alongside their real name.
+    .filter((a) => a.trim().toLowerCase() !== "me")
+    .map((a) => ({
+      value: a,
+      label: a,
+      icon:
+        a === "Unassigned" ? (
+          <UserIcon className="h-3.5 w-3.5" />
+        ) : (
+          <span
+            className="flex h-4 w-4 items-center justify-center rounded-full text-[7px] font-black text-white"
+            style={{
+              backgroundColor: `hsl(${[...a].reduce((h, c) => c.charCodeAt(0) + ((h << 5) - h), 0) % 360}, 55%, 42%)`,
+            }}
+          >
+            {a
+              .trim()
+              .split(/\s+/)
+              .map((n) => n[0])
+              .join("")
+              .toUpperCase()
+              .slice(0, 2)}
+          </span>
+        ),
+    }));
 
   const categoryOptions: DropdownOption[] = (customCategories || []).map((c) => ({
     value: c,
