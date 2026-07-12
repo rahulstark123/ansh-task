@@ -42,39 +42,22 @@ export async function POST(request: Request) {
     const billingCycle: "monthly" | "yearly" =
       body.billingCycle === "yearly" ? "yearly" : "monthly";
 
-    const now = new Date();
-    const [scheduledPro, activePro] = await Promise.all([
-      getScheduledProSubscription(wid),
-      prisma.subscription.findFirst({
-        where: {
-          workspaceId: wid,
-          status: "ACTIVE",
-          plan: "pro",
-          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        },
-      }),
-    ]);
+    const scheduledPro = await getScheduledProSubscription(wid);
 
     if (scheduledPro) {
       return NextResponse.json(
         {
           success: false,
           error:
-            "You already purchased Pro during your trial. It will start automatically when your trial ends.",
+            "You already have a Pro renewal scheduled. It will start automatically when your current period ends.",
         },
         { status: 400 }
       );
     }
 
-    if (activePro) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "This workspace already has an active Pro subscription.",
-        },
-        { status: 400 }
-      );
-    }
+    // Active Pro can renew — checkout creates a SCHEDULED subscription that
+    // starts when the current planExpiresAt elapses (same as trial → Pro).
+    // Do not block here; verify route defers startsAt when appropriate.
 
     // 3. Get Razorpay config
     const cfg = getRazorpayConfig();
@@ -140,6 +123,7 @@ export async function POST(request: Request) {
         subscriptionId: sub.id,
         status: "CREATED",
         amountPaisa: amountMinor,
+        currency,
         razorpayOrderId: order.id,
       },
     });

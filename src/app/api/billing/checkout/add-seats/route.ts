@@ -164,6 +164,7 @@ export async function POST(request: Request) {
         subscriptionId: addonSub.id,
         status: "CREATED",
         amountPaisa: amountMinor,
+        currency,
         razorpayOrderId: order.id,
       },
     });

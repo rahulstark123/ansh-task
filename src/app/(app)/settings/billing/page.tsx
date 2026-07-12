@@ -25,6 +25,8 @@ import {
   UsersIcon,
   CreditCardIcon,
   ExclamationCircleIcon,
+  DocumentTextIcon,
+  ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 import { CheckCircleIcon } from "@heroicons/react/24/solid";
 
@@ -123,6 +125,28 @@ export default function BillingSettingsPage() {
   const [billingLocale, setBillingLocale] = useState<BillingLocaleInfo | null>(
     null
   );
+  const [isReceiptsOpen, setIsReceiptsOpen] = useState(false);
+  const [receiptsLoading, setReceiptsLoading] = useState(false);
+  const [receiptsError, setReceiptsError] = useState("");
+  const [receipts, setReceipts] = useState<
+    {
+      id: string;
+      invoiceNumber: string;
+      receiptNumber: string;
+      date: string;
+      amountMinor: number;
+      currency: string;
+      label: string;
+      billingCycle: string;
+      seats: number;
+    }[]
+  >([]);
+  const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(
+    null
+  );
+  // Keep sample receipt tooling; set true only while previewing PDF layout.
+  const SHOW_TEST_RECEIPT_BUTTON = false;
+  const [sampleReceiptLoading, setSampleReceiptLoading] = useState(false);
 
   // Fetch current plan from DB
   const fetchPlan = useCallback(async () => {
@@ -303,6 +327,87 @@ export default function BillingSettingsPage() {
     });
   };
 
+  const loadReceipts = useCallback(async () => {
+    setReceiptsLoading(true);
+    setReceiptsError("");
+    try {
+      const wid = getWid();
+      const res = await fetch(`/api/billing/receipts?wid=${wid}`, {
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || "Failed to load receipts");
+      }
+      setReceipts(json.receipts || []);
+    } catch (err: unknown) {
+      setReceiptsError(
+        err instanceof Error ? err.message : "Failed to load receipts"
+      );
+      setReceipts([]);
+    } finally {
+      setReceiptsLoading(false);
+    }
+  }, []);
+
+  const handleOpenReceipts = () => {
+    setIsReceiptsOpen(true);
+    void loadReceipts();
+  };
+
+  const handleDownloadSampleReceipt = async () => {
+    setSampleReceiptLoading(true);
+    try {
+      const res = await fetch("/api/billing/receipts/sample");
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error || "Failed to generate sample receipt");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ANSH-Apps-sample-receipt.pdf";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to generate sample receipt");
+    } finally {
+      setSampleReceiptLoading(false);
+    }
+  };
+
+  const handleDownloadReceipt = async (receiptId: string, receiptNumber: string) => {
+    setDownloadingReceiptId(receiptId);
+    try {
+      const wid = getWid();
+      const res = await fetch(
+        `/api/billing/receipts/${encodeURIComponent(receiptId)}?wid=${wid}`
+      );
+      if (!res.ok) {
+        const json = await res.json().catch(() => null);
+        throw new Error(json?.error || "Failed to download receipt");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${receiptNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      setReceiptsError(
+        err instanceof Error ? err.message : "Failed to download receipt"
+      );
+    } finally {
+      setDownloadingReceiptId(null);
+    }
+  };
+
   const handleOpenAddSeats = () => {
     setCheckoutMode("add_seats");
     setAdditionalSeats(1);
@@ -459,7 +564,9 @@ export default function BillingSettingsPage() {
       setPaymentSuccessMessage(
         verifyJson.message ||
           (verifyJson.scheduled
-            ? "Your Pro plan is scheduled to start after your trial ends."
+            ? isPaidProActive
+              ? "Your renewed Pro plan is scheduled to start after your current plan ends."
+              : "Your Pro plan is scheduled to start after your trial ends."
             : "Your workspace has been upgraded to the Pro plan.")
       );
       if (!verifyJson.scheduled) {
@@ -505,19 +612,44 @@ export default function BillingSettingsPage() {
     : null;
 
   const isPaidProActive = currentPlan === "pro" && !isTrial;
-  const canPurchasePro = !isPaidProActive && !hasScheduledPro;
+  // Paid Pro can renew (schedules after current expiry). Block only if already scheduled.
+  const canPurchasePro = !hasScheduledPro;
+  const canRenewPro = isPaidProActive && !hasScheduledPro;
 
   return (
     <div className="space-y-8">
 
       {/* ── Page header ── */}
-      <div>
-        <h1 className="font-heading text-2xl font-extrabold text-zinc-900 dark:text-zinc-50">
-          Billing &amp; Plans
-        </h1>
-        <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
-          Choose the right plan for your team. Upgrade any time.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="font-heading text-2xl font-extrabold text-zinc-900 dark:text-zinc-50">
+            Billing &amp; Plans
+          </h1>
+          <p className="mt-1.5 text-sm text-zinc-500 dark:text-zinc-400">
+            Choose the right plan for your team. Upgrade any time.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2 self-start">
+          {SHOW_TEST_RECEIPT_BUTTON ? (
+            <button
+              type="button"
+              onClick={() => void handleDownloadSampleReceipt()}
+              disabled={sampleReceiptLoading}
+              className="inline-flex items-center gap-2 rounded-xl border border-dashed border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-800 transition-all hover:bg-amber-100 disabled:opacity-60 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-300 dark:hover:bg-amber-950/50"
+            >
+              <DocumentTextIcon className="h-4 w-4" />
+              {sampleReceiptLoading ? "Generating…" : "Test receipt"}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleOpenReceipts}
+            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-sm font-bold text-zinc-700 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+          >
+            <DocumentTextIcon className="h-4 w-4 text-[var(--app-primary)]" />
+            My receipts
+          </button>
+        </div>
       </div>
 
       <FxDisclaimerBanner locale={billingLocale} />
@@ -536,13 +668,15 @@ export default function BillingSettingsPage() {
               <div className="mt-1 h-4 w-48 animate-pulse rounded bg-zinc-200 dark:bg-zinc-700" />
             ) : (
               <p className="mt-0.5 text-sm font-bold text-zinc-900 dark:text-zinc-50">
-                {hasScheduledPro
+                {hasScheduledPro && (isTrial || currentPlan === "trial")
                   ? `Free Trial — Active${formattedExpiry ? ` · Ends ${formattedExpiry}` : ""}${formattedScheduledProStart ? ` · Pro starts ${formattedScheduledProStart}` : ""}`
-                  : isTrial || currentPlan === "trial"
-                    ? `Free Trial — Active${formattedExpiry ? ` · Ends ${formattedExpiry}` : ""}`
-                    : currentPlan === "pro"
-                      ? `Pro Plan — Active${formattedExpiry ? ` · Renews ${formattedExpiry}` : ""}`
-                      : "Free Plan — No active subscription"}
+                  : hasScheduledPro && isPaidProActive
+                    ? `Pro Plan — Active${formattedExpiry ? ` · Ends ${formattedExpiry}` : ""}${formattedScheduledProStart ? ` · Renewal starts ${formattedScheduledProStart}` : ""}`
+                    : isTrial || currentPlan === "trial"
+                      ? `Free Trial — Active${formattedExpiry ? ` · Ends ${formattedExpiry}` : ""}`
+                      : currentPlan === "pro"
+                        ? `Pro Plan — Active${formattedExpiry ? ` · Renews ${formattedExpiry}` : ""}`
+                        : "Free Plan — No active subscription"}
               </p>
             )}
           </div>
@@ -839,15 +973,18 @@ export default function BillingSettingsPage() {
             onClick={handleOpenCheckout}
             disabled={!canPurchasePro || planLoading}
             className={`mt-6 flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm font-bold transition-all active:scale-[0.98] disabled:cursor-default disabled:opacity-60 ${
-              isProActive || hasScheduledPro
+              hasScheduledPro
                 ? "bg-teal-500/20 text-teal-700 dark:text-teal-300"
                 : "bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-white shadow-lg shadow-teal-600/25 hover:brightness-110"
             }`}
           >
-            {isPaidProActive ? (
-              "Current Plan"
-            ) : hasScheduledPro ? (
-              "Pro Purchased"
+            {hasScheduledPro ? (
+              isPaidProActive ? "Renewal Scheduled" : "Pro Purchased"
+            ) : canRenewPro ? (
+              <>
+                Renew now — starts after current plan
+                <ArrowRightIcon className="h-4 w-4" />
+              </>
             ) : isTrial ? (
               <>
                 Buy Pro — starts after trial
@@ -926,7 +1063,12 @@ export default function BillingSettingsPage() {
             disabled={!canPurchasePro}
             className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 px-4 py-2 text-xs font-bold text-white shadow-sm transition-all hover:brightness-110 active:scale-[0.98] disabled:cursor-default disabled:opacity-60"
           >
-            {hasScheduledPro ? "Pro Scheduled" : "Get Pro"} <ArrowRightIcon className="h-3.5 w-3.5" />
+            {hasScheduledPro
+              ? "Pro Scheduled"
+              : canRenewPro
+                ? "Renew now"
+                : "Get Pro"}{" "}
+            <ArrowRightIcon className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
@@ -964,12 +1106,19 @@ export default function BillingSettingsPage() {
                         <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
                           {checkoutMode === "add_seats"
                             ? "Add more team seats"
-                            : "Upgrade to Pro Plan"}
+                            : canRenewPro
+                              ? "Renew Pro Plan"
+                              : "Upgrade to Pro Plan"}
                         </h3>
                         <p className="text-[10px] text-zinc-400">Secure checkout powered by Razorpay</p>
                         {checkoutMode === "upgrade" && isTrial && formattedExpiry && (
                           <p className="mt-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
                             Pro billing starts after your trial ends on {formattedExpiry}.
+                          </p>
+                        )}
+                        {checkoutMode === "upgrade" && canRenewPro && formattedExpiry && (
+                          <p className="mt-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                            Renewal starts after your current plan ends on {formattedExpiry}.
                           </p>
                         )}
                       </div>
@@ -1191,6 +1340,117 @@ export default function BillingSettingsPage() {
                   </button>
                 </div>
               )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── My receipts modal ── */}
+      <AnimatePresence>
+        {isReceiptsOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsReceiptsOpen(false)}
+              className="fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-sm dark:bg-black/60"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 12 }}
+              className="fixed inset-0 z-50 m-auto flex h-fit max-h-[min(80vh,560px)] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-2xl dark:border-white/10 dark:bg-[#121418]"
+            >
+              <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--app-primary-soft)] dark:bg-teal-950/40">
+                    <DocumentTextIcon className="h-5 w-5 text-[var(--app-primary)]" />
+                  </div>
+                  <div>
+                    <h3 className="font-heading text-base font-bold text-zinc-900 dark:text-zinc-50">
+                      My receipts
+                    </h3>
+                    <p className="text-[10px] text-zinc-400">
+                      Download ANSH Apps payment PDFs
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsReceiptsOpen(false)}
+                  className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                >
+                  <XMarkIcon className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-5 py-4">
+                {receiptsLoading ? (
+                  <div className="space-y-3 py-2">
+                    {[1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className="h-16 animate-pulse rounded-xl bg-zinc-100 dark:bg-zinc-800"
+                      />
+                    ))}
+                  </div>
+                ) : receiptsError ? (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
+                    {receiptsError}
+                  </div>
+                ) : receipts.length === 0 ? (
+                  <div className="py-10 text-center">
+                    <DocumentTextIcon className="mx-auto h-10 w-10 text-zinc-300 dark:text-zinc-600" />
+                    <p className="mt-3 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                      No receipts yet
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Receipts appear here after a successful Pro purchase or seat add-on.
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="space-y-2.5">
+                    {receipts.map((r) => (
+                      <li
+                        key={r.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3.5 py-3 dark:border-white/[0.08] dark:bg-zinc-900/60"
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-zinc-900 dark:text-zinc-50">
+                            {r.label}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                            {r.invoiceNumber} · {r.receiptNumber} ·{" "}
+                            {new Date(r.date).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </p>
+                          <p className="mt-0.5 text-xs font-semibold text-teal-700 dark:text-teal-400">
+                            {formatChargeAmount(
+                              r.amountMinor / 100,
+                              r.currency === "USD" ? "USD" : "INR"
+                            )}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleDownloadReceipt(r.id, r.receiptNumber)
+                          }
+                          disabled={downloadingReceiptId === r.id}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[11px] font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:opacity-60 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                        >
+                          <ArrowDownTrayIcon className="h-3.5 w-3.5" />
+                          {downloadingReceiptId === r.id ? "…" : "PDF"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </motion.div>
           </>
         )}

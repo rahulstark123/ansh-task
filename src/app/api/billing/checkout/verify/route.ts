@@ -6,10 +6,20 @@ import {
   addBillingPeriod,
   isActiveTrialWorkspace,
 } from "@/lib/billing/subscription-lifecycle";
+import { createAndStoreReceiptForTransaction } from "@/lib/billing/create-receipt";
 import { TRIAL_PLAN } from "@/lib/plans";
 import { captureServerEvent } from "@/lib/posthog-server";
 
 export const dynamic = "force-dynamic";
+
+async function ensureReceipt(transactionId: string) {
+  try {
+    await createAndStoreReceiptForTransaction(transactionId);
+  } catch (error) {
+    // Payment must still succeed even if PDF/R2 fails — log for follow-up.
+    console.error("[billing/verify] Receipt store failed:", error);
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -70,6 +80,7 @@ export async function POST(request: Request) {
       : transaction.workspaceId;
 
     if (transaction.status === "SUCCESS") {
+      await ensureReceipt(transaction.id);
       return NextResponse.json({
         success: true,
         message: "Payment already verified.",
@@ -123,6 +134,8 @@ export async function POST(request: Request) {
         }),
       ]);
 
+      await ensureReceipt(transaction.id);
+
       await captureServerEvent({
         distinctId: `workspace_${wid}`,
         event: "add_seats_verified",
@@ -155,12 +168,20 @@ export async function POST(request: Request) {
       now
     );
 
-    const startsAt =
-      onActiveTrial && workspace?.planExpiresAt && workspace.planExpiresAt > now
+    // Defer start until current period ends for active trial OR paid Pro renewals.
+    const currentPeriodEnd =
+      workspace?.planExpiresAt && workspace.planExpiresAt > now
         ? new Date(workspace.planExpiresAt)
-        : new Date(now);
+        : null;
+    const shouldDeferStart =
+      Boolean(currentPeriodEnd) &&
+      (onActiveTrial || workspace?.plan === "pro");
+
+    const startsAt = shouldDeferStart && currentPeriodEnd
+      ? currentPeriodEnd
+      : new Date(now);
     const expiresAt = addBillingPeriod(startsAt, billingCycle);
-    const scheduled = onActiveTrial && startsAt > now;
+    const scheduled = shouldDeferStart && startsAt > now;
 
     const subscriptionUpdate = {
       status: scheduled ? "SCHEDULED" : "ACTIVE",
@@ -196,6 +217,8 @@ export async function POST(request: Request) {
       ...workspaceUpdates,
     ]);
 
+    await ensureReceipt(transaction.id);
+
     await captureServerEvent({
       distinctId: `workspace_${wid}`,
       event: "payment_verified",
@@ -204,19 +227,28 @@ export async function POST(request: Request) {
         billing_cycle: billingCycle,
         razorpay_order_id: razorpay_order_id,
         razorpay_payment_id: razorpay_payment_id,
-        plan: scheduled ? TRIAL_PLAN : "pro",
+        plan: scheduled ? (onActiveTrial ? TRIAL_PLAN : "pro") : "pro",
         scheduled,
+        renewal: scheduled && !onActiveTrial,
         starts_at: startsAt.toISOString(),
         expires_at: expiresAt.toISOString(),
       },
     });
 
+    const startLabel = startsAt.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+
     return NextResponse.json({
       success: true,
       message: scheduled
-        ? `Payment verified. Your Pro plan will start when your trial ends on ${startsAt.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}.`
+        ? onActiveTrial
+          ? `Payment verified. Your Pro plan will start when your trial ends on ${startLabel}.`
+          : `Payment verified. Your renewed Pro plan will start when your current plan ends on ${startLabel}.`
         : "Payment verified. Workspace upgraded to Pro!",
-      plan: scheduled ? TRIAL_PLAN : "pro",
+      plan: scheduled && onActiveTrial ? TRIAL_PLAN : "pro",
       scheduled,
       startsAt: startsAt.toISOString(),
       expiresAt: expiresAt.toISOString(),

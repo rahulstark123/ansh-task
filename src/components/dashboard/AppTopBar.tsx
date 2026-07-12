@@ -55,7 +55,7 @@ export function AppTopBar() {
   const { setTheme, theme } = useTheme();
   const { setIsAppearanceOpen } = useAppearance();
   const { guardPathAccess } = usePermissionAccess();
-  const { plan, isTrial, trialDaysLeft, ready: planReady, guardPlanPathAccess } = useWorkspacePlan();
+  const { plan, isTrial, trialDaysLeft, isPlanExpiringSoon, planDaysLeft, hasScheduledPro, ready: planReady, guardPlanPathAccess } = useWorkspacePlan();
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
     {
@@ -609,7 +609,7 @@ export function AppTopBar() {
             <Link
               href="/settings/billing"
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer ${
-                isTrial
+                isTrial || isPlanExpiringSoon
                   ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/10 hover:brightness-110"
                   : plan === "pro"
                   ? "bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-white shadow-md shadow-teal-500/10 hover:brightness-110"
@@ -619,7 +619,19 @@ export function AppTopBar() {
               {isTrial ? (
                 <>
                   <SparklesIcon className="h-3 w-3 animate-pulse text-amber-100" />
-                  Free Trial - {trialDaysLeft ?? 0} {trialDaysLeft === 1 ? "day" : "days"} left
+                  Free Trial - {trialDaysLeft ?? 0}{" "}
+                  {trialDaysLeft === 1 ? "day" : "days"} left
+                </>
+              ) : isPlanExpiringSoon ? (
+                <>
+                  <SparklesIcon className="h-3 w-3 animate-pulse text-amber-100" />
+                  Plan expiring in {planDaysLeft ?? 0}{" "}
+                  {planDaysLeft === 1 ? "day" : "days"} · Renew now
+                </>
+              ) : hasScheduledPro && plan === "pro" ? (
+                <>
+                  <SparklesIcon className="h-3 w-3 animate-pulse text-teal-200" />
+                  PRO · Renewal scheduled
                 </>
               ) : plan === "pro" ? (
                 <>
