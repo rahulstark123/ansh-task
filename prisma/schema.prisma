@@ -187,7 +187,7 @@ model Task {
   description String?
   notes       String?
   due         String
-  priority    String   @default("medium") // "low" | "medium" | "high"
+  priority    String   @default("medium") // "low" | "medium" | "high" | "urgent"
   category    String?
   labels      String[] @default([])
   assignee    String?

@@ -51,6 +51,7 @@ const FEATURES: Feature[] = [
     : []),
   { label: "Advanced analytics",            free: false,          pro: true             },
   { label: "Custom roles & permissions",    free: false,          pro: true             },
+  { label: "Mobile app (Soon)",             free: "Soon",         pro: "Soon"           },
   { label: "Activity audit log (Soon)",     free: false,          pro: "Soon"           },
   { label: "Export to CSV / PDF (Soon)",    free: false,          pro: "Soon"           },
 ];
@@ -708,6 +709,7 @@ export default function BillingSettingsPage() {
               "2 workspace members",
               "Brain Board included",
               "Kanban & table views",
+              "Mobile app (Soon)",
               TEAM_SPACE_ENABLED ? "No Team Space" : null,
               "No activity feed",
               "No announcements",
@@ -867,6 +869,7 @@ export default function BillingSettingsPage() {
               "Announcements (post & pin)",
               ...(TEAM_SPACE_ENABLED ? ["Team Space channels & DMs"] : []),
               "Brain Board included",
+              "Mobile app (Soon)",
               "Advanced analytics & reports",
               "Custom roles & permissions",
               "Priority email & chat support",

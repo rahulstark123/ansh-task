@@ -85,6 +85,33 @@ export async function fetchR2Object(key: string): Promise<{
   };
 }
 
+/**
+ * Copy file bytes into a Node Buffer that owns a plain ArrayBuffer.
+ * Next/undici can surface upload bytes as SharedArrayBuffer; AWS SDK's
+ * @smithy/util-buffer-from rejects those with:
+ * `The "input" argument must be ArrayBuffer. Received type object ([object SharedArrayBuffer])`.
+ */
+export function bufferFromArrayBufferLike(
+  bytes: ArrayBuffer | SharedArrayBuffer | ArrayBufferView
+): Buffer {
+  const view = ArrayBuffer.isView(bytes)
+    ? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+    : new Uint8Array(bytes);
+  // Buffer.from(Uint8Array) copies, so the result never views a SharedArrayBuffer.
+  return Buffer.from(view);
+}
+
+/** Ensure PutObject Body is never SharedArrayBuffer-backed. */
+function toAwsSafeBuffer(body: Buffer): Buffer {
+  if (
+    typeof SharedArrayBuffer !== "undefined" &&
+    body.buffer instanceof SharedArrayBuffer
+  ) {
+    return Buffer.from(body);
+  }
+  return body;
+}
+
 export async function uploadToR2(options: {
   key: string;
   body: Buffer;
@@ -94,7 +121,7 @@ export async function uploadToR2(options: {
     new PutObjectCommand({
       Bucket: getBucketName(),
       Key: options.key,
-      Body: options.body,
+      Body: toAwsSafeBuffer(options.body),
       ContentType: options.contentType || "application/octet-stream",
     })
   );

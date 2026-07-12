@@ -1,4 +1,4 @@
-export type TaskPriority = "low" | "medium" | "high";
+export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 export type TaskStatus = "todo" | "in_progress" | "on_hold" | "blocked" | "overdue" | "done" | (string & {});
 
