@@ -12,10 +12,24 @@ import {
   showPlanUpgradeModal,
 } from "@/lib/plans";
 
+/** Show paid-plan expiry CTA when this many days or fewer remain. */
+export const PLAN_EXPIRY_WARN_DAYS = 14;
+
+function daysUntil(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+}
+
 export function useWorkspacePlan() {
   const [plan, setPlan] = useState<WorkspacePlan>("free");
   const [isTrial, setIsTrial] = useState(false);
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(null);
+  const [planExpiresAt, setPlanExpiresAt] = useState<string | null>(null);
+  const [hasScheduledPro, setHasScheduledPro] = useState(false);
+  const [scheduledProStartsAt, setScheduledProStartsAt] = useState<string | null>(
+    null
+  );
   const [seatsUsed, setSeatsUsed] = useState(0);
   const [seatsPurchased, setSeatsPurchased] = useState<number | null>(null);
   const [seatsVacant, setSeatsVacant] = useState<number | null>(null);
@@ -42,6 +56,11 @@ export function useWorkspacePlan() {
         setPlan(nextPlan);
         setIsTrial(Boolean(json.isTrial));
         setTrialEndsAt(json.trialEndsAt || null);
+        setPlanExpiresAt(
+          json.subscriptionExpiresAt || json.planExpiresAt || null
+        );
+        setHasScheduledPro(Boolean(json.hasScheduledPro));
+        setScheduledProStartsAt(json.scheduledProStartsAt || null);
         setSeatsUsed(typeof json.seatsUsed === "number" ? json.seatsUsed : 0);
         setSeatsPurchased(
           typeof json.seatsPurchased === "number" ? json.seatsPurchased : null
@@ -50,13 +69,20 @@ export function useWorkspacePlan() {
           typeof json.seatsVacant === "number" ? json.seatsVacant : null
         );
         setBillingCycle(
-          json.billingCycle === "yearly" ? "yearly" : json.billingCycle === "monthly" ? "monthly" : null
+          json.billingCycle === "yearly"
+            ? "yearly"
+            : json.billingCycle === "monthly"
+              ? "monthly"
+              : null
         );
         setCanAddSeats(Boolean(json.canAddSeats));
       } else {
         setPlan("free");
         setIsTrial(false);
         setTrialEndsAt(null);
+        setPlanExpiresAt(null);
+        setHasScheduledPro(false);
+        setScheduledProStartsAt(null);
         setSeatsUsed(0);
         setSeatsPurchased(null);
         setSeatsVacant(null);
@@ -68,6 +94,9 @@ export function useWorkspacePlan() {
       setPlan("free");
       setIsTrial(false);
       setTrialEndsAt(null);
+      setPlanExpiresAt(null);
+      setHasScheduledPro(false);
+      setScheduledProStartsAt(null);
       setSeatsUsed(0);
       setSeatsPurchased(null);
       setSeatsVacant(null);
@@ -109,19 +138,24 @@ export function useWorkspacePlan() {
     [guardPlanFeature]
   );
 
-  const trialDaysLeft =
-    isTrial && trialEndsAt
-      ? Math.max(
-          0,
-          Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-        )
-      : null;
+  const trialDaysLeft = isTrial ? daysUntil(trialEndsAt) : null;
+  const planDaysLeft =
+    !isTrial && plan === "pro" ? daysUntil(planExpiresAt) : null;
+  const isPlanExpiringSoon =
+    planDaysLeft !== null &&
+    planDaysLeft <= PLAN_EXPIRY_WARN_DAYS &&
+    !hasScheduledPro;
 
   return {
     plan,
     isTrial,
     trialEndsAt,
     trialDaysLeft,
+    planExpiresAt,
+    planDaysLeft,
+    isPlanExpiringSoon,
+    hasScheduledPro,
+    scheduledProStartsAt,
     seatsUsed,
     seatsPurchased,
     seatsVacant,

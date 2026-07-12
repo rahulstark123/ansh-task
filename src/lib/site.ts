@@ -6,6 +6,9 @@ export const SITE_NAME = "ANSH Tasks";
 export const COMPANY_NAME = "ANSH Apps";
 export const COMPANY_URL = "https://anshapps.com";
 
+/** Government of India Udyam registration for ANSH Apps. */
+export const UDYAM_REGISTRATION_NUMBER = "UDYAM-BR-23-0127857";
+
 export const DEFAULT_TITLE =
   "ANSH Tasks — Task & Project Management App for MSME Teams";
 export const DEFAULT_DESCRIPTION =

@@ -258,8 +258,8 @@ export async function resolveWorkspaceBillingState(
       ...baseState,
       effectivePlan: "pro",
       isTrial: false,
-      hasScheduledPro: false,
-      scheduledProStartsAt: null,
+      hasScheduledPro: Boolean(scheduledPro),
+      scheduledProStartsAt: scheduledPro?.startsAt ?? null,
       billingCycle: normalizeBillingCycle(activeSubscription.billingCycle),
       activeSubscription,
     };
@@ -288,8 +288,8 @@ export async function resolveWorkspaceBillingState(
       ...baseState,
       effectivePlan: "pro",
       isTrial: false,
-      hasScheduledPro: false,
-      scheduledProStartsAt: null,
+      hasScheduledPro: Boolean(scheduledPro),
+      scheduledProStartsAt: scheduledPro?.startsAt ?? null,
       billingCycle,
       activeSubscription: null,
     };

@@ -90,6 +90,7 @@ model Workspace {
   conversations Conversation[]
   subscriptions Subscription[]
   transactions  Transaction[]
+  receipts      Receipt[]
   permissionSettings WorkspacePermissionSettings?
   announcements Announcement[]
 }
@@ -383,6 +384,7 @@ model Transaction {
   id              String   @id @default(uuid())
   status          String   @default("CREATED") // "CREATED" | "SUCCESS" | "FAILED"
   amountPaisa     Int
+  currency        String   @default("INR") // ISO charge currency (INR | USD | …)
   razorpayOrderId String
   razorpayPaymentId String?
   razorpaySignature String?
@@ -393,4 +395,31 @@ model Transaction {
   workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   subscriptionId  String
   subscription    Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  receipt         Receipt?
+}
+
+/// Payment receipt PDF stored in R2; one row per successful transaction (workspace-scoped).
+model Receipt {
+  id              String   @id @default(uuid())
+  invoiceNumber   String
+  receiptNumber   String
+  fileKey         String   // R2 object key
+  fileUrl         String   // Public / proxy URL for the PDF
+  amountPaisa     Int
+  currency        String   @default("INR")
+  planLabel       String?
+  billingCycle    String?
+  seats           Int?
+  label           String?
+  issuedAt        DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspaceId     Int
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  transactionId   String   @unique
+  transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, receiptNumber])
+  @@index([workspaceId, createdAt])
 }
