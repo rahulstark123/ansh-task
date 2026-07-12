@@ -4,6 +4,7 @@ import {
   compressionTargetForFolder,
 } from "@/lib/storage/compress-attachment.server";
 import {
+  bufferFromArrayBufferLike,
   buildWorkspaceStorageKey,
   sanitizeStorageSegment,
   uploadToR2,
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
     }
 
     const bytes = await file.arrayBuffer();
-    let buffer: Buffer = Buffer.from(bytes);
+    let buffer: Buffer = bufferFromArrayBufferLike(bytes);
     let contentType = file.type || "application/octet-stream";
     let fileName = sanitizeStorageSegment(file.name) || "file";
 

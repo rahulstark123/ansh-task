@@ -4,6 +4,7 @@ import {
   compressUploadBuffer,
 } from "@/lib/storage/compress-attachment.server";
 import {
+  bufferFromArrayBufferLike,
   buildSharedStorageKey,
   buildWorkspaceStorageKey,
   sanitizeStorageSegment,
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
 
     const bytes = await file.arrayBuffer();
     const compressed = await compressUploadBuffer(
-      Buffer.from(bytes),
+      bufferFromArrayBufferLike(bytes),
       file.type || "image/jpeg",
       file.name,
       COMPRESSION_TARGETS.profiles

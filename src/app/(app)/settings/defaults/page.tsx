@@ -15,8 +15,9 @@ import {
 import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
 
 const PRIORITY_OPTIONS = [
-  { value: "high", label: "High", dot: "bg-rose-500", activeColor: "border-rose-350 bg-rose-50/50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300" },
-  { value: "medium", label: "Medium", dot: "bg-amber-400", activeColor: "border-amber-300 bg-amber-50/50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300" },
+  { value: "urgent", label: "Urgent", dot: "bg-rose-500", activeColor: "border-rose-350 bg-rose-50/50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300" },
+  { value: "high", label: "High", dot: "bg-orange-400", activeColor: "border-orange-300 bg-orange-50/50 text-orange-700 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-300" },
+  { value: "medium", label: "Normal", dot: "bg-amber-500", activeColor: "border-amber-300 bg-amber-50/50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300" },
   { value: "low", label: "Low", dot: "bg-emerald-500", activeColor: "border-emerald-300 bg-emerald-50/50 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300" },
 ];
 
@@ -168,7 +169,7 @@ export default function WorkspaceDefaultsPage() {
               <ExclamationCircleIcon className="h-4 w-4" />
               Default Priority
             </label>
-            <div className="grid grid-cols-3 gap-3.5">
+            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-4">
               {PRIORITY_OPTIONS.map((opt) => {
                 const selected = selPriority === opt.value;
                 return (

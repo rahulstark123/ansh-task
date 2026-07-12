@@ -38,6 +38,12 @@ import type { NewTaskPayload, Task, TaskNote, TaskPriority, TaskStatus } from "@
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/context/ToastContext";
 import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
+import {
+  TASK_PRIORITY_OPTIONS,
+  normalizeTaskPriority,
+  priorityDot,
+  priorityLabel,
+} from "@/lib/task-priority";
 import { usePermissionAccess } from "@/lib/usePermissionAccess";
 import {
   FREE_PLAN_TASKS_PER_MONTH_LIMIT,
@@ -156,7 +162,7 @@ function mapApiTask(t: any): Task {
     title: t.title,
     description: t.description ?? undefined,
     due: normalizeTaskDue(t.due),
-    priority: (t.priority as Task["priority"]) ?? "medium",
+    priority: normalizeTaskPriority(t.priority),
     category: t.category ?? undefined,
     labels: t.labels ?? [],
     assignee: t.assignee ?? undefined,
@@ -204,22 +210,9 @@ function taskShowsOverdueBadge(task: Task): boolean {
 }
 
 const CATEGORIES = ["Product", "Engineering", "Design", "Operations", "Marketing", "General"];
-const PRIORITIES: TaskPriority[] = ["low", "medium", "high"];
 const ASSIGNEES = ["Unassigned", "Me", "Alex Rivera", "Jordan Lee", "Sam Chen"];
 
 const ALL_LABELS = ["Bug", "Feature", "Improvement", "Docs", "Design", "Meeting"];
-
-function priorityColor(p: TaskPriority) {
-  if (p === "high") return "text-rose-600 bg-rose-50 border-rose-100 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/40";
-  if (p === "medium") return "text-amber-600 bg-amber-50 border-amber-100 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900/40";
-  return "text-emerald-600 bg-emerald-50 border-emerald-100 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900/40";
-}
-
-function priorityDot(p: TaskPriority) {
-  if (p === "high") return "bg-rose-500 shadow-[0_0_0_3px_rgba(244,63,94,0.25)]";
-  if (p === "medium") return "bg-amber-400 shadow-[0_0_0_3px_rgba(251,191,36,0.25)]";
-  return "bg-emerald-400/90 shadow-[0_0_0_3px_rgba(52,211,153,0.2)]";
-}
 
 // Custom letter avatars with vibrant distinct colors
 function getAvatar(name: string) {
@@ -931,7 +924,7 @@ export function TaskDashboard({
         task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
 
-      const matchesPriority = filterPriority === "All" ? true : task.priority === filterPriority.toLowerCase();
+      const matchesPriority = filterPriority === "All" ? true : task.priority === filterPriority;
       const matchesAssignee = filterAssignees.length === 0
         ? true
         : (task.assignees && task.assignees.length > 0
@@ -1114,7 +1107,7 @@ export function TaskDashboard({
     if (selectedTask && selectedTask.id === id)
       setSelectedTask((prev) => prev ? { ...prev, priority: newPriority } : null);
     patchTask(id, { priority: newPriority });
-    showToast(`Task priority set to "${newPriority.charAt(0).toUpperCase() + newPriority.slice(1)}"`, "info");
+    showToast(`Task priority set to "${priorityLabel(newPriority)}"`, "info");
   }
 
   function handleAssigneeChange(id: string, newAssignee: string) {
@@ -1772,7 +1765,7 @@ export function TaskDashboard({
             {filterPriority !== "All" && (
               <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-[11px] font-bold text-zinc-655 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-300">
                 <span>Priority:</span>
-                <span className="text-zinc-450 font-normal">{filterPriority === "Medium" ? "Normal" : filterPriority}</span>
+                <span className="text-zinc-450 font-normal">{priorityLabel(filterPriority)}</span>
                 <button onClick={() => setFilterPriority("All")} className="text-zinc-450 hover:text-zinc-800 dark:hover:text-white cursor-pointer">
                   <XMarkIcon className="h-3.5 w-3.5" />
                 </button>
@@ -1930,12 +1923,9 @@ export function TaskDashboard({
                             <span className="min-w-0 flex-1 truncate text-[9px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
                               {task.category || "General"}
                             </span>
-                            <span
-                              className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider border ${priorityColor(
-                                task.priority
-                              )}`}
-                            >
-                              {task.priority}
+                            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-zinc-200/80 bg-zinc-50 px-2 py-0.5 text-[9px] font-bold tracking-wider text-zinc-600 dark:border-white/[0.08] dark:bg-zinc-900 dark:text-zinc-300">
+                              <span className={`h-1.5 w-1.5 rounded-full ${priorityDot(task.priority)}`} />
+                              {priorityLabel(task.priority)}
                             </span>
                           </div>
 
@@ -2224,29 +2214,31 @@ export function TaskDashboard({
                           )}
                         </td>
 
-                        {/* 4. Inline Priority selector */}
+                        {/* 4. Inline Priority selector — matches Add Task / Kanban (dot + label) */}
                         <td className="px-3 relative" ref={activeDropdown?.taskId === task.id && activeDropdown?.field === "priority" ? dropdownRef : null}>
                           <button
                             type="button"
                             onClick={() => setActiveDropdown(activeDropdown?.taskId === task.id && activeDropdown?.field === "priority" ? null : { taskId: task.id, field: "priority" })}
-                            className={`inline-flex items-center gap-1 text-[11px] font-bold uppercase px-2.5 py-0.5 rounded-full border hover:opacity-90 transition-opacity ${priorityColor(task.priority)}`}
+                            className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border border-zinc-200/80 bg-zinc-50 hover:bg-zinc-100 text-zinc-700 dark:border-white/[0.08] dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 transition-colors"
                           >
-                            <span>{task.priority}</span>
-                            <ChevronDownIcon className="h-3 w-3 opacity-70" />
+                            <span className={`h-1.5 w-1.5 rounded-full ${priorityDot(task.priority)}`} />
+                            <span>{priorityLabel(task.priority)}</span>
+                            <ChevronDownIcon className="h-3 w-3 opacity-60" />
                           </button>
                           {activeDropdown?.taskId === task.id && activeDropdown?.field === "priority" && (
-                            <div className="absolute left-3 top-10 z-30 w-32 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
-                              {PRIORITIES.map((pri) => (
+                            <div className="absolute left-3 top-10 z-30 w-40 rounded-xl border border-zinc-200 bg-white py-1.5 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
+                              {TASK_PRIORITY_OPTIONS.map((opt) => (
                                 <button
-                                  key={pri}
+                                  key={opt.value}
                                   type="button"
                                   onClick={() => {
-                                    handlePriorityChange(task.id, pri);
+                                    handlePriorityChange(task.id, opt.value);
                                     setActiveDropdown(null);
                                   }}
-                                  className="flex w-full items-center px-3 py-1.5 text-xs capitalize text-zinc-705 hover:bg-stone-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                                  className="flex w-full items-center gap-2 px-3 py-1.5 text-xs font-semibold text-zinc-705 hover:bg-stone-50 dark:text-zinc-300 dark:hover:bg-zinc-800"
                                 >
-                                  {pri}
+                                  <span className={`h-1.5 w-1.5 rounded-full ${opt.dot}`} />
+                                  {opt.label}
                                 </button>
                               ))}
                             </div>
@@ -2733,24 +2725,16 @@ export function TaskDashboard({
                         <CustomSelect
                           value={tempPriority}
                           onChange={(val) => setTempPriority(val as TaskPriority)}
-                          options={[
-                            { value: "low", label: "Low", colorDot: "bg-emerald-500" },
-                            { value: "medium", label: "Normal / Medium", colorDot: "bg-amber-400" },
-                            { value: "high", label: "High / Urgent", colorDot: "bg-rose-505" }
-                          ]}
+                          options={TASK_PRIORITY_OPTIONS.map((o) => ({
+                            value: o.value,
+                            label: o.label,
+                            colorDot: o.dot,
+                          }))}
                         />
                       ) : (
-                        <span className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold ${
-                          selectedTask.priority === "high" ? "bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/50" :
-                          selectedTask.priority === "medium" ? "bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50" :
-                          "bg-emerald-550/10 text-emerald-800 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50"
-                        }`}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${
-                            selectedTask.priority === "high" ? "bg-rose-500" :
-                            selectedTask.priority === "medium" ? "bg-amber-400" :
-                            "bg-emerald-400"
-                          }`} />
-                          {selectedTask.priority.charAt(0).toUpperCase() + selectedTask.priority.slice(1)}
+                        <span className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200/80 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-700 dark:border-white/[0.08] dark:bg-zinc-900 dark:text-zinc-300">
+                          <span className={`h-1.5 w-1.5 rounded-full ${priorityDot(selectedTask.priority)}`} />
+                          {priorityLabel(selectedTask.priority)}
                         </span>
                       )}
                     </div>
@@ -3351,20 +3335,20 @@ export function TaskDashboard({
                 <div>
                   <h4 className="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-2">Priority</h4>
                   <div className="flex flex-wrap gap-1.5">
-                    {["All", "Low", "Medium", "High"].map((p) => {
-                      const isSelected = p === "All" ? filterPriority === "All" : filterPriority === p;
+                    {[{ id: "All", label: "All" }, ...TASK_PRIORITY_OPTIONS.map((o) => ({ id: o.value, label: o.label }))].map((p) => {
+                      const isSelected = filterPriority === p.id || (p.id === "All" && filterPriority === "All");
                       return (
                         <button
-                          key={p}
+                          key={p.id}
                           type="button"
-                          onClick={() => setFilterPriority(p)}
+                          onClick={() => setFilterPriority(p.id === "All" ? "All" : p.id)}
                           className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition-all ${
                             isSelected
                               ? "border-[var(--app-primary)] bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)]"
                               : "border-zinc-200 bg-zinc-50 text-zinc-650 hover:bg-zinc-100 dark:border-white/5 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
                           }`}
                         >
-                          {p === "Medium" ? "Normal" : p}
+                          {p.label}
                         </button>
                       );
                     })}

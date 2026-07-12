@@ -22,6 +22,10 @@ import type { NewTaskPayload, Task, TaskPriority, TaskStatus } from "@/types/tas
 import { useWorkspaceDefaultsStore } from "@/store/workspaceDefaultsStore";
 import posthog from "@/lib/posthog-noop";
 import { uploadFileToStorage } from "@/lib/storage/client-upload";
+import {
+  TASK_PRIORITY_OPTIONS,
+  normalizeTaskPriority,
+} from "@/lib/task-priority";
 
 /* ─── constants ──────────────────────────────────────────── */
 
@@ -34,51 +38,7 @@ const CATEGORIES = [
   "Marketing",
 ] as const;
 
-const PRIORITY_OPTIONS: {
-  value: TaskPriority;
-  label: string;
-  key: string;
-  color: string;
-  ring: string;
-  dot: string;
-}[] = [
-  {
-    key: "urgent",
-    value: "high",
-    label: "Urgent",
-    color:
-      "text-rose-600 bg-rose-50 border-rose-200 dark:bg-rose-950/20 dark:text-rose-300 dark:border-rose-900/40",
-    ring: "ring-rose-400/40",
-    dot: "bg-rose-500",
-  },
-  {
-    key: "high",
-    value: "high",
-    label: "High",
-    color:
-      "text-orange-600 bg-orange-50 border-orange-200 dark:bg-orange-950/20 dark:text-orange-300 dark:border-orange-900/40",
-    ring: "ring-orange-400/40",
-    dot: "bg-orange-400",
-  },
-  {
-    key: "normal",
-    value: "medium",
-    label: "Normal",
-    color:
-      "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:text-amber-300 dark:border-amber-900/40",
-    ring: "ring-amber-400/40",
-    dot: "bg-amber-500",
-  },
-  {
-    key: "low",
-    value: "low",
-    label: "Low",
-    color:
-      "text-emerald-600 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-300 dark:border-emerald-900/40",
-    ring: "ring-emerald-400/40",
-    dot: "bg-emerald-500",
-  },
-];
+const PRIORITY_OPTIONS = TASK_PRIORITY_OPTIONS;
 
 const STATUS_OPTIONS: {
   value: TaskStatus;
@@ -417,7 +377,7 @@ export function AddTaskModal({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<string>("General");
-  const [priorityKey, setPriorityKey] = useState<string>("normal");
+  const [priority, setPriority] = useState<TaskPriority>("medium");
   const [status, setStatus] = useState<TaskStatus>("todo");
   const [dueMode, setDueMode] = useState<"none" | "date">("none");
   const [dueDate, setDueDate] = useState("");
@@ -470,9 +430,7 @@ export function AddTaskModal({
       setTitle(taskToEdit.title);
       setDescription(taskToEdit.description || "");
       setCategory(taskToEdit.category || "General");
-      const pKey =
-        PRIORITY_OPTIONS.find((p) => p.value === taskToEdit.priority)?.key || "normal";
-      setPriorityKey(pKey);
+      setPriority(normalizeTaskPriority(taskToEdit.priority));
       setStatus(
         (taskToEdit.status as TaskStatus) ||
           (taskToEdit.done ? "done" : "todo")
@@ -497,8 +455,7 @@ export function AddTaskModal({
 
     setProjectId(defaultProjectId ?? "__none__");
     setCategory(defaultCategory || "General");
-    const pKey = PRIORITY_OPTIONS.find((p) => p.value === defaultPriority)?.key || "normal";
-    setPriorityKey(pKey);
+    setPriority(normalizeTaskPriority(defaultPriority));
     setStatus(defaultStatusProp || (defaultStatus as TaskStatus) || "todo");
     setLabels(defaultLabels || []);
     setSelectedAssignees(defaultAssignees ?? (defaultAssignee ? [defaultAssignee] : []));
@@ -567,7 +524,7 @@ export function AddTaskModal({
       title: t,
       description: description.trim(),
       category,
-      priority: PRIORITY_OPTIONS.find((p) => p.key === priorityKey)?.value ?? "medium",
+      priority: priority,
       status,
       dueLabel: computedDueLabel(),
       labels,
@@ -611,8 +568,7 @@ export function AddTaskModal({
     setTitle("");
     setDescription("");
     setCategory(defaultCategory || "General");
-    const pKey = PRIORITY_OPTIONS.find((p) => p.value === defaultPriority)?.key || "normal";
-    setPriorityKey(pKey);
+    setPriority(normalizeTaskPriority(defaultPriority));
     setStatus(defaultStatusProp || (defaultStatus as TaskStatus) || "todo");
     setDueMode("none");
     setDueDate("");
@@ -649,7 +605,7 @@ export function AddTaskModal({
   }));
 
   const priorityOptions: DropdownOption[] = PRIORITY_OPTIONS.map((p) => ({
-    value: p.key,
+    value: p.value,
     label: p.label,
     dot: p.dot,
   }));
@@ -987,8 +943,8 @@ export function AddTaskModal({
                     Priority
                   </label>
                   <StyledDropdown
-                    value={priorityKey}
-                    onChange={setPriorityKey}
+                    value={priority}
+                    onChange={(v) => setPriority(normalizeTaskPriority(v))}
                     options={priorityOptions}
                   />
                 </div>
