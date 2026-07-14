@@ -5,9 +5,13 @@ export const SITE_URL =
 export const SITE_NAME = "ANSH Tasks";
 export const COMPANY_NAME = "ANSH Apps";
 export const COMPANY_URL = "https://anshapps.com";
+export const SAATHI_URL = "https://saathi.anshapps.com";
 
 /** Government of India Udyam registration for ANSH Apps. */
 export const UDYAM_REGISTRATION_NUMBER = "UDYAM-BR-23-0127857";
+
+/** GST Identification Number (GSTIN) for ANSH Apps. */
+export const GSTIN = "10DIUPR1358M1ZP";
 
 export const DEFAULT_TITLE =
   "ANSH Tasks — Task & Project Management App for MSME Teams";

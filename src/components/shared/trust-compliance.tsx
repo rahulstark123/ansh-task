@@ -1,5 +1,5 @@
 import { BadgeCheck, Building2, ShieldCheck } from "lucide-react";
-import { UDYAM_REGISTRATION_NUMBER } from "@/lib/site";
+import { GSTIN, UDYAM_REGISTRATION_NUMBER } from "@/lib/site";
 
 type TrustComplianceProps = {
   showDescription?: boolean;
@@ -67,13 +67,23 @@ export function TrustCompliance({
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
             Government of India Udyam Registered
           </p>
-          <div className="mt-4 w-fit max-w-full rounded-xl border border-zinc-200/70 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
-            <p className="text-[11px] uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-              Udyam Registration Number
-            </p>
-            <p className="mt-1 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-              {UDYAM_REGISTRATION_NUMBER}
-            </p>
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <div className="w-fit max-w-full rounded-xl border border-zinc-200/70 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+              <p className="text-[11px] uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                Udyam Registration Number
+              </p>
+              <p className="mt-1 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                {UDYAM_REGISTRATION_NUMBER}
+              </p>
+            </div>
+            <div className="w-fit max-w-full rounded-xl border border-zinc-200/70 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+              <p className="text-[11px] uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                GSTIN
+              </p>
+              <p className="mt-1 font-mono text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                {GSTIN}
+              </p>
+            </div>
           </div>
         </div>
 

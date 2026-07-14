@@ -4,6 +4,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFPage, type PDFFont } from "pdf
 import {
   COMPANY_NAME,
   SITE_NAME,
+  GSTIN,
   UDYAM_REGISTRATION_NUMBER,
 } from "@/lib/site";
 
@@ -436,7 +437,7 @@ export async function buildReceiptPdf(input: ReceiptPdfInput): Promise<Buffer> {
 
   // Footer — professional company strip
   const slate400 = rgb(0.58, 0.64, 0.72);
-  const footerTop = 108;
+  const footerTop = 122;
 
   page.drawLine({
     start: { x: left, y: footerTop },
@@ -479,30 +480,37 @@ export async function buildReceiptPdf(input: ReceiptPdfInput): Promise<Buffer> {
     slate500
   );
   centerText(
-    `Support: support@anshapps.com  |  Website: anshapps.com`,
+    `GSTIN: ${GSTIN}`,
     footerTop - 60,
     8,
     font,
     slate500
   );
   centerText(
-    "For billing support contact support@anshapps.com",
+    `Support: support@anshapps.com  |  Website: anshapps.com`,
     footerTop - 74,
+    8,
+    font,
+    slate500
+  );
+  centerText(
+    "For billing support contact support@anshapps.com",
+    footerTop - 88,
     7,
     font,
     slate400
   );
 
   page.drawLine({
-    start: { x: left + contentWidth * 0.22, y: footerTop - 84 },
-    end: { x: right - contentWidth * 0.22, y: footerTop - 84 },
+    start: { x: left + contentWidth * 0.22, y: footerTop - 98 },
+    end: { x: right - contentWidth * 0.22, y: footerTop - 98 },
     thickness: 0.5,
     color: slate200,
   });
 
   centerText(
     "This is a computer-generated receipt for your subscription payment. Thank you for choosing ANSH Apps.",
-    footerTop - 98,
+    footerTop - 112,
     7,
     font,
     slate400

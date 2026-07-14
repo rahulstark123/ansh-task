@@ -34,9 +34,10 @@ import type { BillingLocaleInfo } from "@/lib/billing/charge-region";
 import { formatChargeAmount } from "@/lib/billing/charge-region";
 import { TEAM_SPACE_ENABLED } from "@/config/features";
 import { LANDING_FAQS } from "@/lib/landing-seo";
+import { SAATHI_URL } from "@/lib/site";
 import { BharatTagline } from "@/components/shared/bharat-tagline";
 import { TrustCompliance } from "@/components/shared/trust-compliance";
-import { MsmeBadge, UdyamNumberBadge } from "@/components/shared/msme-badge";
+import { GstinBadge, MsmeBadge, UdyamNumberBadge } from "@/components/shared/msme-badge";
 
 // Define accent options to showcase the app's dynamic styling
 const ACCENTS = [
@@ -391,6 +392,18 @@ export function LandingPageClient() {
 
           {/* Desktop Right Actions */}
           <div className="hidden md:flex items-center gap-4">
+            <a
+              href={SAATHI_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center rounded-full border border-zinc-600/70 bg-[#0d1117] px-4 py-1.5 text-[13px] font-bold tracking-wide transition hover:border-zinc-500 hover:bg-[#12181f] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF9933]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-50 dark:focus-visible:ring-offset-zinc-950"
+              aria-label="Become an ANSH Saathi"
+            >
+              <span className="bg-gradient-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent">
+                ANSH Saathi
+              </span>
+            </a>
+
             {/* Theme Selector */}
             <div className="flex items-center rounded-lg bg-zinc-200/60 p-1 dark:bg-zinc-900 border border-zinc-300/30 dark:border-zinc-800">
               <button
@@ -425,7 +438,18 @@ export function LandingPageClient() {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex md:hidden items-center gap-3">
+          <div className="flex md:hidden items-center gap-2.5">
+            <a
+              href={SAATHI_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center rounded-full border border-zinc-600/70 bg-[#0d1117] px-3 py-1 text-[11px] font-bold tracking-wide"
+              aria-label="Become an ANSH Saathi"
+            >
+              <span className="bg-gradient-to-r from-[#FF9933] via-white to-[#138808] bg-clip-text text-transparent">
+                ANSH Saathi
+              </span>
+            </a>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2 rounded-lg text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/50 dark:hover:bg-zinc-900"
@@ -1458,6 +1482,58 @@ export function LandingPageClient() {
       </section>
       )}
 
+      {/* ANSH Saathi partner CTA */}
+      <section
+        id="ansh-saathi"
+        className="py-16 border-t border-zinc-200/50 dark:border-zinc-800/40 relative z-10 scroll-mt-24"
+        aria-labelledby="ansh-saathi-heading"
+      >
+        <div className={LANDING_SHELL}>
+          <div className="relative overflow-hidden rounded-[1.25rem] bg-[#151515] shadow-[0_24px_60px_-28px_rgba(0,0,0,0.55)]">
+            <div
+              className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#FF9933] via-white to-[#138808]"
+              aria-hidden="true"
+            />
+            <div className="flex flex-col gap-8 px-6 py-8 sm:px-8 sm:py-10 lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:px-10 lg:py-11">
+              <div className="max-w-2xl space-y-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#FF9933]">
+                  ANSH Saathi
+                </p>
+                <h2
+                  id="ansh-saathi-heading"
+                  className="font-heading text-2xl font-bold tracking-tight text-white sm:text-3xl"
+                >
+                  Become an ANSH Saathi.
+                </h2>
+                <div
+                  className="h-0.5 w-12 rounded-full bg-gradient-to-r from-[#FF9933] via-white to-[#138808]"
+                  aria-hidden="true"
+                />
+                <p className="text-base font-semibold text-[#FF9933] sm:text-lg">
+                  Saath Chalein. Saath Badhein.
+                </p>
+                <p className="max-w-xl text-sm leading-relaxed text-zinc-400 sm:text-[15px]">
+                  Walk alongside Indian businesses. Help MSMEs grow with simple
+                  software — and build your own recurring income. First 20 founding
+                  Saathis. No joining fee.
+                </p>
+              </div>
+              <div className="shrink-0">
+                <a
+                  href={SAATHI_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#5b21b6] via-[#7c3aed] to-[#a855f7] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_0_28px_rgba(124,58,237,0.45)] transition hover:brightness-110 hover:shadow-[0_0_36px_rgba(124,58,237,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#151515]"
+                >
+                  Become a Saathi
+                  <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* SEO Optimized FAQ Accordion (Section 4) */}
       <section id="faq" className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 bg-zinc-100/40 dark:bg-zinc-950/20 relative z-10 scroll-mt-24">
         <div className={`${LANDING_SHELL} max-w-4xl`}>
@@ -1583,6 +1659,7 @@ export function LandingPageClient() {
               <div className="flex flex-col items-start gap-2.5 pt-1">
                 <MsmeBadge />
                 <UdyamNumberBadge />
+                <GstinBadge />
               </div>
             </div>
 
