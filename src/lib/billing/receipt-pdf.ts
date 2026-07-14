@@ -7,6 +7,7 @@ import {
   GSTIN,
   UDYAM_REGISTRATION_NUMBER,
 } from "@/lib/site";
+import { GST_RATE_PERCENT, appliesIndianGst, splitGstInclusive } from "@/lib/billing/gst";
 
 export type ReceiptPdfInput = {
   receiptNumber: string;
@@ -341,10 +342,20 @@ export async function buildReceiptPdf(input: ReceiptPdfInput): Promise<Buffer> {
     font,
     color: slate900,
   });
-  const money = formatMoney(input.amountMinor, input.currency);
-  const moneyW = fontBold.widthOfTextAtSize(money, 10);
-  page.drawText(money, {
-    x: right - 14 - moneyW,
+  const showGst = appliesIndianGst(input.currency);
+  const gst = showGst
+    ? splitGstInclusive(input.amountMinor)
+    : {
+        exclusiveMinor: input.amountMinor,
+        gstMinor: 0,
+        totalMinor: input.amountMinor,
+      };
+  const exclusiveMoney = formatMoney(gst.exclusiveMinor, input.currency);
+  const gstMoney = formatMoney(gst.gstMinor, input.currency);
+  const totalMoney = formatMoney(gst.totalMinor, input.currency);
+  const lineMoneyW = fontBold.widthOfTextAtSize(exclusiveMoney, 10);
+  page.drawText(exclusiveMoney, {
+    x: right - 14 - lineMoneyW,
     y: qtyY,
     size: 10,
     font: fontBold,
@@ -361,23 +372,70 @@ export async function buildReceiptPdf(input: ReceiptPdfInput): Promise<Buffer> {
 
   y -= 24;
   const totalsX = left + contentWidth * 0.55;
-  page.drawText("Subtotal", {
-    x: totalsX,
-    y,
-    size: 9,
-    font,
-    color: slate500,
-  });
-  const subtotalW = font.widthOfTextAtSize(money, 9);
-  page.drawText(money, {
-    x: right - 14 - subtotalW,
-    y,
-    size: 9,
-    font,
-    color: slate900,
-  });
 
-  y -= 28;
+  if (showGst) {
+    page.drawText("Taxable value", {
+      x: totalsX,
+      y,
+      size: 9,
+      font,
+      color: slate500,
+    });
+    const taxableW = font.widthOfTextAtSize(exclusiveMoney, 9);
+    page.drawText(exclusiveMoney, {
+      x: right - 14 - taxableW,
+      y,
+      size: 9,
+      font,
+      color: slate900,
+    });
+
+    y -= 16;
+    page.drawText(`GST (${GST_RATE_PERCENT}%)`, {
+      x: totalsX,
+      y,
+      size: 9,
+      font,
+      color: slate500,
+    });
+    const gstW = font.widthOfTextAtSize(gstMoney, 9);
+    page.drawText(gstMoney, {
+      x: right - 14 - gstW,
+      y,
+      size: 9,
+      font,
+      color: slate900,
+    });
+
+    y -= 16;
+    page.drawText(pdfSafe(`GSTIN: ${GSTIN}`), {
+      x: totalsX,
+      y,
+      size: 7,
+      font,
+      color: slate500,
+    });
+
+    y -= 30;
+  } else {
+    page.drawText("Subtotal", {
+      x: totalsX,
+      y,
+      size: 9,
+      font,
+      color: slate500,
+    });
+    const subtotalW = font.widthOfTextAtSize(exclusiveMoney, 9);
+    page.drawText(exclusiveMoney, {
+      x: right - 14 - subtotalW,
+      y,
+      size: 9,
+      font,
+      color: slate900,
+    });
+    y -= 28;
+  }
+
   page.drawRectangle({
     x: totalsX - 8,
     y: y - 6,
@@ -392,8 +450,8 @@ export async function buildReceiptPdf(input: ReceiptPdfInput): Promise<Buffer> {
     font: fontBold,
     color: teal600,
   });
-  const totalW = fontBold.widthOfTextAtSize(money, 11);
-  page.drawText(money, {
+  const totalW = fontBold.widthOfTextAtSize(totalMoney, 11);
+  page.drawText(totalMoney, {
     x: right - 14 - totalW,
     y: y + 4,
     size: 11,

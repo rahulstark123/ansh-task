@@ -1167,6 +1167,12 @@ export function LandingPageClient() {
                     <div className={`mt-1 text-xs font-semibold ${plan.highlighted ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400"}`}>
                       {plan.cadence}
                     </div>
+                    {plan.id === "pro" &&
+                      (billingLocale?.chargeCurrency ?? "INR") === "INR" && (
+                      <div className={`mt-1 text-[11px] font-semibold ${plan.highlighted ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400"}`}>
+                        + GST 18%
+                      </div>
+                    )}
                   </div>
                 </div>
 

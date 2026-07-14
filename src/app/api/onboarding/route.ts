@@ -42,6 +42,11 @@ export async function POST(request: Request) {
     const result = await prisma.$transaction(async (tx: any) => {
       const trialEndsAt = getTrialEndsAt();
 
+      const rawSaathiCode =
+        typeof workspace?.saathiCode === "string" ? workspace.saathiCode.trim().toUpperCase() : "";
+      const saathiCode =
+        rawSaathiCode.length > 0 && rawSaathiCode.length <= 32 ? rawSaathiCode : null;
+
       // 1. Create Workspace
       const createdWorkspace = await tx.workspace.create({
         data: {
@@ -49,6 +54,7 @@ export async function POST(request: Request) {
           industry: workspace.industry,
           size: workspace.size,
           domain: workspace.domain || null,
+          saathiCode,
           plan: TRIAL_PLAN,
           planExpiresAt: trialEndsAt,
         }
@@ -188,6 +194,7 @@ export async function POST(request: Request) {
         workspace_name: result.workspace.name,
         workspace_industry: workspace.industry,
         workspace_size: workspace.size,
+        saathi_code: result.workspace.saathiCode || null,
         tasks_seeded: result.tasksCount,
         user_email: result.user.email,
         user_job_title: user.jobTitle,

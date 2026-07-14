@@ -9,6 +9,7 @@ import { getRazorpayConfig, getRazorpayInstance } from "@/lib/billing/razorpay";
 import { calculateProratedAddSeats } from "@/lib/billing/proration";
 import { getWorkspaceSeatsInfo } from "@/lib/billing/seats";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { withGstForCurrency } from "@/lib/billing/gst";
 
 export const dynamic = "force-dynamic";
 
@@ -126,7 +127,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: message }, { status: 400 });
     }
 
-    const amountMinor = quote.amountPaisa;
+    const exclusiveMinor = quote.amountPaisa;
+    const { exclusiveMinor: taxableMinor, gstMinor, totalMinor: amountMinor } =
+      withGstForCurrency(exclusiveMinor, currency);
 
     const rzp = getRazorpayInstance();
     const order = await rzp.orders.create({
@@ -143,6 +146,9 @@ export async function POST(request: Request) {
         periodExpiresAt: periodExpiresAt.toISOString(),
         countryCode,
         chargeCurrency: currency,
+        taxableMinor: String(taxableMinor),
+        gstMinor: String(gstMinor),
+        gstPercent: currency === "INR" ? "18" : "0",
       },
     });
 

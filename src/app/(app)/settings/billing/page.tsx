@@ -9,7 +9,8 @@ import {
   buildRazorpayPrefill,
   buildRazorpayReadonly,
 } from "@/lib/billing/razorpay-prefill";
-import { SITE_URL } from "@/lib/site";
+import { SITE_URL, GSTIN } from "@/lib/site";
+import { GST_RATE_PERCENT, minorToMajorAmount, withGstForCurrency } from "@/lib/billing/gst";
 import { TEAM_SPACE_ENABLED } from "@/config/features";
 import { supabase } from "@/lib/supabase";
 import posthog from "@/lib/posthog-noop";
@@ -144,8 +145,11 @@ export default function BillingSettingsPage() {
   const [downloadingReceiptId, setDownloadingReceiptId] = useState<string | null>(
     null
   );
+  const [helpedBySaathi, setHelpedBySaathi] = useState(false);
+  const [workspaceSaathiCode, setWorkspaceSaathiCode] = useState<string | null>(null);
+  const [saathiCodeInput, setSaathiCodeInput] = useState("");
   // Keep sample receipt tooling; set true only while previewing PDF layout.
-  const SHOW_TEST_RECEIPT_BUTTON = false;
+  const SHOW_TEST_RECEIPT_BUTTON = true;
   const [sampleReceiptLoading, setSampleReceiptLoading] = useState(false);
 
   // Fetch current plan from DB
@@ -306,6 +310,13 @@ export default function BillingSettingsPage() {
         ? monthlyPrice * checkoutUsers
         : yearlyPriceTotal * checkoutUsers;
 
+  /** Tax-exclusive major units → GST only for INR. */
+  const isInrCharge = chargeCurrency === "INR";
+  const checkoutGst = withGstForCurrency(Math.round(subtotal * 100), chargeCurrency);
+  const taxableAmount = minorToMajorAmount(checkoutGst.exclusiveMinor);
+  const gstAmount = minorToMajorAmount(checkoutGst.gstMinor);
+  const payableTotal = minorToMajorAmount(checkoutGst.totalMinor);
+
   const renewalDateLabel = (subscriptionExpiresAt ?? planExpiresAt)
     ? new Date(subscriptionExpiresAt ?? planExpiresAt!).toLocaleDateString(
         "en-IN",
@@ -313,18 +324,33 @@ export default function BillingSettingsPage() {
       )
     : null;
 
-  const handleOpenCheckout = () => {
+  const handleOpenCheckout = async () => {
     setCheckoutMode("upgrade");
     setCheckoutUsers(userCount || 1);
     setPaymentStatus("idle");
     setPaymentError("");
     setPaymentSuccessMessage("");
+    setHelpedBySaathi(false);
+    setWorkspaceSaathiCode(null);
+    setSaathiCodeInput("");
     setIsCheckoutOpen(true);
     posthog.capture("upgrade_checkout_opened", {
       billing_cycle: billing,
       seat_count: userCount || 1,
       current_plan: currentPlan,
     });
+    try {
+      const wid = getWid();
+      const res = await fetch(`/api/workspace/company?wid=${wid}`, {
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (json?.success && json?.company?.saathiCode) {
+        setWorkspaceSaathiCode(String(json.company.saathiCode));
+      }
+    } catch {
+      /* optional field */
+    }
   };
 
   const loadReceipts = useCallback(async () => {
@@ -413,6 +439,7 @@ export default function BillingSettingsPage() {
     setAdditionalSeats(1);
     setPaymentStatus("idle");
     setPaymentError("");
+    setHelpedBySaathi(false);
     setIsCheckoutOpen(true);
     posthog.capture("add_seats_checkout_opened", {
       seats_used: seatsUsed,
@@ -420,7 +447,18 @@ export default function BillingSettingsPage() {
     });
   };
 
+  const effectiveSaathiCode =
+    workspaceSaathiCode || saathiCodeInput.trim().toUpperCase() || null;
+  const saathiRequiredMissing =
+    checkoutMode === "upgrade" && helpedBySaathi && !effectiveSaathiCode;
+
   const handleProceedToPay = async () => {
+    if (saathiRequiredMissing) {
+      setPaymentError("Please enter your ANSH Saathi code to continue.");
+      setPaymentStatus("error");
+      return;
+    }
+
     setPaymentStatus("processing");
     setPaymentError("");
 
@@ -472,6 +510,10 @@ export default function BillingSettingsPage() {
               seats: checkoutUsers,
               email,
               billingCountry: billingLocale?.countryCode,
+              helpedBySaathi,
+              ...(helpedBySaathi && effectiveSaathiCode
+                ? { saathiCode: effectiveSaathiCode }
+                : {}),
             };
 
       const orderRes = await fetch(orderEndpoint, {
@@ -556,8 +598,9 @@ export default function BillingSettingsPage() {
             checkoutMode === "add_seats" ? subscriptionBilling : billing,
           seat_count:
             checkoutMode === "add_seats" ? additionalSeats : checkoutUsers,
-          amount: subtotal,
+          amount: payableTotal,
           currency: chargeCurrency,
+          gst_percent: isInrCharge ? GST_RATE_PERCENT : 0,
         }
       );
       setPaymentStatus("success");
@@ -912,6 +955,11 @@ export default function BillingSettingsPage() {
               </AnimatePresence>
               <span className={`mb-1 text-sm font-medium ${isProActive ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-400"}`}>/ user / month</span>
             </div>
+            {chargeCurrency === "INR" && (
+              <p className={`mt-1 text-[11px] font-semibold ${isProActive ? "text-zinc-500 dark:text-zinc-400" : "text-zinc-400"}`}>
+                + GST 18%
+              </p>
+            )}
 
             {!loadingUsers && userCount > 0 && (
               <AnimatePresence mode="wait">
@@ -1202,10 +1250,12 @@ export default function BillingSettingsPage() {
                           </div>
                           <div className="flex justify-between items-baseline pt-1 border-t border-zinc-200/80 dark:border-white/5">
                             <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                              Prorated total (until renewal)
+                              {isInrCharge
+                                ? "Prorated subtotal (excl. GST)"
+                                : "Prorated total (until renewal)"}
                             </span>
                             <div className="text-right">
-                              <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">
+                              <span className="text-sm font-bold text-zinc-900 dark:text-zinc-50">
                                 {formatPrice(
                                   addSeatsProration.amountMajor,
                                   billingLocale
@@ -1235,23 +1285,138 @@ export default function BillingSettingsPage() {
                           </div>
                           <div className="flex justify-between items-baseline pt-1">
                             <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
-                              Total ({checkoutUsers}{" "}
-                              {checkoutUsers === 1 ? "user" : "users"})
+                              {isInrCharge
+                                ? `Subtotal (${checkoutUsers} ${
+                                    checkoutUsers === 1 ? "user" : "users"
+                                  }, excl. GST)`
+                                : `Total (${checkoutUsers} ${
+                                    checkoutUsers === 1 ? "user" : "users"
+                                  })`}
                             </span>
-                            <div className="text-right">
-                              <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">
-                                {formatPrice(subtotal, billingLocale)}
-                              </span>
-                              <span className="block text-[9px] text-zinc-400 font-medium">
-                                {billing === "monthly"
-                                  ? `billed monthly in ${chargeCurrency}`
-                                  : `billed annually in ${chargeCurrency}`}
-                              </span>
-                            </div>
+                            <span className="text-sm font-bold text-zinc-900 dark:text-zinc-50">
+                              {formatPrice(taxableAmount, billingLocale)}
+                            </span>
                           </div>
                         </>
                       )}
+
+                      {(checkoutMode === "upgrade" ||
+                        (checkoutMode === "add_seats" && addSeatsProration)) &&
+                        isInrCharge && (
+                        <>
+                          <div className="flex justify-between text-xs text-zinc-500 font-semibold pt-1 border-t border-zinc-200/80 dark:border-white/5">
+                            <span>GST ({GST_RATE_PERCENT}%)</span>
+                            <span>{formatPrice(gstAmount, billingLocale)}</span>
+                          </div>
+                          <div className="flex justify-between items-baseline pt-1">
+                            <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                              Total payable
+                            </span>
+                            <div className="text-right">
+                              <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">
+                                {formatPrice(payableTotal, billingLocale)}
+                              </span>
+                              <span className="block text-[9px] text-zinc-400 font-medium">
+                                {checkoutMode === "add_seats"
+                                  ? `incl. GST · ${chargeCurrency}`
+                                  : billing === "monthly"
+                                    ? `billed monthly in ${chargeCurrency} · incl. GST`
+                                    : `billed annually in ${chargeCurrency} · incl. GST`}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="pt-1 text-[9px] font-medium tracking-wide text-zinc-400 dark:text-zinc-500">
+                            GSTIN:{" "}
+                            <span className="font-mono text-zinc-500 dark:text-zinc-400">
+                              {GSTIN}
+                            </span>
+                          </p>
+                        </>
+                      )}
+
+                      {(checkoutMode === "upgrade" ||
+                        (checkoutMode === "add_seats" && addSeatsProration)) &&
+                        !isInrCharge && (
+                        <div className="flex justify-between items-baseline pt-1 border-t border-zinc-200/80 dark:border-white/5">
+                          <span className="text-xs font-bold text-zinc-700 dark:text-zinc-300">
+                            Total payable
+                          </span>
+                          <div className="text-right">
+                            <span className="text-lg font-black text-zinc-900 dark:text-zinc-50">
+                              {formatPrice(payableTotal, billingLocale)}
+                            </span>
+                            <span className="block text-[9px] text-zinc-400 font-medium">
+                              {checkoutMode === "add_seats"
+                                ? chargeCurrency
+                                : billing === "monthly"
+                                  ? `billed monthly in ${chargeCurrency}`
+                                  : `billed annually in ${chargeCurrency}`}
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
+
+                    {checkoutMode === "upgrade" && (
+                      <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-4 py-3 dark:border-white/10 dark:bg-zinc-900/40">
+                        <label className="flex cursor-pointer items-center justify-between gap-3">
+                          <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                            Helped by ANSH Saathi
+                          </span>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={helpedBySaathi}
+                            onClick={() => setHelpedBySaathi((v) => !v)}
+                            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
+                              helpedBySaathi
+                                ? "bg-[var(--app-primary)]"
+                                : "bg-zinc-300 dark:bg-zinc-700"
+                            }`}
+                          >
+                            <span
+                              className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                                helpedBySaathi ? "translate-x-5" : "translate-x-0"
+                              }`}
+                            />
+                          </button>
+                        </label>
+                        {helpedBySaathi && (
+                          <div className="mt-2.5 space-y-2">
+                            {workspaceSaathiCode ? (
+                              <p className="rounded-lg border border-zinc-200/80 bg-white px-3 py-2 font-mono text-[11px] font-semibold tracking-wide text-zinc-800 dark:border-white/10 dark:bg-zinc-950/50 dark:text-zinc-200">
+                                <span className="block text-[9px] font-bold uppercase tracking-widest text-zinc-400">
+                                  Saathi Code
+                                </span>
+                                <span className="mt-0.5 block">{workspaceSaathiCode}</span>
+                              </p>
+                            ) : (
+                              <div>
+                                <label
+                                  htmlFor="checkout-saathi-code"
+                                  className="mb-1.5 block text-[9px] font-bold uppercase tracking-widest text-zinc-500"
+                                >
+                                  Saathi Code <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                  id="checkout-saathi-code"
+                                  type="text"
+                                  value={saathiCodeInput}
+                                  onChange={(e) => setSaathiCodeInput(e.target.value)}
+                                  placeholder="Mention the Saathi Code here"
+                                  maxLength={32}
+                                  autoComplete="off"
+                                  className="block w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 font-mono text-[12px] font-semibold uppercase tracking-wide text-zinc-900 outline-none transition-all placeholder:font-sans placeholder:normal-case placeholder:tracking-normal placeholder:text-zinc-400 focus:border-[var(--app-primary)] focus:ring-1 focus:ring-[var(--app-primary)] dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-100"
+                                />
+                                <p className="mt-1.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+                                  Required when Helped by ANSH Saathi is on.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
@@ -1267,11 +1432,12 @@ export default function BillingSettingsPage() {
                       type="button"
                       onClick={handleProceedToPay}
                       disabled={
-                        checkoutMode === "add_seats" && !addSeatsProration
+                        (checkoutMode === "add_seats" && !addSeatsProration) ||
+                        saathiRequiredMissing
                       }
                       className="flex-1 inline-flex h-11 items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-[var(--app-primary)] to-emerald-500 text-xs font-bold text-white shadow-md hover:brightness-110 active:scale-[0.98] transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Proceed to Pay {formatPrice(subtotal, billingLocale)}
+                      Proceed to Pay {formatPrice(payableTotal, billingLocale)}
                     </button>
                   </div>
                 </>
