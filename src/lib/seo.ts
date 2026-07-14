@@ -173,7 +173,7 @@ export function buildLandingJsonLd() {
           {
             "@type": "Offer",
             name: "Pro Plan",
-            price: "199",
+            price: "299",
             priceCurrency: "INR",
             description: "Unlimited tasks and projects, activity feed, announcements",
             url: `${SITE_URL}/signup`,

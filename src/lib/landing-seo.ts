@@ -8,7 +8,7 @@ export const LANDING_FAQS = [
   {
     question: "What is ANSH Tasks and what does it do?",
     answer:
-      "ANSH Tasks (tasks.anshapps.com) is a task and project management workspace by ANSH Apps. It helps MSME teams assign work on Kanban boards, brainstorm on Brain Boards, track progress in an activity feed, post pinned announcements, manage teams with granular permissions, and raise support tickets — all in one app. Free plan available; Pro is ₹199/user/month + GST 18%.",
+      "ANSH Tasks (tasks.anshapps.com) is a task and project management workspace by ANSH Apps. It helps MSME teams assign work on Kanban boards, brainstorm on Brain Boards, track progress in an activity feed, post pinned announcements, manage teams with granular permissions, and raise support tickets — all in one app. Free plan available; Pro is ₹299/user/month + GST 18%.",
   },
   {
     question: "How does ANSH Tasks benefit MSMEs compared to other task management apps?",

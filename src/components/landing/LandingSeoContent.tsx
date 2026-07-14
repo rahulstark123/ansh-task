@@ -32,7 +32,7 @@ export function LandingSeoContent() {
           <li>Team activity feed and pinned workspace announcements (Pro)</li>
           <li>Role-based team permissions and project management</li>
           <li>Integrated support ticketing from your dashboard</li>
-          <li>Free plan for micro teams; Pro at ₹199/user/month + GST 18%</li>
+          <li>Free plan for micro teams; Pro at ₹299/user/month + GST 18%</li>
         </ul>
         <h2>Frequently asked questions</h2>
         {LANDING_FAQS.map((faq) => (

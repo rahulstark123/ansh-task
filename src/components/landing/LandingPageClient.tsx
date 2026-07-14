@@ -152,7 +152,7 @@ const PRICING_PLANS = [
     id: "pro",
     name: "Pro Plan",
     badge: "Best for MSMEs",
-    priceInr: 199,
+    priceInr: 299,
     cadence: "/ user / month",
     description:
       "Best for small and medium businesses that need unlimited tasks, brain boards, and advanced reporting.",

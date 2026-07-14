@@ -149,7 +149,7 @@ export default function BillingSettingsPage() {
   const [workspaceSaathiCode, setWorkspaceSaathiCode] = useState<string | null>(null);
   const [saathiCodeInput, setSaathiCodeInput] = useState("");
   // Keep sample receipt tooling; set true only while previewing PDF layout.
-  const SHOW_TEST_RECEIPT_BUTTON = true;
+  const SHOW_TEST_RECEIPT_BUTTON = false;
   const [sampleReceiptLoading, setSampleReceiptLoading] = useState(false);
 
   // Fetch current plan from DB
@@ -264,7 +264,7 @@ export default function BillingSettingsPage() {
       ? seatsPurchased
       : userCount;
 
-  const monthlyPrice = billingLocale?.monthlyPriceMajor ?? 199;
+  const monthlyPrice = billingLocale?.monthlyPriceMajor ?? 299;
   const yearlyPriceTotal =
     billingLocale?.yearlyPriceTotalPerSeat ??
     Math.round(monthlyPrice * 12 * YEARLY_DISCOUNT);
