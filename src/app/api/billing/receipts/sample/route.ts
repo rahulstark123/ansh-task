@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildReceiptPdf } from "@/lib/billing/receipt-pdf";
+import { addGst } from "@/lib/billing/gst";
 import { SITE_NAME } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,9 @@ export async function GET() {
     const periodEnd = new Date(now);
     periodEnd.setMonth(periodEnd.getMonth() + 1);
     const year = now.getFullYear();
+    // 3 seats × ₹199 = ₹597 exclusive → +18% GST
+    const exclusiveMinor = 59700;
+    const { totalMinor } = addGst(exclusiveMinor);
 
     const pdf = await buildReceiptPdf({
       invoiceNumber: `INV-${year}-000001`,
@@ -26,7 +30,7 @@ export async function GET() {
       description: `Sample subscription for ${SITE_NAME} Pro (monthly billing) - preview only`,
       billingCycle: "monthly",
       seats: 3,
-      amountMinor: 59700,
+      amountMinor: totalMinor,
       currency: "INR",
       razorpayOrderId: "order_SAMPLE_PREVIEW_ONLY",
       razorpayPaymentId: "pay_SAMPLE_PREVIEW_ONLY",

@@ -14,6 +14,7 @@ const COMPANY_SELECT = {
   billingEmail: true,
   address: true,
   cityCountry: true,
+  saathiCode: true,
 } as const;
 
 function mapCompany(workspace: {
@@ -27,6 +28,7 @@ function mapCompany(workspace: {
   billingEmail: string | null;
   address: string | null;
   cityCountry: string | null;
+  saathiCode: string | null;
 }) {
   return {
     id: workspace.id,
@@ -39,6 +41,7 @@ function mapCompany(workspace: {
     billingEmail: workspace.billingEmail ?? "",
     address: workspace.address ?? "",
     cityCountry: workspace.cityCountry ?? "",
+    saathiCode: workspace.saathiCode ?? null,
   };
 }
 

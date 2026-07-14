@@ -57,7 +57,11 @@ export function AppSidebar() {
       </div>
 
       {/* Navigation Menu */}
-      <nav className={`flex-1 space-y-4 overflow-hidden py-2 ${isSidebarCollapsed ? "px-2" : "px-3"}`}>
+      <nav
+        className={`app-sidebar-scroll flex-1 min-h-0 space-y-4 overflow-y-auto overflow-x-hidden py-2 ${
+          isSidebarCollapsed ? "px-2" : "px-3"
+        }`}
+      >
         {NAV_SECTIONS.map((section) => (
           <div key={section.id} className="space-y-1">
             {!isSidebarCollapsed ? (

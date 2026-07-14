@@ -79,6 +79,7 @@ export default function SignupPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [showConnecting, setShowConnecting] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [saathiCode, setSaathiCode] = useState("");
 
   // Read error parameter from URL if redirected from auth callback with failure
   useEffect(() => {
@@ -278,7 +279,7 @@ export default function SignupPage() {
       </div>
 
       {/* RIGHT PANE - Signup Form */}
-      <div className="flex w-full items-center justify-center bg-white px-6 lg:w-1/2">
+      <div className="flex w-full items-start justify-center bg-white px-6 pt-14 pb-10 sm:pt-16 lg:w-1/2 lg:items-center lg:py-12">
         <div className="w-full max-w-md space-y-8">
           
           <div className="text-center">
@@ -349,6 +350,12 @@ export default function SignupPage() {
                 sessionStorage.setItem("ansh_onboarding_name", fullName);
                 sessionStorage.setItem("ansh_onboarding_email", email);
                 sessionStorage.setItem("ansh_onboarding_accepted_terms", "true");
+                const trimmedSaathiCode = saathiCode.trim().toUpperCase();
+                if (trimmedSaathiCode) {
+                  sessionStorage.setItem("ansh_onboarding_saathi_code", trimmedSaathiCode);
+                } else {
+                  sessionStorage.removeItem("ansh_onboarding_saathi_code");
+                }
                 if (data?.user?.id) {
                   sessionStorage.setItem("ansh_onboarding_uid", data.user.id);
                   posthog.identify(data.user.id, { email, name: fullName });
@@ -514,6 +521,31 @@ export default function SignupPage() {
                     )}
                   </div>
                 )}
+              </div>
+
+              <div>
+                <label
+                  htmlFor="saathiCode"
+                  className="block text-[10px] font-bold uppercase tracking-widest text-zinc-500"
+                >
+                  Helped by ANSH Saathi{" "}
+                  <span className="font-medium normal-case tracking-normal text-zinc-400">
+                    (optional)
+                  </span>
+                </label>
+                <div className="mt-2">
+                  <input
+                    id="saathiCode"
+                    name="saathiCode"
+                    type="text"
+                    value={saathiCode}
+                    onChange={(e) => setSaathiCode(e.target.value)}
+                    placeholder="Mention the Saathi Code here"
+                    autoComplete="off"
+                    maxLength={32}
+                    className="block w-full rounded-xl border border-zinc-300 bg-white px-4 py-3.5 text-sm text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)] outline-none transition-all placeholder:text-zinc-400 focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
+                  />
+                </div>
               </div>
 
               <div className="flex items-start gap-2.5 pt-1">

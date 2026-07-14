@@ -8,6 +8,7 @@ import {
 import { getRazorpayConfig, getRazorpayInstance } from "@/lib/billing/razorpay";
 import { getScheduledProSubscription } from "@/lib/billing/subscription-lifecycle";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { withGstForCurrency } from "@/lib/billing/gst";
 
 export const dynamic = "force-dynamic";
 
@@ -72,23 +73,26 @@ export async function POST(request: Request) {
       );
     }
 
-    // 4. Count workspace seats
+    // 4. Seat count — prefer checkout selection, fall back to current members
     const seatsCount = await prisma.user.count({
       where: { workspaceId: wid },
     });
-    const seats = Math.max(seatsCount, 1);
+    const requestedSeats = Math.floor(Number(body.seats) || 0);
+    const seats = Math.max(requestedSeats > 0 ? requestedSeats : seatsCount, 1);
 
     const { countryCode, currency } = resolveCheckoutFromRequest(
       request,
       body.billingCountry
     );
 
-    const amountMinor = computeUpgradeCheckoutMinor({
+    const exclusiveMinor = computeUpgradeCheckoutMinor({
       currency,
       billingCycle,
       seats,
       cfg,
     });
+    const { exclusiveMinor: taxableMinor, gstMinor, totalMinor: amountMinor } =
+      withGstForCurrency(exclusiveMinor, currency);
 
     const rzp = getRazorpayInstance();
     const order = await rzp.orders.create({
@@ -101,10 +105,50 @@ export async function POST(request: Request) {
         seats: String(seats),
         countryCode,
         chargeCurrency: currency,
+        taxableMinor: String(taxableMinor),
+        gstMinor: String(gstMinor),
+        gstPercent: currency === "INR" ? "18" : "0",
       },
     });
 
     // 7. Upsert Subscription (PENDING) + create Transaction (CREATED)
+    const helpedBySaathi = Boolean(body.helpedBySaathi);
+    let saathiCode: string | null = null;
+    if (helpedBySaathi) {
+      const workspace = await prisma.workspace.findUnique({
+        where: { id: wid },
+        select: { saathiCode: true },
+      });
+      const fromWorkspace = workspace?.saathiCode?.trim().toUpperCase() || null;
+      const fromBody =
+        typeof body.saathiCode === "string"
+          ? body.saathiCode.trim().toUpperCase()
+          : "";
+      const normalizedBody =
+        fromBody.length > 0 && fromBody.length <= 32 ? fromBody : null;
+
+      saathiCode = fromWorkspace || normalizedBody;
+
+      if (!saathiCode) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Saathi code is required when Helped by ANSH Saathi is enabled.",
+          },
+          { status: 400 }
+        );
+      }
+
+      // Backfill workspace if signup did not capture a code.
+      if (!fromWorkspace) {
+        await prisma.workspace.update({
+          where: { id: wid },
+          data: { saathiCode },
+        });
+      }
+    }
+
     const sub = await prisma.subscription.create({
       data: {
         workspaceId: wid,
@@ -114,6 +158,7 @@ export async function POST(request: Request) {
         amountPaisa: amountMinor,
         billingCycle,
         razorpayOrderId: order.id,
+        saathiCode,
       },
     });
 
@@ -136,9 +181,14 @@ export async function POST(request: Request) {
         billing_cycle: billingCycle,
         seat_count: seats,
         amount_minor: amountMinor,
+        taxable_minor: taxableMinor,
+        gst_minor: gstMinor,
+        gst_percent: 18,
         currency,
         country_code: countryCode,
         razorpay_order_id: order.id,
+        helped_by_saathi: helpedBySaathi,
+        saathi_code: saathiCode,
       },
     });
 

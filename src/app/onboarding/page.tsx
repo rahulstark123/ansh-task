@@ -52,6 +52,7 @@ export default function OnboardingPage() {
   const [task2, setTask2] = useState("");
   const [task3, setTask3] = useState("");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [saathiCode, setSaathiCode] = useState("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -67,6 +68,10 @@ export default function OnboardingPage() {
       const savedAccepted = sessionStorage.getItem("ansh_onboarding_accepted_terms");
       if (savedAccepted === "true") {
         setAcceptedTerms(true);
+      }
+      const savedSaathiCode = sessionStorage.getItem("ansh_onboarding_saathi_code");
+      if (savedSaathiCode) {
+        setSaathiCode(savedSaathiCode);
       }
     }
   }, []);
@@ -132,6 +137,7 @@ export default function OnboardingPage() {
         name: workspaceName,
         industry: workspaceIndustry,
         size: workspaceSize,
+        saathiCode: saathiCode.trim().toUpperCase() || null,
       },
       project: {
         name: projName,

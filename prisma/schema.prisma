@@ -63,6 +63,8 @@ model Workspace {
   cityCountry  String?
   plan         String   @default("free") // "free" | "trial" | "pro"
   planExpiresAt DateTime?
+  /// Optional partner referral code (e.g. SAATHI-00001). Null for existing workspaces.
+  saathiCode   String?  @map("saathi_code") @db.VarChar(32)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -372,6 +374,8 @@ model Subscription {
   startsAt    DateTime?
   expiresAt   DateTime?
   razorpayOrderId String?
+  /// Copied from Workspace.saathiCode when buyer opts in at checkout.
+  saathiCode  String?  @map("saathi_code") @db.VarChar(32)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
