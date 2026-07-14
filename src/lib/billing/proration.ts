@@ -6,7 +6,7 @@ import {
 } from "@/lib/billing/charge-region";
 
 /** Public INR prices (must match billing settings UI). */
-export const BILLING_MONTHLY_PRICE_INR = 199;
+export const BILLING_MONTHLY_PRICE_INR = 299;
 export const BILLING_YEARLY_DISCOUNT = 0.81;
 
 export type BillingCycle = "monthly" | "yearly";
@@ -32,8 +32,8 @@ function daysBetween(start: Date, end: Date): number {
 }
 
 export function getMonthlyPaisaPerSeat(monthlyPaisaFromEnv?: number): number {
-  const configured = monthlyPaisaFromEnv ?? 19900;
-  return configured > 0 ? Math.trunc(configured) : 19900;
+  const configured = monthlyPaisaFromEnv ?? BILLING_MONTHLY_PRICE_INR * 100;
+  return configured > 0 ? Math.trunc(configured) : BILLING_MONTHLY_PRICE_INR * 100;
 }
 
 /** @deprecated Use getFullPeriodMinorPerSeat from charge-region */

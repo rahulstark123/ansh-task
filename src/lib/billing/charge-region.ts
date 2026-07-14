@@ -4,7 +4,7 @@ import {
 } from "@/lib/billing/proration";
 
 /** Fixed USD list price per seat / month (outside India). */
-export const BILLING_MONTHLY_PRICE_USD = 2.49;
+export const BILLING_MONTHLY_PRICE_USD = 4;
 
 export type ChargeCurrency = "INR" | "USD";
 
@@ -39,11 +39,11 @@ export function getMonthlyMinorPerSeat(
 ): number {
   if (currency === "INR") {
     const paisa = config?.inrPaisa ?? BILLING_MONTHLY_PRICE_INR * 100;
-    return paisa > 0 ? Math.trunc(paisa) : 19900;
+    return paisa > 0 ? Math.trunc(paisa) : BILLING_MONTHLY_PRICE_INR * 100;
   }
   const cents =
     config?.usdCents ?? Math.round(BILLING_MONTHLY_PRICE_USD * 100);
-  return cents > 0 ? Math.trunc(cents) : 249;
+  return cents > 0 ? Math.trunc(cents) : Math.round(BILLING_MONTHLY_PRICE_USD * 100);
 }
 
 export function getFullPeriodMinorPerSeat(

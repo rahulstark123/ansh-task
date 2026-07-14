@@ -14,8 +14,8 @@ export async function GET() {
     const periodEnd = new Date(now);
     periodEnd.setMonth(periodEnd.getMonth() + 1);
     const year = now.getFullYear();
-    // 3 seats × ₹199 = ₹597 exclusive → +18% GST
-    const exclusiveMinor = 59700;
+    // 3 seats × ₹299 = ₹897 exclusive → +18% GST
+    const exclusiveMinor = 89700;
     const { totalMinor } = addGst(exclusiveMinor);
 
     const pdf = await buildReceiptPdf({
