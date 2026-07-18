@@ -1015,7 +1015,7 @@ export function LandingPageClient() {
             
             {/* Left Content Column */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-650 dark:text-indigo-400 text-xs font-semibold tracking-wide border border-indigo-500/20 animate-pulse">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-650 dark:text-indigo-400 text-xs font-semibold tracking-wide border border-indigo-500/20">
                 <SparklesIcon className="h-3.5 w-3.5" />
                 AI-Powered Workflow Automation
               </span>
