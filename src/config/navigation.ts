@@ -5,6 +5,7 @@ import {
   CheckCircleIcon,
   ClipboardDocumentListIcon,
   Cog6ToothIcon,
+  CreditCardIcon,
   HomeModernIcon,
   LightBulbIcon,
   MegaphoneIcon,
@@ -105,6 +106,12 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Workspace",
     items: [
       {
+        href: "/billing",
+        label: "Billing",
+        icon: CreditCardIcon,
+        match: "prefix",
+      },
+      {
         href: "/settings",
         label: "Settings",
         icon: Cog6ToothIcon,
@@ -138,6 +145,9 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/documents": "Documents",
   "/management/teams": "Teams",
   "/management/announcements": "Announcements",
+  "/billing": "Billing",
+  "/billing/app": "App Billing",
+  "/billing/ai-usage": "AI Usage",
   "/settings": "Settings",
   "/settings/profile": "Profile",
   "/settings/company": "Company",
@@ -145,6 +155,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   "/settings/permissions": "Permissions",
   "/settings/defaults": "Task Defaults",
   "/settings/billing": "Billing",
+  "/settings/ai-usage": "AI Usage",
   "/support": "Support Center",
 };
 
@@ -165,5 +176,6 @@ export function isNavActive(
   if (match === "exact") return pathname === href;
   if (pathname === href) return true;
   if (href === "/settings" && pathname === "/settings/defaults") return false;
+  if (href === "/settings" && pathname.startsWith("/billing")) return false;
   return pathname.startsWith(`${href}/`);
 }

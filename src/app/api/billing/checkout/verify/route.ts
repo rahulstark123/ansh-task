@@ -156,6 +156,74 @@ export async function POST(request: Request) {
       });
     }
 
+    if (subscription.plan === "ai_addon") {
+      const activeSubscription = await prisma.subscription.findFirst({
+        where: {
+          workspaceId: wid,
+          status: "ACTIVE",
+          plan: "pro",
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const creditsPurchased = subscription.aiCredits;
+
+      if (activeSubscription) {
+        const newCreditsTotal = activeSubscription.aiCredits + creditsPurchased;
+
+        await prisma.$transaction([
+          prisma.transaction.update({
+            where: { id: transaction.id },
+            data: {
+              status: "SUCCESS",
+              razorpayPaymentId: razorpay_payment_id,
+              razorpaySignature: razorpay_signature,
+            },
+          }),
+          prisma.subscription.update({
+            where: { id: subscription.id },
+            data: { status: "ACTIVE" },
+          }),
+          prisma.subscription.update({
+            where: { id: activeSubscription.id },
+            data: { aiCredits: newCreditsTotal },
+          }),
+        ]);
+
+        await ensureReceipt(transaction.id);
+
+        return NextResponse.json({
+          success: true,
+          message: `Successfully purchased ${creditsPurchased} AI credits. Your total is now ${newCreditsTotal}.`,
+          mode: "ai_addon",
+        });
+      } else {
+        await prisma.$transaction([
+          prisma.transaction.update({
+            where: { id: transaction.id },
+            data: {
+              status: "SUCCESS",
+              razorpayPaymentId: razorpay_payment_id,
+              razorpaySignature: razorpay_signature,
+            },
+          }),
+          prisma.subscription.update({
+            where: { id: subscription.id },
+            data: { status: "ACTIVE" },
+          }),
+        ]);
+
+        await ensureReceipt(transaction.id);
+
+        return NextResponse.json({
+          success: true,
+          message: `Successfully purchased ${creditsPurchased} AI credits.`,
+          mode: "ai_addon",
+        });
+      }
+    }
+
     const billingCycle = subscription.billingCycle;
     const workspace = await prisma.workspace.findUnique({
       where: { id: wid },
@@ -183,10 +251,20 @@ export async function POST(request: Request) {
     const expiresAt = addBillingPeriod(startsAt, billingCycle);
     const scheduled = shouldDeferStart && startsAt > now;
 
+    let defaultAiCredits = 100;
+    const amount = subscription.amountPaisa / 100;
+    const seats = subscription.seatsCount || 1;
+    const cycleMonths = subscription.billingCycle === "yearly" ? 12 : 1;
+    const baseMonthlyPricePerSeat = amount / seats / cycleMonths;
+    if (baseMonthlyPricePerSeat >= 350) {
+      defaultAiCredits = 500;
+    }
+
     const subscriptionUpdate = {
       status: scheduled ? "SCHEDULED" : "ACTIVE",
       startsAt,
       expiresAt,
+      aiCredits: defaultAiCredits,
     } as const;
 
     const workspaceUpdates = scheduled

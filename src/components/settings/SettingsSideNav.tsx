@@ -12,7 +12,6 @@ const LINKS = [
   { href: "/settings/workspace", label: "Workspace" },
   { href: "/settings/permissions", label: "Permissions" },
   { href: "/settings/defaults", label: "Defaults" },
-  { href: "/settings/billing", label: "Billing" },
 ] as const;
 
 export function SettingsSideNav() {

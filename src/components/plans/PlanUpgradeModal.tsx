@@ -103,7 +103,7 @@ export function PlanUpgradeModal() {
                     type="button"
                     onClick={() => {
                       setOpen(false);
-                      router.push("/settings/billing");
+                      router.push("/billing/app");
                     }}
                     className="flex-1 rounded-xl bg-[var(--app-primary)] px-4 py-2.5 text-sm font-bold text-white shadow-md transition-all hover:brightness-110 active:scale-[0.99]"
                   >

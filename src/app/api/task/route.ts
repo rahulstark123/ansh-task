@@ -223,6 +223,7 @@ export async function PATCH(request: Request) {
       done,
       attachmentUrls,
       notes,
+      summary,
     } = body;
 
     if (!id) {
@@ -232,7 +233,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const updatedTask = await prisma.task.update({
+    const updatedTask = await (prisma.task.update as any)({
       where: { id },
       data: {
         title: title !== undefined ? title.trim() : undefined,
@@ -251,6 +252,7 @@ export async function PATCH(request: Request) {
         done: done !== undefined ? done : status !== undefined ? status === "done" : undefined,
         attachmentUrls: attachmentUrls !== undefined ? attachmentUrls : undefined,
         projectId: projectId !== undefined ? projectId : undefined,
+        summary: summary !== undefined ? summary : undefined,
       },
       include: { project: { select: { name: true } } },
     });

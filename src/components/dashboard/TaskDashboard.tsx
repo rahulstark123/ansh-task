@@ -26,6 +26,7 @@ import {
   ClipboardDocumentListIcon,
   EllipsisVerticalIcon,
   EyeIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { CheckCircleIcon as CheckCircleSolid } from "@heroicons/react/24/solid";
 import { motion, AnimatePresence } from "framer-motion";
@@ -33,6 +34,8 @@ import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 
 import { AddTaskModal } from "@/components/tasks/AddTaskModal";
+import { AnshCopilotModal } from "@/components/copilot/AnshCopilotModal";
+import { AiSummaryModal } from "@/components/copilot/AiSummaryModal";
 import { AppSelect } from "@/components/ui/AppSelect";
 import type { NewTaskPayload, Task, TaskNote, TaskPriority, TaskStatus } from "@/types/task";
 import { supabase } from "@/lib/supabase";
@@ -62,6 +65,27 @@ import {
 
 
 /* ─── helpers ─────────────────────────────────────────────── */
+
+function RobotIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M12 8V4M10 4h4" />
+      <rect width="16" height="12" x="4" y="8" rx="2" />
+      <path d="M9 13h.01M15 13h.01" />
+      <path d="M9 17h6" />
+      <path d="M2 13h2M20 13h2" />
+    </svg>
+  );
+}
 
 function getWid(): number {
   if (typeof window === "undefined") return 1;
@@ -800,8 +824,14 @@ export function TaskDashboard({
 
   // Modal & inline states
   const [addOpen, setAddOpen] = useState(false);
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+  const [copilotPrefilledData, setCopilotPrefilledData] = useState<any | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [editModalTask, setEditModalTask] = useState<Task | null>(null);
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [summaryModalTask, setSummaryModalTask] = useState<Task | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryText, setSummaryText] = useState("");
   const [editModalSession, setEditModalSession] = useState(0);
   const [addModalSession, setAddModalSession] = useState(0);
   const [addModalDefaultStatus, setAddModalDefaultStatus] = useState<string | null>(null);
@@ -1498,6 +1528,80 @@ export function TaskDashboard({
     }
   }
 
+  async function handleAiSummarise(task: Task, forceRefresh = false) {
+    setSummaryModalTask(task);
+    setIsSummaryOpen(true);
+
+    if (task.summary && !forceRefresh) {
+      setSummaryText(task.summary);
+      setSummaryLoading(false);
+      return;
+    }
+
+    setSummaryLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Unknown User";
+      const userEmail = user?.email || "unknown@domain.com";
+      const wid = getWid();
+
+      const res = await fetch("/api/ai/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: task.title,
+          description: task.description || "",
+          status: task.status || "todo",
+          priority: task.priority || "medium",
+          category: task.category || "General",
+          assignee: task.assignee || "Unassigned",
+          notes: task.notes || "",
+          workspaceId: wid,
+          userName,
+          userEmail,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Summarize request failed");
+      const json = await res.json();
+      if (!json.success || !json.summary) throw new Error(json.error || "Summarize response invalid");
+
+      const generatedSummary = json.summary;
+
+      // Save to DB
+      const patchRes = await fetch("/api/task", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: task.id,
+          summary: generatedSummary,
+        }),
+      });
+
+      if (!patchRes.ok) throw new Error("Saving summary to task failed");
+      window.dispatchEvent(new Event("update-ai-credits"));
+
+      // Update local state lists
+      updateTaskInLists(task.id, (t) => ({ ...t, summary: generatedSummary }));
+
+      // Update the current selected task in the drawer so it reflects immediately
+      setSelectedTask((prev) => {
+        if (prev && prev.id === task.id) {
+          return { ...prev, summary: generatedSummary };
+        }
+        return prev;
+      });
+
+      setSummaryText(generatedSummary);
+    } catch (err) {
+      console.error("AI Summarize error:", err);
+      showToast("Failed to generate AI summary", "error" as any);
+      setIsSummaryOpen(false);
+    } finally {
+      setSummaryLoading(false);
+    }
+  }
+
   async function handleQuickAddCard(status: TaskStatus) {
     if (!enforcePermission(canCreateTasks)) return;
     if (!enforceTaskCreationLimit()) return;
@@ -1686,6 +1790,18 @@ export function TaskDashboard({
           </div>
 
           <div className="flex items-center gap-2.5">
+            {/* ANSH Copilot AI Action Button */}
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={() => setIsCopilotOpen(true)}
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-indigo-200 bg-indigo-50/40 hover:bg-indigo-100/40 dark:border-indigo-500/25 dark:bg-indigo-950/20 dark:hover:bg-indigo-900/20 px-3.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 shadow-sm transition-colors cursor-pointer"
+            >
+              <RobotIcon className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
+              ANSH Copilot
+            </motion.button>
+
             <div className="min-w-[10.5rem]">
               <AppSelect
                 value={filterProjectId}
@@ -2554,9 +2670,19 @@ export function TaskDashboard({
               <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-6 [scrollbar-gutter:stable] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-300 dark:[&::-webkit-scrollbar-thumb]:bg-zinc-600">
                 {/* Title */}
                 <div className="min-w-0 space-y-1.5 pb-4 pt-6">
-                  <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
-                    Title
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+                      Title
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleAiSummarise(selectedTask)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-indigo-200/60 bg-indigo-50/20 hover:bg-indigo-100/30 dark:border-indigo-500/20 dark:bg-indigo-950/20 dark:hover:bg-indigo-900/20 px-2 py-0.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 transition-colors cursor-pointer"
+                    >
+                      <RobotIcon className="h-3 w-3" />
+                      AI Summarise
+                    </button>
+                  </div>
                   {isEditingTaskDetails ? (
                     <input
                       type="text"
@@ -3287,10 +3413,46 @@ export function TaskDashboard({
       <AddTaskModal
         key={`add-${addModalSession}`}
         open={addOpen}
-        onClose={() => setAddOpen(false)}
+        onClose={() => {
+          setAddOpen(false);
+          setCopilotPrefilledData(null);
+        }}
         onCreate={handleAddTaskFromModal}
         assignees={assigneePickerList}
         defaultStatus={addModalDefaultStatus as import("@/types/task").TaskStatus | null}
+        prefilledData={copilotPrefilledData}
+      />
+
+      <AnshCopilotModal
+        open={isCopilotOpen}
+        onClose={() => setIsCopilotOpen(false)}
+        onGenerated={(parsedResult) => {
+          setIsCopilotOpen(false);
+          setCopilotPrefilledData(parsedResult);
+          setAddModalSession((s) => s + 1);
+          setAddModalDefaultStatus(parsedResult.status);
+          setAddOpen(true);
+        }}
+        assignees={assigneePickerList}
+        projects={projects}
+        customCategories={customCategories || []}
+      />
+
+      <AiSummaryModal
+        open={isSummaryOpen}
+        onClose={() => {
+          setIsSummaryOpen(false);
+          setSummaryModalTask(null);
+          setSummaryText("");
+        }}
+        taskTitle={summaryModalTask?.title || ""}
+        summaryText={summaryText}
+        loading={summaryLoading}
+        onResummarize={() => {
+          if (summaryModalTask) {
+            handleAiSummarise(summaryModalTask, true);
+          }
+        }}
       />
 
       <AddTaskModal

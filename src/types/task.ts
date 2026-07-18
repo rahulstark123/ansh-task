@@ -19,6 +19,7 @@ export type Task = {
   title: string;
   description?: string;
   notes?: string;
+  summary?: string | null;
   due: string;
   priority: TaskPriority;
   category?: string;
