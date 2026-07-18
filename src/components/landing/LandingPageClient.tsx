@@ -574,6 +574,16 @@ export function LandingPageClient() {
                 </div>
 
                 <div className="flex items-start gap-2.5">
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 mt-0.5 animate-pulse">
+                    <SparklesIcon className="h-3.5 w-3.5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">ANSH Copilot (AI)</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Generate MSME-focused project plans, task templates, sticky notes, announcements, and employee summaries instantly.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
                   <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-violet-400 mt-0.5">
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
