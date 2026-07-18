@@ -21,6 +21,7 @@ import {
   BellIcon,
   ChatBubbleLeftRightIcon,
   TicketIcon,
+  CpuChipIcon,
 } from "@heroicons/react/24/outline";
 import { useAppearance } from "@/context/AppearanceContext";
 import { supabase } from "@/lib/supabase";
@@ -56,6 +57,36 @@ export function AppTopBar() {
   const { setIsAppearanceOpen } = useAppearance();
   const { guardPathAccess } = usePermissionAccess();
   const { plan, isTrial, trialDaysLeft, isPlanExpiringSoon, planDaysLeft, hasScheduledPro, ready: planReady, guardPlanPathAccess } = useWorkspacePlan();
+
+  const [aiCredits, setAiCredits] = useState<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const wid = typeof window !== "undefined" ? sessionStorage.getItem("ansh_onboarding_wid") ?? "1" : "1";
+    
+    async function fetchCredits() {
+      try {
+        const res = await fetch(`/api/ai/usage?wid=${wid}`);
+        const json = await res.json();
+        if (json.success && active) {
+          setAiCredits(json.creditsRemaining);
+        }
+      } catch (err) {
+        console.error("Failed to fetch AI credits in TopBar:", err);
+      }
+    }
+    fetchCredits();
+
+    const handleUpdate = () => {
+      fetchCredits();
+    };
+    window.addEventListener("update-ai-credits", handleUpdate);
+
+    return () => {
+      active = false;
+      window.removeEventListener("update-ai-credits", handleUpdate);
+    };
+  }, [pathname]);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
     {
@@ -607,7 +638,7 @@ export function AppTopBar() {
           {/* Plan Status Badge */}
           {planReady && plan && (
             <Link
-              href="/settings/billing"
+              href="/billing/app"
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer ${
                 isTrial || isPlanExpiringSoon
                   ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/10 hover:brightness-110"
@@ -644,6 +675,18 @@ export function AppTopBar() {
                   Free
                 </>
               )}
+            </Link>
+          )}
+
+          {/* AI Credits Badge */}
+          {aiCredits !== null && (
+            <Link
+              href="/billing/ai-usage"
+              className="inline-flex h-7 items-center gap-1.5 rounded-full border border-indigo-250 bg-indigo-50/50 hover:bg-indigo-100/50 dark:border-indigo-500/20 dark:bg-indigo-950/20 dark:hover:bg-indigo-900/30 px-3 text-[10px] font-black uppercase tracking-wider text-indigo-650 dark:text-indigo-400 transition-colors shadow-sm cursor-pointer"
+              title="AI Credits Remaining"
+            >
+              <CpuChipIcon className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
+              <span>AI Credits: {aiCredits}</span>
             </Link>
           )}
 

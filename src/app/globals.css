@@ -414,3 +414,17 @@ input:-webkit-autofill:active {
     #71717a 100%
   );
 }
+
+@keyframes border-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-border-rotate {
+  animation: border-rotate 3s linear infinite;
+}
+

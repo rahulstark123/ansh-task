@@ -343,6 +343,18 @@ type AddTaskModalProps = {
   /** Pre-selected assignee */
   defaultAssignee?: string | null;
   defaultAssignees?: string[];
+  /** Prefilled data, e.g. from ANSH Copilot AI */
+  prefilledData?: {
+    title?: string;
+    description?: string;
+    category?: string;
+    priority?: TaskPriority;
+    status?: TaskStatus;
+    labels?: string[];
+    assignees?: string[];
+    projectId?: string | null;
+    dueLabel?: string;
+  } | null;
 };
 
 /* ─── main component ─────────────────────────────────────── */
@@ -358,6 +370,7 @@ export function AddTaskModal({
   defaultStatus: defaultStatusProp,
   defaultAssignee,
   defaultAssignees,
+  prefilledData,
 }: AddTaskModalProps) {
   const titleId = useId();
   const isEditMode = Boolean(taskToEdit?.id);
@@ -453,6 +466,26 @@ export function AddTaskModal({
       return;
     }
 
+    if (prefilledData) {
+      setTitle(prefilledData.title ?? "");
+      setDescription(prefilledData.description ?? "");
+      setCategory(prefilledData.category ?? "General");
+      setPriority(normalizeTaskPriority(prefilledData.priority ?? "medium"));
+      setStatus(prefilledData.status ?? "todo");
+      setLabels(prefilledData.labels ?? []);
+      setSelectedAssignees(prefilledData.assignees ?? []);
+      setProjectId(prefilledData.projectId ?? "__none__");
+      
+      const due = parseDueFromLabel(prefilledData.dueLabel || "No date");
+      setDueMode(due.mode);
+      setDueDate(due.date);
+      
+      setAttachments([]);
+      setDesignation("");
+      setRole("");
+      return;
+    }
+
     setProjectId(defaultProjectId ?? "__none__");
     setCategory(defaultCategory || "General");
     setPriority(normalizeTaskPriority(defaultPriority));
@@ -462,6 +495,7 @@ export function AddTaskModal({
   }, [
     open,
     taskToEdit,
+    prefilledData,
     defaultPriority,
     defaultStatus,
     defaultCategory,

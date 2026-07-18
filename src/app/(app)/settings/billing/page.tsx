@@ -45,6 +45,7 @@ const FEATURES: Feature[] = [
   { label: "Tasks",                         free: "50 / month",   pro: "Unlimited"      },
   { label: "Projects",                      free: "3 projects",   pro: "Unlimited"      },
   { label: "Team members",                  free: "2 members",    pro: "Per paid seat"  },
+  { label: "AI Credits",                    free: "20 credits",   pro: "100 credits included" },
   { label: "Brain Board",                   free: true,           pro: true             },
   { label: "Kanban & table views",          free: true,           pro: true             },
   { label: "Activity feed",                 free: false,          pro: true             },

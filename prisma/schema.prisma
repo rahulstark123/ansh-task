@@ -95,6 +95,7 @@ model Workspace {
   receipts      Receipt[]
   permissionSettings WorkspacePermissionSettings?
   announcements Announcement[]
+  aiUsageLogs   AiUsageLog[]
 }
 
 model WorkspaceRole {
@@ -189,6 +190,7 @@ model Task {
   title       String
   description String?
   notes       String?
+  summary     String?
   due         String
   priority    String   @default("medium") // "low" | "medium" | "high" | "urgent"
   category    String?
@@ -376,6 +378,7 @@ model Subscription {
   razorpayOrderId String?
   /// Copied from Workspace.saathiCode when buyer opts in at checkout.
   saathiCode  String?  @map("saathi_code") @db.VarChar(32)
+  aiCredits   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -425,5 +428,20 @@ model Receipt {
   transaction     Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, receiptNumber])
+  @@index([workspaceId, createdAt])
+}
+
+/// Log tracking AI consumption (Copilot prompt generation or task summarization).
+model AiUsageLog {
+  id             String   @id @default(uuid())
+  userName       String
+  userEmail      String
+  action         String   // e.g. "ANSH Copilot Task Generation" or "AI Task Summary"
+  creditConsumed Int      @default(1)
+  createdAt      DateTime @default(now())
+
+  workspaceId    Int
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
   @@index([workspaceId, createdAt])
 }

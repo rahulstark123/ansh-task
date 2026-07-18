@@ -110,6 +110,8 @@ const PATH_PERMISSION_RULES: Array<{ prefix: string; permission: string }> = [
   { prefix: "/settings/defaults", permission: "modify_workspace" },
   { prefix: "/settings/permissions", permission: "manage_members" },
   { prefix: "/settings/billing", permission: "view_invoices" },
+  { prefix: "/settings/ai-usage", permission: "view_invoices" },
+  { prefix: "/billing", permission: "view_invoices" },
 ];
 
 export function normalizeRole(value: unknown): AppRole {

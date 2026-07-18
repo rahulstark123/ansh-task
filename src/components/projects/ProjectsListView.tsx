@@ -36,7 +36,28 @@ import {
 } from "@/lib/plans";
 import { useWorkspacePlan } from "@/lib/useWorkspacePlan";
 import { AppMultiSelect } from "@/components/ui/AppMultiSelect";
+import { AnshProjectCopilotModal, type GeneratedProject } from "@/components/copilot/AnshProjectCopilotModal";
 
+function RobotIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M12 8V4M10 4h4" />
+      <rect width="16" height="12" x="4" y="8" rx="2" />
+      <path d="M9 13h.01M15 13h.01" />
+      <path d="M9 17h6" />
+      <path d="M2 13h2M20 13h2" />
+    </svg>
+  );
+}
 
 type Project = {
   id: string;
@@ -403,6 +424,32 @@ export function ProjectsListView() {
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
   const [isAddingTask, setIsAddingTask] = useState(false);
   const canCreateMoreProjects = isPro || projects.length < FREE_PLAN_PROJECTS_LIMIT;
+
+  // AI Copilot state
+  const [isCopilotOpen, setIsCopilotOpen] = useState(false);
+
+  const handleProjectGenerated = (generated: GeneratedProject) => {
+    // Pre-fill the Add Project form with AI-generated data
+    setName(generated.name || "");
+    setDescription(generated.description || "");
+    if (["Engineering","Design","Marketing","Sales","Operations","HR","Finance","Product","Support","Research"].includes(generated.category)) {
+      setCategory(generated.category as any);
+    }
+    if (["Discovery","Planning","Active","Review","Completed","On Hold"].includes(generated.status)) {
+      setStatus(generated.status as any);
+    }
+    if (["Urgent","High","Normal","Low"].includes(generated.priority)) {
+      setPriority(generated.priority as any);
+    }
+    if (["good","warn","danger","neutral"].includes(generated.health)) {
+      setHealth(generated.health as any);
+    }
+    if (generated.estimatedHours) {
+      setEstimatedHours(String(generated.estimatedHours));
+    }
+    setEditingProjectId(null);
+    setIsAddModalOpen(true);
+  };
 
   const enforceProjectLimit = () => {
     if (!planReady || canCreateMoreProjects) return true;
@@ -932,6 +979,19 @@ export function ProjectsListView() {
                 <span className="relative z-10">Table</span>
               </button>
             </div>
+
+            {/* ANSH Copilot Button */}
+            <button
+              type="button"
+              onClick={() => setIsCopilotOpen(true)}
+              className="relative inline-flex h-9 items-center gap-2 overflow-hidden rounded-lg bg-white px-3.5 text-xs font-bold text-zinc-800 shadow-sm transition-all hover:bg-stone-50/50 hover:scale-105 active:scale-95 dark:bg-zinc-900 dark:text-zinc-100 cursor-pointer border border-indigo-400/50"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 animate-pulse" />
+              <RobotIcon className="h-4 w-4 text-indigo-500 dark:text-indigo-400 shrink-0" />
+              <span className="relative bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent dark:from-indigo-400 dark:to-purple-400">
+                ANSH Copilot
+              </span>
+            </button>
 
             {/* Add Project Button */}
             <button
@@ -2160,6 +2220,13 @@ export function ProjectsListView() {
         onCreate={handleAddTask}
         assignees={["Unassigned", ...availableUsers.map((u) => u.name)]}
         defaultProjectId={selectedProject?.id ?? null}
+      />
+
+      {/* ANSH PROJECT COPILOT MODAL */}
+      <AnshProjectCopilotModal
+        open={isCopilotOpen}
+        onClose={() => setIsCopilotOpen(false)}
+        onGenerated={handleProjectGenerated}
       />
 
     </div>

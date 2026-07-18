@@ -41,6 +41,28 @@ import {
   type TeammateFormValues,
 } from "@/components/team/TeammateWizardModal";
 import { getEmployeeDisplayName } from "@/lib/team/employee-options";
+import { EmployeeSummaryModal } from "@/components/team/EmployeeSummaryModal";
+
+function RobotIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M12 8V4M10 4h4" />
+      <rect width="16" height="12" x="4" y="8" rx="2" />
+      <path d="M9 13h.01M15 13h.01" />
+      <path d="M9 17h6" />
+      <path d="M2 13h2M20 13h2" />
+    </svg>
+  );
+}
 
 type TaskMock = {
   id?: string;
@@ -609,6 +631,11 @@ export function TeamsManagementView() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<number>(1);
   const [loading, setLoading] = useState(true);
 
+  // Employee AI Summary state
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  // Maps memberId → previously generated summary text
+  const [memberSummaries, setMemberSummaries] = useState<Record<string, string>>({});
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -1036,7 +1063,7 @@ export function TeamsManagementView() {
               <p className="text-[11px] font-medium text-zinc-500">{seatStatusLine}</p>
               {planReady && isPro && !isTrial && seatsVacant === 0 && seatsPurchased != null && (
                 <Link
-                  href="/settings/billing"
+                  href="/billing/app"
                   className="mt-0.5 inline-flex text-[10px] font-semibold text-[var(--app-primary)] hover:underline"
                 >
                   Add more seats in Billing →
@@ -1318,27 +1345,38 @@ export function TeamsManagementView() {
                 </button>
               </div>
 
-              {/* Tabs */}
-              <div className="flex border-b border-zinc-100 px-6 dark:border-white/5">
-                {(["overview", "tasks", "activity"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`relative py-3.5 text-xs font-bold capitalize transition-all pr-5 ${
-                      activeTab === tab
-                        ? "text-[var(--app-primary)]"
-                        : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-                    }`}
-                  >
-                    {tab}
-                    {activeTab === tab && (
-                      <motion.div
-                        layoutId="activeTabIndicator"
-                        className="absolute bottom-0 left-0 right-5 h-0.5 bg-[var(--app-primary)]"
-                      />
-                    )}
-                  </button>
-                ))}
+              {/* Tabs + AI Summary button */}
+              <div className="flex items-center justify-between border-b border-zinc-100 px-6 dark:border-white/5">
+                <div className="flex">
+                  {(["overview", "tasks", "activity"] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`relative py-3.5 text-xs font-bold capitalize transition-all pr-5 ${
+                        activeTab === tab
+                          ? "text-[var(--app-primary)]"
+                          : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                      }`}
+                    >
+                      {tab}
+                      {activeTab === tab && (
+                        <motion.div
+                          layoutId="activeTabIndicator"
+                          className="absolute bottom-0 left-0 right-5 h-0.5 bg-[var(--app-primary)]"
+                        />
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {/* AI Summary button */}
+                <button
+                  type="button"
+                  onClick={() => setIsSummaryOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200/60 bg-indigo-50/20 hover:bg-indigo-100/30 dark:border-indigo-500/20 dark:bg-indigo-950/20 dark:hover:bg-indigo-900/20 px-2.5 py-1.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 transition-colors cursor-pointer mb-1.5"
+                >
+                  <RobotIcon className="h-3 w-3" />
+                  AI Summary
+                </button>
               </div>
 
               {/* Drawer Content */}
@@ -1668,6 +1706,25 @@ export function TeamsManagementView() {
         assignees={members.map((m) => m.name)}
         defaultAssignee={selectedMember?.name}
       />
+
+      {/* EMPLOYEE AI SUMMARY MODAL */}
+      {activeMember && (
+        <EmployeeSummaryModal
+          open={isSummaryOpen}
+          onClose={() => setIsSummaryOpen(false)}
+          employeeName={activeMember.name}
+          role={activeMember.role}
+          department={activeMember.dept}
+          designation={(activeMember as any).designation || ""}
+          joinedDate={activeMember.joinedDate}
+          reportsTo={activeMember.reportsTo}
+          tasks={activeMember.tasks as any[]}
+          existingSummary={memberSummaries[activeMember.id] ?? null}
+          onSummaryGenerated={(text) =>
+            setMemberSummaries((prev) => ({ ...prev, [activeMember.id]: text }))
+          }
+        />
+      )}
 
     </div>
   );

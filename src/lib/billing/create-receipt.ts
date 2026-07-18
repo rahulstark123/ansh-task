@@ -78,11 +78,17 @@ export async function createAndStoreReceiptForTransaction(
     tx.createdAt
   );
 
+  const isAiAddon = tx.subscription.plan === "ai_addon";
+
   const planLabel = isSeatAddon
     ? "Additional team seats"
+    : isAiAddon
+    ? "AI Credits Pack"
     : `${SITE_NAME} Pro (${cycle === "yearly" ? "Yearly" : "Monthly"})`;
   const label = isSeatAddon
     ? `Additional seats (${tx.subscription.seatsCount})`
+    : isAiAddon
+    ? `AI Credits Booster (+${tx.subscription.aiCredits} Credits)`
     : `ANSH Tasks Pro — ${cycle === "yearly" ? "Yearly" : "Monthly"}`;
 
   const pdf = await buildReceiptPdf({
@@ -96,6 +102,8 @@ export async function createAndStoreReceiptForTransaction(
     ownerPhone: owner?.phone ?? null,
     description: isSeatAddon
       ? `Prorated seat add-on for the current ${cycle} billing period`
+      : isAiAddon
+      ? `One-time purchase of ${tx.subscription.aiCredits} AI Credits`
       : `Subscription for ${SITE_NAME} Pro (${cycle} billing)`,
     billingCycle: cycle,
     seats: tx.subscription.seatsCount,
