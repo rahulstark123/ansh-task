@@ -313,6 +313,17 @@ export function LandingPageClient() {
       setTheme("light");
     }
     setMounted(true);
+
+    // Inject Lottie player script dynamically
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js";
+    script.async = true;
+    document.body.appendChild(script);
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
   }, [setTheme]);
 
   useEffect(() => {
@@ -993,6 +1004,90 @@ export function LandingPageClient() {
                 </div>
               </a>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ANSH Copilot AI Section */}
+      <section className="py-20 border-t border-zinc-200/50 dark:border-zinc-800/40 bg-white dark:bg-zinc-950 relative z-10">
+        <div className={LANDING_SHELL}>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            {/* Left Content Column */}
+            <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-650 dark:text-indigo-400 text-xs font-semibold tracking-wide border border-indigo-500/20 animate-pulse">
+                <SparklesIcon className="h-3.5 w-3.5" />
+                AI-Powered Workflow Automation
+              </span>
+              
+              <h2 className="font-heading text-3xl sm:text-4xl lg:text-[42px] font-extrabold tracking-tight leading-[1.1] text-zinc-900 dark:text-white">
+                Meet our{" "}
+                <span className="bg-gradient-to-r from-teal-400 via-indigo-500 to-purple-600 bg-clip-text text-transparent">
+                  ANSH Copilot
+                </span>
+              </h2>
+
+              <p className="text-zinc-600 dark:text-zinc-300 text-base sm:text-lg leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                Supercharge your business with ANSH Copilot. Tailored specifically for MSMEs, our built-in AI assistant helps you automate tedious tasks, brainstorm strategies, and analyze employee progress in seconds.
+              </p>
+
+              {/* AI Features Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-4 text-left">
+                {[
+                  {
+                    title: "AI Project & Task Templates",
+                    desc: "Instantly draft complete HR onboarding checklists, retail store schedules, GST preparation flows, or 7-day marketing campaigns.",
+                  },
+                  {
+                    title: "Interactive Brainstorming",
+                    desc: "Instantly generate and organize sticky notes on your Brain Boards to jumpstart planning sessions.",
+                  },
+                  {
+                    title: "Automated Bulletins",
+                    desc: "Quickly draft and format workspace announcements, pinned notices, and holiday updates for your team.",
+                  },
+                  {
+                    title: "Employee Summaries",
+                    desc: "Instantly summarize task histories, overdue deliverables, and key highlights for performance reviews.",
+                  },
+                ].map((feat, idx) => (
+                  <div key={idx} className="space-y-1.5">
+                    <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg bg-indigo-500/10 text-indigo-650 dark:bg-indigo-950/40 dark:text-indigo-400 text-xs font-bold">
+                        {idx + 1}
+                      </span>
+                      {feat.title}
+                    </h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-normal pl-7">
+                      {feat.desc}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Lottie Column */}
+            <div className="lg:col-span-5 flex justify-center items-center relative">
+              {/* Decorative backdrop glow */}
+              <div className="absolute inset-0 bg-indigo-500/10 rounded-full blur-[60px] pointer-events-none dark:bg-indigo-500/5" />
+              
+              <div 
+                className="w-full flex justify-center max-w-[450px]"
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    <lottie-player
+                      src="https://lottie.host/c939a8ce-bc30-41c6-a8bc-c75fe7f2fc9f/E76HcarHxM.json"
+                      background="transparent"
+                      speed="1"
+                      style="width: 100%; height: 100%; min-height: 350px; max-height: 450px;"
+                      loop
+                      autoplay
+                    ></lottie-player>
+                  `
+                }}
+              />
+            </div>
+
           </div>
         </div>
       </section>
