@@ -235,24 +235,24 @@ const COMPETITOR_COMPARISONS = [
     title: "Compared to Zoho Projects",
     summary: "Built for modern execution, not rigid corporate suites.",
     points: [
-      "Zoho Projects has a stuffy enterprise interface with rigid, complex workflow setups.",
-      "ANSH Tasks is visual, lightweight, and combines tasks with visual whiteboards and support natively.",
+      "Zoho Projects has a stuffy enterprise interface with rigid, complex workflow setups, and its AI is generic and expensive.",
+      "ANSH Tasks is visual, lightweight, and includes ANSH Copilot—fine-tuned for MSMEs (Retail store checkers, HR workflows, GST tasks) built right in.",
     ],
   },
   {
     title: "Compared to ClickUp & Monday",
     summary: "Save thousands on seat licenses without dashboard lag.",
     points: [
-      "ClickUp & Monday are highly customizable but get expensive quickly and suffer from heavy loading lag.",
-      "ANSH Tasks is lightweight, highly performant, and packs tasks, brain boards, activity feed, and support under one fixed-rate plan.",
+      "ClickUp & Monday charge heavy extra monthly subscription fees per user just to access AI prompts.",
+      "ANSH Tasks includes built-in AI credits (20/mo on Free, 100/mo on Pro) with cheap, one-time booster packages, all in a fast, lag-free UI.",
     ],
   },
   {
     title: "Compared to Trello & Slack",
     summary: "No more paying for multiple tools to get tasks and docs.",
     points: [
-      "Trello is too basic (no docs/support), while Slack is just messaging (no task boards)—leading to double subscriptions.",
-      "ANSH Tasks integrates Kanban boards, brain boards, activity feed, announcements, and support in one unified workspace.",
+      "Trello & Slack lack unified AI generation for drafting task checklists, brain-board sticky notes, announcements, or employee performance summaries.",
+      "ANSH Tasks integrates Kanban boards, Brain Boards, support, and ANSH Copilot AI features in a single unified workspace.",
     ],
   },
 ] as const;
@@ -1128,6 +1128,17 @@ export function LandingPageClient() {
               <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">Collaborative Brain Boards</h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Sketch flows, cluster sticky notes, and plan sprints. An visual ideation hub designed to turn abstract project thoughts into concrete, assignable tasks.
+              </p>
+            </div>
+
+            {/* Feature AI: ANSH Copilot */}
+            <div className="group bg-white dark:bg-zinc-900/60 border border-indigo-500/20 dark:border-indigo-500/15 p-8 rounded-2xl shadow-xs hover:border-indigo-500/30 dark:hover:border-indigo-500/25 hover:shadow-md transition-all duration-300">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-650 dark:text-indigo-400 mb-6 group-hover:scale-105 transition-transform duration-200">
+                <SparklesIcon className="h-6 w-6" />
+              </div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-2">ANSH Copilot (AI)</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                Generate tailored retail checklists, recruitment workflows, marketing campaigns, visual sticky notes, announcements, and employee performance summaries with fine-tuned AI.
               </p>
             </div>
 
