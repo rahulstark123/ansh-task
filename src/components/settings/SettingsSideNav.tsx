@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/settings/workspace", label: "Workspace" },
   { href: "/settings/permissions", label: "Permissions" },
   { href: "/settings/defaults", label: "Defaults" },
+  { href: "/settings/delete-account", label: "Delete Account" },
 ] as const;
 
 export function SettingsSideNav() {
@@ -27,6 +28,7 @@ export function SettingsSideNav() {
         {LINKS.map(({ href, label }) => {
           const active = isNavActive(pathname, href, "exact");
           const allowed = !ready || canAccessPath(href);
+          const isDelete = href === "/settings/delete-account";
           return (
             <Link
               key={href}
@@ -41,9 +43,13 @@ export function SettingsSideNav() {
               className={[
                 "whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
                 !allowed ? "opacity-45 cursor-not-allowed" : "",
-                active
-                  ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)] dark:bg-teal-950/40 dark:text-teal-100"
-                  : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/5 dark:hover:text-zinc-100",
+                isDelete
+                  ? active
+                    ? "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400"
+                    : "text-red-500 hover:bg-red-50/50 hover:text-red-600 dark:text-red-400 dark:hover:bg-red-950/20"
+                  : active
+                    ? "bg-[var(--app-primary-soft)] text-[var(--app-primary-soft-text)] dark:bg-teal-950/40 dark:text-teal-100"
+                    : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/5 dark:hover:text-zinc-100",
               ].join(" ")}
             >
               {label}
