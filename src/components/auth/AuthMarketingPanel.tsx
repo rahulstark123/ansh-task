@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BoltIcon,
-  ChatBubbleLeftRightIcon,
+  SparklesIcon,
   CheckCircleIcon,
   SquaresPlusIcon,
 } from "@heroicons/react/24/solid";
@@ -30,21 +30,21 @@ const SLIDES = [
   },
   {
     id: 1,
-    badge: "Team Collaboration",
-    badgeIcon: ChatBubbleLeftRightIcon,
+    badge: "ANSH Copilot",
+    badgeIcon: SparklesIcon,
     badgeColor: "text-indigo-400",
     title: (
       <>
-        Connect your
+        Supercharge with
         <br />
-        <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-          Entire Team
+        <span className="bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
+          Built-in AI Copilot
         </span>
         <br />
-        <span className="text-indigo-500">instantly</span>
+        <span className="text-indigo-500">intelligence</span>
       </>
     ),
-    copy: "Move faster with built-in rich chat, direct messages, and team channels. Keep conversations and tasks completely in sync.",
+    copy: "Generate subtasks, summarize project status, draft announcements, and organize workloads instantly with intelligent AI assistance.",
   },
   {
     id: 2,
@@ -149,17 +149,20 @@ export function AuthMarketingPanel() {
                 transition={{ duration: 0.5 }}
                 className="absolute inset-0"
               >
-                <div className="absolute bottom-16 left-16 w-80 rounded-2xl border border-white/5 bg-zinc-900/80 p-5 shadow-2xl backdrop-blur-xl">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-500 text-xs font-bold text-white">
-                      AR
+                <div className="absolute bottom-16 left-16 w-84 rounded-2xl border border-white/10 bg-zinc-900/85 p-5 shadow-2xl backdrop-blur-xl">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-500 text-white shadow-md">
+                      <SparklesIcon className="h-5 w-5" />
                     </div>
                     <div>
-                      <p className="text-[13px] font-bold text-white">
-                        Alex Rivera <span className="text-[10px] font-normal text-zinc-500">9:45 AM</span>
-                      </p>
-                      <p className="text-xs text-zinc-300">
-                        Design looks spot on. The new drawer interactions are buttery smooth. ✨
+                      <div className="flex items-center gap-2">
+                        <p className="text-[13px] font-bold text-white">ANSH Copilot</p>
+                        <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-[9px] font-bold text-indigo-300 border border-indigo-500/30">
+                          AI Active
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-xs leading-relaxed text-zinc-300">
+                        "Generated 5 subtasks & estimated timeline for Product Launch 🚀"
                       </p>
                     </div>
                   </div>

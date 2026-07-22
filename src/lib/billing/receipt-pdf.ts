@@ -157,7 +157,7 @@ export async function buildReceiptPdf(input: ReceiptPdfInput): Promise<Buffer> {
     font,
     color: slate500,
   });
-  page.drawText(pdfSafe("Built for Bharat, Ready for the World"), {
+  page.drawText(pdfSafe("Built for every business. Ready for what's next."), {
     x: titleX,
     y: height - 74,
     size: 8,
@@ -524,7 +524,7 @@ export async function buildReceiptPdf(input: ReceiptPdfInput): Promise<Buffer> {
 
   centerText(COMPANY_NAME, footerTop - 18, 10, fontBold, slate900);
   centerText(
-    "Built for Bharat, Ready for the World",
+    "Built for every business. Ready for what's next.",
     footerTop - 32,
     8,
     font,

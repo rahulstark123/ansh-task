@@ -12,6 +12,8 @@ import {
   CheckIcon,
   DocumentTextIcon,
   ArrowDownTrayIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { supabase } from "@/lib/supabase";
 
@@ -62,9 +64,9 @@ interface Receipt {
 }
 
 const CREDIT_PACKAGES = [
-  { credits: 100, price: 99, label: "Starter Booster" },
-  { credits: 500, price: 299, label: "Growth Booster" },
-  { credits: 1000, price: 699, label: "Enterprise Booster" },
+  { credits: 100, priceInr: 99, priceUsd: 1.49, label: "Starter Booster" },
+  { credits: 500, priceInr: 299, priceUsd: 3.99, label: "Growth Booster" },
+  { credits: 1000, priceInr: 699, priceUsd: 7.99, label: "Enterprise Booster" },
 ];
 
 const SHOW_TEST_RECEIPT_BUTTON = false;
@@ -76,7 +78,12 @@ export default function AiUsagePage() {
   const [creditsUsed, setCreditsUsed] = useState(0);
   const [creditsRemaining, setCreditsRemaining] = useState(20);
   const [logs, setLogs] = useState<UsageLog[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isCostModalOpen, setIsCostModalOpen] = useState(false);
+  const [billingLocale, setBillingLocale] = useState<{
+    countryCode: string;
+    chargeCurrency: "INR" | "USD";
+  }>({ countryCode: "IN", chargeCurrency: "INR" });
 
   // Buy Credits state
   const [isBuyModalOpen, setIsBuyModalOpen] = useState(false);
@@ -103,6 +110,7 @@ export default function AiUsagePage() {
         setCreditsUsed(json.creditsUsed);
         setCreditsRemaining(json.creditsRemaining);
         setLogs(json.logs);
+        setCurrentPage(1);
       } else {
         setError(json.error || "Failed to load usage data.");
       }
@@ -112,6 +120,25 @@ export default function AiUsagePage() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    async function loadFx() {
+      try {
+        const queryParams = typeof window !== "undefined" ? window.location.search : "";
+        const res = await fetch(`/api/billing/fx${queryParams}`, { cache: "no-store" });
+        const json = await res.json();
+        if (json.success) {
+          setBillingLocale({
+            countryCode: json.countryCode || "IN",
+            chargeCurrency: json.chargeCurrency || "INR",
+          });
+        }
+      } catch {
+        /* Fallback to IN */
+      }
+    }
+    loadFx();
   }, []);
 
   useEffect(() => {
@@ -158,9 +185,9 @@ export default function AiUsagePage() {
         body: JSON.stringify({
           workspaceId: parseInt(wid, 10),
           credits: pkg.credits,
-          priceInr: pkg.price,
+          priceInr: pkg.priceInr,
           email,
-          billingCountry: "IN",
+          billingCountry: billingLocale.countryCode,
         }),
       });
 
@@ -317,9 +344,19 @@ export default function AiUsagePage() {
     }
   };
 
+  const isUsd = billingLocale.chargeCurrency === "USD";
   const selectedPkg = CREDIT_PACKAGES[selectedPackageIdx];
-  const gstAmount = Math.round(selectedPkg.price * 18) / 100;
-  const totalAmount = selectedPkg.price + gstAmount;
+  const pkgPrice = isUsd ? selectedPkg.priceUsd : selectedPkg.priceInr;
+  const currencySymbol = isUsd ? "$" : "₹";
+  const gstAmount = isUsd ? 0 : Math.round(selectedPkg.priceInr * 18) / 100;
+  const totalAmount = isUsd ? selectedPkg.priceUsd : selectedPkg.priceInr + gstAmount;
+
+  // Pagination for Consumption Logs (10 per page)
+  const pageSize = 10;
+  const totalPages = Math.ceil(logs.length / pageSize) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, logs.length);
+  const paginatedLogs = logs.slice(startIndex, endIndex);
 
   return (
     <div className="w-full space-y-6">
@@ -472,7 +509,7 @@ export default function AiUsagePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-zinc-100 dark:divide-white/[0.03]">
-                    {logs.map((log) => (
+                    {paginatedLogs.map((log) => (
                       <tr key={log.id} className="hover:bg-stone-50/20 dark:hover:bg-zinc-950/5 transition-colors">
                         <td className="px-5 py-3.5 text-xs font-bold text-zinc-800 dark:text-zinc-200">
                           {log.action}
@@ -507,6 +544,40 @@ export default function AiUsagePage() {
                 </table>
               )}
             </div>
+
+            {/* Pagination Controls */}
+            {logs.length > 0 && (
+              <div className="px-5 py-3 border-t border-zinc-150 dark:border-white/[0.06] flex items-center justify-between bg-stone-50/40 dark:bg-zinc-950/10">
+                <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Showing <span className="font-semibold text-zinc-700 dark:text-zinc-200">{startIndex + 1}</span> to{" "}
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-200">{endIndex}</span> of{" "}
+                  <span className="font-semibold text-zinc-700 dark:text-zinc-200">{logs.length}</span> entries
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-semibold text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    title="Previous Page"
+                  >
+                    <ChevronLeftIcon className="h-3.5 w-3.5" />
+                  </button>
+                  <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400 px-1">
+                    {currentPage} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage >= totalPages}
+                    className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white p-1.5 text-xs font-semibold text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    title="Next Page"
+                  >
+                    <ChevronRightIcon className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -610,7 +681,7 @@ export default function AiUsagePage() {
                           </div>
                           <div className="text-right">
                             <span className="block text-sm font-heading font-black text-zinc-900 dark:text-zinc-50">
-                              ₹{pkg.price}
+                              {isUsd ? `$${pkg.priceUsd}` : `₹${pkg.priceInr}`}
                             </span>
                             <span className="block text-[9px] font-medium text-zinc-450 dark:text-zinc-505">
                               One-time purchase
@@ -625,15 +696,21 @@ export default function AiUsagePage() {
                   <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 dark:border-white/[0.04] dark:bg-zinc-950/20 space-y-2.5">
                     <div className="flex justify-between text-xs text-zinc-550 dark:text-zinc-400">
                       <span>Base Amount</span>
-                      <span className="font-bold text-zinc-700 dark:text-zinc-300">₹{selectedPkg.price}.00</span>
+                      <span className="font-bold text-zinc-700 dark:text-zinc-300">
+                        {currencySymbol}{pkgPrice.toFixed(2)}
+                      </span>
                     </div>
-                    <div className="flex justify-between text-xs text-zinc-550 dark:text-zinc-400">
-                      <span>IGST / CGST + SGST (18%)</span>
-                      <span className="font-bold text-zinc-700 dark:text-zinc-300">₹{gstAmount.toFixed(2)}</span>
-                    </div>
+                    {!isUsd && (
+                      <div className="flex justify-between text-xs text-zinc-550 dark:text-zinc-400">
+                        <span>IGST / CGST + SGST (18%)</span>
+                        <span className="font-bold text-zinc-700 dark:text-zinc-300">₹{gstAmount.toFixed(2)}</span>
+                      </div>
+                    )}
                     <div className="border-t border-zinc-200/60 pt-2.5 flex justify-between text-xs font-bold dark:border-white/5">
                       <span className="text-zinc-800 dark:text-zinc-100">Total Payable Amount</span>
-                      <span className="text-indigo-600 dark:text-indigo-400">₹{totalAmount.toFixed(2)}</span>
+                      <span className="text-indigo-600 dark:text-indigo-400">
+                        {currencySymbol}{totalAmount.toFixed(2)}
+                      </span>
                     </div>
                   </div>
 

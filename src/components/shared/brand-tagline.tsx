@@ -1,4 +1,4 @@
-type BharatTaglineProps = {
+type BrandTaglineProps = {
   className?: string;
   size?: "sm" | "md" | "lg" | "xl";
 };
@@ -10,12 +10,12 @@ const sizeClasses = {
   xl: "font-heading text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-semibold tracking-[0.08em]",
 };
 
-export function BharatTagline({ className = "", size = "md" }: BharatTaglineProps) {
+export function BrandTagline({ className = "", size = "md" }: BrandTaglineProps) {
   return (
     <p
-      className={`bharat-tagline-shimmer ${size !== "xl" ? "font-medium tracking-[0.12em]" : ""} ${sizeClasses[size]} ${className}`}
+      className={`brand-tagline-shimmer ${size !== "xl" ? "font-medium tracking-[0.12em]" : ""} ${sizeClasses[size]} ${className}`}
     >
-      Built for Bharat, Ready for the World
+      Built for every business. Ready for what&apos;s next.
     </p>
   );
 }

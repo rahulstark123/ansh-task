@@ -885,6 +885,7 @@ export default function BillingSettingsPage() {
               "50 tasks per month",
               "3 projects",
               "2 workspace members",
+              "20 AI Credits per month",
               "Brain Board included",
               "Kanban & table views",
               "Mobile app (Soon)",
@@ -1051,6 +1052,7 @@ export default function BillingSettingsPage() {
             {[
               "Unlimited tasks & projects",
               "Add team members based on paid seats",
+              "100 AI Credits included per month",
               "Activity feed included",
               "Announcements (post & pin)",
               ...(TEAM_SPACE_ENABLED ? ["Team Space channels & DMs"] : []),
