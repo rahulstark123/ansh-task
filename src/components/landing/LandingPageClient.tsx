@@ -1613,43 +1613,72 @@ export function LandingPageClient() {
         aria-labelledby="ansh-saathi-heading"
       >
         <div className={LANDING_SHELL}>
-          <div className="relative overflow-hidden rounded-[1.25rem] bg-[#151515] shadow-[0_24px_60px_-28px_rgba(0,0,0,0.55)]">
+          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e0d16] shadow-2xl">
+            {/* Top gradient border accent line */}
             <div
-              className="absolute inset-x-0 top-0 h-[3px] bg-gradient-to-r from-[#FF9933] via-white to-[#138808]"
+              className="absolute inset-x-0 top-0 h-[2.5px] bg-gradient-to-r from-sky-400 via-purple-400 to-pink-500"
               aria-hidden="true"
             />
-            <div className="flex flex-col gap-8 px-6 py-8 sm:px-8 sm:py-10 lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:px-10 lg:py-11">
-              <div className="max-w-2xl space-y-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#FF9933]">
-                  ANSH Saathi
+
+            <div className="flex flex-col gap-8 px-6 py-8 sm:px-10 sm:py-10 lg:flex-row lg:items-center lg:justify-between lg:gap-12 lg:px-12 lg:py-12">
+              <div className="max-w-2xl space-y-4">
+                {/* Header Tagline */}
+                <p className="text-[10px] sm:text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 font-mono">
+                  ANSH SAATHI — GLOBAL CHANNEL PARTNER PROGRAM
                 </p>
-                <h2
-                  id="ansh-saathi-heading"
-                  className="font-heading text-2xl font-bold tracking-tight text-white sm:text-3xl"
-                >
-                  Become an ANSH Saathi.
-                </h2>
-                <div
-                  className="h-0.5 w-12 rounded-full bg-gradient-to-r from-[#FF9933] via-white to-[#138808]"
-                  aria-hidden="true"
-                />
-                <p className="text-base font-semibold text-[#FF9933] sm:text-lg">
-                  Saath Chalein. Saath Badhein.
+
+                {/* Main Heading */}
+                <div className="space-y-2">
+                  <h2
+                    id="ansh-saathi-heading"
+                    className="font-heading text-2xl font-black tracking-tight text-white sm:text-3xl lg:text-4xl"
+                  >
+                    Become an ANSH Saathi.
+                  </h2>
+                  <div
+                    className="h-1 w-14 rounded-full bg-gradient-to-r from-sky-400 via-purple-400 to-pink-500"
+                    aria-hidden="true"
+                  />
+                </div>
+
+                {/* Subtitle */}
+                <p className="text-base font-bold bg-gradient-to-r from-cyan-400 via-purple-300 to-pink-400 bg-clip-text text-transparent sm:text-lg">
+                  Open to all. Anyone can become a channel partner.
                 </p>
-                <p className="max-w-xl text-sm leading-relaxed text-zinc-400 sm:text-[15px]">
-                  Walk alongside growing businesses. Help them grow with simple
-                  software — and build your own recurring income. First 20 founding
-                  Saathis. No joining fee.
+
+                {/* Description */}
+                <p className="text-xs sm:text-sm leading-relaxed text-zinc-400 max-w-xl">
+                  Student, freelancer, consultant, agency, or entrepreneur — from anywhere in the world. Help businesses adopt simple software and build your own recurring income. No joining fee.
                 </p>
+
+                {/* Badge Chips */}
+                <div className="pt-2 flex flex-wrap gap-2 sm:gap-2.5">
+                  {[
+                    "Open to everyone",
+                    "Any country",
+                    "No joining fee",
+                    "No tech background needed",
+                  ].map((chip) => (
+                    <span
+                      key={chip}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.05] px-3.5 py-1.5 text-xs font-medium text-zinc-300 backdrop-blur-md shadow-sm"
+                    >
+                      <CheckIcon className="h-3.5 w-3.5 text-zinc-400" />
+                      {chip}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="shrink-0">
+
+              {/* Action Button */}
+              <div className="shrink-0 lg:pt-0 pt-2">
                 <a
                   href={SAATHI_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-[#5b21b6] via-[#7c3aed] to-[#a855f7] px-6 py-3.5 text-sm font-semibold text-white shadow-[0_0_28px_rgba(124,58,237,0.45)] transition hover:brightness-110 hover:shadow-[0_0_36px_rgba(124,58,237,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#151515]"
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 px-7 py-3.5 text-sm font-bold text-white shadow-[0_0_30px_rgba(168,85,247,0.4)] transition hover:brightness-110 hover:shadow-[0_0_40px_rgba(168,85,247,0.65)] hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  Become a Saathi
+                  Become a Partner
                   <ArrowRightIcon className="h-4 w-4" aria-hidden="true" />
                 </a>
               </div>
