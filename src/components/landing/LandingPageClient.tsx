@@ -35,7 +35,7 @@ import { formatChargeAmount } from "@/lib/billing/charge-region";
 import { TEAM_SPACE_ENABLED } from "@/config/features";
 import { LANDING_FAQS } from "@/lib/landing-seo";
 import { SAATHI_URL } from "@/lib/site";
-import { BharatTagline } from "@/components/shared/bharat-tagline";
+import { BrandTagline } from "@/components/shared/brand-tagline";
 import { TrustCompliance } from "@/components/shared/trust-compliance";
 import { GstinBadge, MsmeBadge, UdyamNumberBadge } from "@/components/shared/msme-badge";
 
@@ -152,7 +152,7 @@ const PRICING_PLANS = [
   {
     id: "pro",
     name: "Pro Plan",
-    badge: "Best for MSMEs",
+    badge: "Best for Growing Teams",
     priceInr: 299,
     cadence: "/ user / month",
     description:
@@ -236,7 +236,7 @@ const COMPETITOR_COMPARISONS = [
     summary: "Built for modern execution, not rigid corporate suites.",
     points: [
       "Zoho Projects has a stuffy enterprise interface with rigid, complex workflow setups, and its AI is generic and expensive.",
-      "ANSH Tasks is visual, lightweight, and includes ANSH Copilot—fine-tuned for MSMEs (Retail store checkers, HR workflows, GST tasks) built right in.",
+      "ANSH Tasks is visual, lightweight, and includes ANSH Copilot—fine-tuned for real business workflows (retail checklists, HR workflows, compliance tasks) built right in.",
     ],
   },
   {
@@ -522,7 +522,7 @@ export function LandingPageClient() {
               {/* Product Badge */}
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-700 dark:text-violet-400 text-xs font-semibold tracking-wide border border-violet-500/20">
                 <SparklesIcon className="h-3.5 w-3.5" />
-                Built for MSMEs & Growing Businesses
+                For Startups, Teams & Businesses of Every Size
               </div>
 
               {/* Main Headline */}
@@ -532,7 +532,7 @@ export function LandingPageClient() {
                 </span>
                 {" — "}Run Your Entire{" "}
                 <span className="text-zinc-900 dark:text-white">
-                  MSME Operations
+                  Business Operations
                 </span>{" "}
                 in One Workspace
               </h1>
@@ -549,8 +549,8 @@ export function LandingPageClient() {
                     <CheckIcon className="h-3.5 w-3.5 stroke-[3]" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">MSME-Friendly Tasks</h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Simple drag-and-drop Kanban to track inventory, client orders, GST filings, and daily checklists.</p>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Effortless Task Tracking</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Simple drag-and-drop Kanban to track client orders, deliverables, compliance deadlines, and daily checklists.</p>
                   </div>
                 </div>
 
@@ -560,7 +560,7 @@ export function LandingPageClient() {
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Visual Brain Boards</h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Map warehouse layouts, Diwali discount campaigns, & logistics flows.</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Map ideas, marketing campaigns, workflows, & logistics flows visually.</p>
                   </div>
                 </div>
 
@@ -580,7 +580,7 @@ export function LandingPageClient() {
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Workspace Announcements</h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Pin GST deadlines, holiday notices, and policy updates for your whole team.</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Pin key deadlines, holiday notices, and policy updates for your whole team.</p>
                   </div>
                 </div>
 
@@ -590,7 +590,7 @@ export function LandingPageClient() {
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">ANSH Copilot (AI)</h4>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Generate MSME-focused project plans, task templates, sticky notes, announcements, and employee summaries instantly.</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Generate ready-to-use project plans, task templates, sticky notes, announcements, and team summaries instantly.</p>
                   </div>
                 </div>
 
@@ -640,10 +640,10 @@ export function LandingPageClient() {
               {/* Trust Section */}
               <div className="pt-6 space-y-2">
                 <p className="text-lg sm:text-xl font-bold text-zinc-800 dark:text-zinc-200 tracking-tight">
-                  Built for Bharat, Ready for the World
+                  Built for every business. Ready for what&apos;s next.
                 </p>
                 <p className="text-sm sm:text-base font-semibold text-blue-600 dark:text-violet-400 tracking-wide">
-                  encouraging Vasudhaiva Kutumbakam
+                  One workspace for teams everywhere
                 </p>
               </div>
 
@@ -1028,7 +1028,7 @@ export function LandingPageClient() {
               </h2>
 
               <p className="text-zinc-600 dark:text-zinc-300 text-base sm:text-lg leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                Supercharge your business with ANSH Copilot. Tailored specifically for MSMEs, our built-in AI assistant helps you automate tedious tasks, brainstorm strategies, and analyze employee progress in seconds.
+                Supercharge your business with ANSH Copilot. Built for teams of every size, our built-in AI assistant helps you automate tedious tasks, brainstorm strategies, and analyze employee progress in seconds.
               </p>
 
               {/* AI Features Grid */}
@@ -1099,7 +1099,7 @@ export function LandingPageClient() {
           {/* Header */}
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
             <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Streamline Your Entire MSME Operations Natively
+              Streamline Your Entire Business Operations Natively
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
               No need to pay for 4-5 different software tools. ANSH Tasks consolidates your core business collaboration under one affordable billing plan.
@@ -1227,7 +1227,7 @@ export function LandingPageClient() {
               Simple Pricing
             </div>
             <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Affordable plans tailored for MSMEs
+              Affordable plans for teams of every size
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
               Start free with tasks, projects, and Brain Board — upgrade to Pro for activity feed, announcements, and Advanced Analytics.
@@ -1340,7 +1340,7 @@ export function LandingPageClient() {
               Why Teams Switch
             </div>
             <h2 className="font-heading text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Why MSMEs choose ANSH Tasks over Zoho Projects, Monday, ClickUp, and Trello
+              Why teams choose ANSH Tasks over Zoho Projects, Monday, ClickUp, and Trello
             </h2>
             <p className="text-zinc-500 dark:text-zinc-400 text-base sm:text-lg">
               We are built for small & medium businesses that want real work execution, cleaner collaboration, and zero setup friction in one product.
@@ -1388,7 +1388,7 @@ export function LandingPageClient() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="rounded-2xl border border-violet-500/20 bg-blue-500/5 p-5">
                 <h4 className="text-sm font-black uppercase tracking-widest text-blue-700 dark:text-violet-400">
-                  The ANSH Tasks Model for MSMEs
+                  The ANSH Tasks Model for Modern Teams
                 </h4>
                 <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
                   A unified tool that any non-technical employee can adopt in minutes. Tasks, whiteboards, activity feed, announcements, and support desks all live together. No hidden setups or extra license costs.
@@ -1637,7 +1637,7 @@ export function LandingPageClient() {
                   Saath Chalein. Saath Badhein.
                 </p>
                 <p className="max-w-xl text-sm leading-relaxed text-zinc-400 sm:text-[15px]">
-                  Walk alongside Indian businesses. Help MSMEs grow with simple
+                  Walk alongside growing businesses. Help them grow with simple
                   software — and build your own recurring income. First 20 founding
                   Saathis. No joining fee.
                 </p>
@@ -1756,7 +1756,7 @@ export function LandingPageClient() {
           <h2 className="font-heading text-[10vw] sm:text-[12vw] font-black tracking-tighter leading-none select-none bg-gradient-to-r from-[#00c6ff] via-[#7000ff] to-[#e040fb] bg-clip-text text-transparent pr-4">
             Ansh Apps
           </h2>
-          <BharatTagline size="xl" className="mt-4 sm:mt-6 max-w-5xl px-4" />
+          <BrandTagline size="xl" className="mt-4 sm:mt-6 max-w-5xl px-4" />
         </div>
       </section>
 

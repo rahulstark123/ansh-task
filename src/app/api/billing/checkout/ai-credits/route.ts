@@ -61,11 +61,11 @@ export async function POST(request: Request) {
     
     // Support non-INR if billingCountry is international (though Razorpay is mainly INR)
     if (currency !== "INR") {
-      // rough USD conversion if international: ₹99 -> $1.49, ₹299 -> $3.99, ₹599 -> $7.99
+      // rough USD conversion if international: ₹99 -> $1.49, ₹299 -> $3.99, ₹699 -> $7.99
       const usdPriceMap: Record<number, number> = {
         99: 149,
         299: 399,
-        699: 899,
+        699: 799,
       };
       exclusiveMinor = usdPriceMap[basePriceInr] || 149;
     }

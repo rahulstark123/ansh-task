@@ -2,7 +2,7 @@ import { COMPANY_NAME, COMPANY_URL, SITE_NAME, SITE_URL } from "@/lib/site";
 
 /** Crawlable copy describing what ANSH Tasks does — used in JSON-LD, noscript, and meta. */
 export const WHAT_ANSH_TASKS_DOES =
-  "ANSH Tasks is the task and project management app from ANSH Apps, built for Micro, Small & Medium Enterprises (MSMEs) in India and worldwide. It combines Kanban task boards, visual Brain Boards for brainstorming, team activity feed, workspace announcements, role-based permissions, and integrated support ticketing in one affordable workspace — so teams stop paying for separate tools like Zoho Projects, Monday.com, ClickUp, Trello, Slack, and Miro.";
+  "ANSH Tasks is the task and project management app from ANSH Apps, built for Micro, Small & Medium Enterprises (MSMEs) and growing teams worldwide. It combines Kanban task boards, visual Brain Boards for brainstorming, team activity feed, workspace announcements, role-based permissions, and integrated support ticketing in one affordable workspace — so teams stop paying for separate tools like Zoho Projects, Monday.com, ClickUp, Trello, Slack, and Miro.";
 
 export const LANDING_FAQS = [
   {
